@@ -348,7 +348,7 @@ README.md
 - **验收标准**：全部命令通过；业务能力仍未被伪实现；文档状态真实。
 - **风险和回滚方法**：不降低门禁掩盖失败；逐项回滚最近配置变更。
 - **实际执行结果**：已创建 GitHub Actions 质量工作流，固化冻结安装、ruff、strict mypy、密钥卫生、完整 pytest、真实 PostgreSQL 迁移往返、API/Worker bootstrap 和 Compose 配置门禁；已更新 AGENTS/README 和全部阶段出口文档。新增仓库密钥卫生脚本，扫描 tracked/untracked 非忽略文本并拒绝常见私钥、供应商 Token 和非占位凭据。
-- **实际验证结果**：通过。完整本地阶段验收的锁文件、ruff、mypy、密钥扫描、完整测试、真实 PostgreSQL 迁移往返、包/直接依赖导入、API/Worker 检查、Compose 配置与五容器健康检查均通过；远程 GitHub Actions 结果在推送后记录。
+- **实际验证结果**：通过。完整本地阶段验收的锁文件、ruff、mypy、密钥扫描、35 项测试、真实 PostgreSQL 迁移往返、包/直接依赖导入、API/Worker 检查、Compose 配置与五容器健康检查均通过；首次远程 GitHub Actions run `30512828689` 为 Success（40 秒），随后将产生警告的 `actions/checkout@v4` 升级为 `v5`。
 - **计划偏差**：CI 使用单一 job 顺序执行门禁而未拆并行 job，以避免重复安装并保证迁移/测试共享同一 PostgreSQL 基线；不降低任何计划门禁。
 
 ## 15. 测试与验证方案
