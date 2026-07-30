@@ -1,0 +1,444 @@
+---
+document_id: ENGINEERING-STANDARDS
+status: active
+last_updated_at: "2026-07-30"
+applies_to: D:/download/myself
+---
+
+# 工程标准
+
+## 文档导航
+
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [决策与风险](./07-decisions-and-risks.md)
+
+## 1. 适用范围
+
+本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目没有业务代码，因此工具配置和命令将在 Phase 01 落地；本文件定义不得违反的行为。
+
+冲突处理：
+
+1. 用户最新明确指令。
+2. 已接受 ADR。
+3. [项目总纲](./00-project-master.md)。
+4. 本标准。
+5. 阶段文档和模块局部约定。
+
+## 2. 事实与变更管理
+
+1. 计划、实现、验证和发布必须是不同状态。
+2. “已实现”要求同时存在代码、必要迁移和自动化测试。
+3. 修改能力名称或阶段归属时同步更新[能力矩阵](./02-ragflow-capability-matrix.md)和[开发路线图](./05-development-roadmap.md)。
+4. 修改模块边界时同步更新[目标架构](./03-target-architecture.md)。
+5. 修改 RAGFlow 采用分类时同步更新[代码复用策略](./04-code-reuse-strategy.md)。
+6. 新决策先记录到[决策与风险](./07-decisions-and-risks.md)，接受后再实施。
+7. 禁止把浮动 RAGFlow `main` 的行为当成冻结基线事实。
+
+## 3. Python 与依赖
+
+### 3.1 语言和环境
+
+- Python 3.13。
+- `uv` 管理环境、依赖和 lock。
+- 运行和测试不得依赖未写入项目依赖清单的本机包。
+- 生产依赖、开发依赖和可选 Parser/模型依赖必须分组。
+
+### 3.2 类型
+
+1. 新增公共函数、方法、DTO 和端口必须有完整类型标注。
+2. 禁止在领域接口使用无说明的 `dict[str, Any]` 代替稳定 DTO。
+3. 外部 JSON 在接口边界验证后才能进入应用层。
+4. Parser 原始字典必须在 Adapter 内转换为 ParsedDocument。
+5. `Any` 只允许用于外部库边界，并要求就地收窄。
+
+### 3.3 依赖引入
+
+引入新依赖必须记录：
+
+- 使用能力。
+- 无该依赖的替代方案。
+- 许可证。
+- 包大小和原生依赖。
+- Python 3.13 兼容性。
+- 安全维护状态。
+- 是否进入默认安装或可选 extra。
+
+模型权重和原生二进制不等同于 Python 包，必须单独登记。
+
+### 3.4 Phase 01 待落地工具
+
+- `pytest` 作为测试运行器。
+- `ruff` 作为格式和 lint 候选。
+- 类型检查器仍待 Phase 01 决定。
+- 命令确定后写入根 `AGENTS.md` 和 README。
+
+在工具未确定前，不得在文档伪造已存在的 CI 命令。
+
+## 4. 包结构与导入边界
+
+### 4.1 领域层
+
+`src/app/knowledge/domain`：
+
+- 只包含实体、值对象、状态规则和领域错误。
+- 不导入 FastAPI、SQLAlchemy、LangChain、LangGraph、Redis、MinIO、Elasticsearch、OpenSearch 或 RAGFlow。
+- 不读取环境变量。
+- 不建立网络连接。
+
+### 4.2 端口层
+
+`src/app/knowledge/ports`：
+
+- 定义 Protocol/ABC、请求和响应 DTO。
+- 不包含具体客户端。
+- 每个端口必须有契约测试套件。
+
+### 4.3 应用层
+
+- 编排领域对象和端口。
+- 定义事务/补偿边界。
+- 不构造供应商特有 DSL。
+- 不通过 `common.settings` 或全局变量取连接。
+
+### 4.4 基础设施层
+
+- 实现端口。
+- 负责外部异常到领域错误的转换。
+- 负责连接池、序列化、重试和超时。
+- RAGFlow 派生代码默认只允许在 `infrastructure/ragflow_adapters`。
+
+### 4.5 Agent 层
+
+- LangGraph State 不替代数据库实体。
+- Tool 只调用应用服务。
+- Agent 节点不访问 SQLAlchemy Session、Redis client 或 Search client。
+- Agent 的循环、预算、超时和终止必须显式。
+
+### 4.6 进程入口
+
+- `src/app/bootstrap/api.py` 和 `src/app/bootstrap/ingestion_worker.py` 是同一模块化单体的两个入口。
+- 两个入口共享领域模型、应用服务和端口，不复制代码、不建立内部 HTTP 调用。
+- FastAPI 入口不得导入并直接运行 Parser/OCR/Embedding pipeline。
+- Worker 入口不得导入 API 路由，也不得构造 HTTP request context。
+- 进程特有 wiring 留在 bootstrap；业务模块不得根据“当前是 API 还是 Worker”分支执行不同领域规则。
+
+## 5. 异步与并发
+
+1. FastAPI 路径不得执行长时间 CPU/OCR/Embedding 工作。
+2. 同步第三方库在明确线程池或任务 Worker 中执行。
+3. 不在异步函数中调用无界阻塞 I/O。
+4. 每个外部调用必须有超时。
+5. 批处理必须有可配置上限。
+6. 并发写索引必须按 IngestionJob/DocumentVersion 保证幂等。
+7. 取消使用明确 CancellationToken 或任务状态，不能只依赖协程取消异常。
+8. Worker 关闭时停止领取新任务并安全处理或退回当前任务。
+9. Worker 必须在业务状态和任务结果持久化后按协议 ACK；异常后无条件 ACK 被禁止。
+10. 队列消息只携带版本化任务 envelope 和稳定 ID；Worker 通过 `tenant_id + job_id` 重新加载状态。
+
+## 6. 配置与密钥
+
+配置分为：
+
+- 应用配置。
+- 数据库配置。
+- 对象存储配置。
+- 搜索配置。
+- Redis/任务配置。
+- 模型 Provider 配置。
+- Parser/OCR 资源配置。
+- Agent 限制。
+- 评测配置。
+
+规则：
+
+1. 配置 Schema 必须验证。
+2. `.env.example` 只包含占位符。
+3. 密钥不得进入源码、文档、日志、Trace、AgentState、测试 fixture 或 Git 历史。
+4. 环境变量只在 bootstrap 读取，业务模块使用注入后的配置对象。
+5. 配置变化影响结果时，RetrievalTrace/IngestionTrace 记录配置版本或摘要。
+
+## 7. API 标准
+
+1. API Schema 与领域 DTO 分开。
+2. 路由只做验证、认证上下文、应用服务调用和响应映射。
+3. 错误响应包含稳定 `error_code` 和 `trace_id`。
+4. 不向客户端返回原始数据库、Redis、搜索或模型异常。
+5. 文件上传验证 MIME、扩展名、大小和内容策略。
+6. 流式响应定义开始、Token、Tool、Citation、错误和结束事件。
+7. 幂等写操作接受或生成 idempotency key。
+8. 分页参数和 TopK/TopN 有服务端上限。
+9. OpenAPI 必须与实现同步。
+10. `AuthorizationContext` 从可信认证信息构造；请求中的 `tenant_id` 只能作为业务目标候选，不能覆盖认证 tenant。
+11. ingestion API 返回持久化 Job 标识和状态，不等待 Parser/OCR/Embedding 完成。
+
+## 8. 领域数据与数据库
+
+1. 数据库变化只通过 Alembic。
+2. 迁移必须有升级和安全回滚/补偿说明。
+3. ID 在应用层生成或使用明确数据库策略，不混用无约定方案。
+4. 时间统一保存 UTC，API 显式转换。
+5. JSON 字段必须有版本化 Schema，不能成为逃避建模的默认选择。
+6. Document 与 DocumentVersion 分离。
+7. IngestionJob 保留阶段、状态、attempt、错误和 Trace。
+8. 删除默认先取消可见性，再回收物理数据。
+9. 关系库是业务状态事实源；搜索索引可重建。
+10. 数据库事务不能假装覆盖对象存储和搜索引擎，必须使用补偿或候选版本。
+11. 所有 tenant-owned 聚合与跨进程 Job 必须显式存储 `tenant_id`；不得只通过父表联查或 ID 命名推断 tenant。
+12. `KnowledgeBase` 和 `Document` 第一版至少存储 `owner_id` 与 `visibility`。
+
+### 8.1 第一版多租户与权限标准
+
+1. 第一层授权永远是 `resource.tenant_id == AuthorizationContext.tenant_id`；跨租户默认拒绝。
+2. 应用层只能通过要求 `AuthorizationContext` 或显式 tenant 的 Repository 方法访问 tenant-owned 数据。
+3. 禁止向应用层暴露无 tenant 条件的 `get_by_id`、`list_all`、`delete_by_id` 和批量更新方法。
+4. `PermissionChecker` 集中处理 tenant、owner 和 visibility；路由、Service、Tool 和 Worker 不各自实现一套权限 if/else。
+5. Search Adapter 必须把 tenant 条件作为不可删除的 AND 过滤；metadata filter 和用户请求只能进一步收窄范围。
+6. IndexRecord 必须包含可过滤的 `tenant_id`；是否使用共享索引或每租户索引不能替代字段级校验。
+7. 对象存储 key、Redis key、锁、队列消息、Checkpoint、Trace 和审计事件必须 tenant-scoped。
+8. KnowledgeBaseTool 和子 Agent 继承调用者 `AuthorizationContext`，不得接受模型生成的新 tenant。
+9. CitationBuilder 在生成前再次验证候选 tenant/visibility，不返回无权元数据。
+10. 第一版不要求复杂 RBAC、部门权限和动态数据规则，但接口和 Schema 变化不得阻断这些能力后续接入。
+
+## 9. 对象存储
+
+1. Object key 使用稳定 ID。
+2. 保存内容哈希、长度和 MIME。
+3. 上传后验证写入结果。
+4. 下载必须有大小和超时限制。
+5. Parser 临时文件使用受控目录并保证清理。
+6. 删除必须幂等。
+7. 原始文件和派生工件采用不同前缀和生命周期策略。
+
+## 10. Parser 与 Chunk 标准
+
+对应 `CAP-01` 至 `CAP-07`。
+
+### 10.1 Parser
+
+1. 输入是 ParseRequest，输出是 ParsedDocument。
+2. 保留页码、bbox、source_order、heading_path、表格和图片关系。
+3. 每个 warning 和降级可观察。
+4. Parser 不写数据库或搜索引擎。
+5. OCR 和 Vision 模型由端口注入。
+6. 文件类型不支持时返回稳定错误，不返回空成功。
+
+### 10.2 Chunk
+
+1. Chunker 输入统一 ParsedDocument。
+2. Chunk ID 稳定算法必须版本化。
+3. 记录 source_block_ids。
+4. Token 上限、重叠、父子关系和表图上下文必须配置化。
+5. 自动关键词、自动问题、摘要、标题和 TOC 是独立增强步骤。
+6. 增强失败默认不破坏基础 Chunk；例外必须由策略明确。
+7. 每个 Chunk Method 有黄金样本和回归测试。
+
+## 11. Embedding 与索引标准
+
+对应 `CAP-08`。
+
+1. 每个向量记录模型、Provider、版本和维度。
+2. 写入前校验维度。
+3. Embedding 批处理有 Token/条数上限。
+4. 文本规范化规则版本化。
+5. 新 Embedding 模型写入新 index_version。
+6. 索引写入使用稳定 document_version_id 和 chunk_id。
+7. 候选索引完整性验证后才能激活。
+8. 批量写入错误必须能定位失败记录。
+
+## 12. 检索标准
+
+对应 `CAP-09` 至 `CAP-22`。
+
+1. RetrievalQuery 是唯一查询入口。
+2. 查询改写、跨语言和关键词扩展分别记录原始输入和输出。
+3. Metadata Filter 先解析为受控 AST。
+4. 权限约束在检索前注入。
+5. 全文、向量、Rerank 和最终分数分别保存。
+6. 不同后端分数必须规范化后再融合。
+7. 候选清理记录淘汰原因。
+8. TopK 是候选池，TopN 是最终结果，不混用。
+9. 空结果与后端错误使用不同 `empty_reason/error_code`。
+10. RetrievalTrace 足以重建每个阶段。
+11. SearchPort Adapter 必须运行相同契约测试。
+
+### 12.1 时序 RAG 附加标准
+
+对应 `CAP-43 时序 RAG`，仅在 Phase 09 能力开关开启时适用。
+
+1. 时间戳必须显式携带时区或规范化时区，禁止以无时区字符串作为领域事实。
+2. 时序记录至少携带 `tenant_id`、数据源、序列/实体标识、单位、质量标记和数据版本。
+3. 时间窗口、采样、插值、降采样和聚合方法必须进入请求协议与 Retrieval Trace。
+4. Citation 必须能够定位原始时间范围、查询条件、聚合规则和数据版本。
+5. 普通知识索引不能依赖时序后端；关闭时序能力后，Phase 04/06 的普通 RAG 契约和索引仍可独立运行。
+6. 不得把 RAGFlow timeline knowledge compilation、普通元数据时间过滤或日志文本向量检索描述成完整时序 RAG。
+7. 时序存储后端、保留策略和第一批数据协议未经 ADR 确认前，只能标记为待验证。
+
+## 13. Citation 标准
+
+对应 `CAP-21 引用与来源定位`。
+
+每个 Citation 至少包含：
+
+- knowledge_base_id
+- document_id
+- document_version_id
+- chunk_id
+- page
+- bbox
+- quote
+- source_uri
+
+规则：
+
+1. 引用必须来自最终允许证据。
+2. quote 必须能在目标 Chunk 或规范化文本中验证。
+3. 已删除或无权限文档不返回 Citation。
+4. 模型生成的引用标记必须经过服务端验证。
+5. 不用数组位置作为长期 Citation 身份。
+
+## 14. Agent 与 LangGraph 标准
+
+对应 `CAP-28` 至 `CAP-32`。
+
+1. AgentState 字段稳定、可序列化、可版本化。
+2. 每个节点只有清晰输入、输出和副作用。
+3. 副作用节点必须可幂等恢复。
+4. Checkpoint key 包含 thread/run 身份。
+5. 最大循环、最大 Tool 调用、Token/成本预算和超时必须配置。
+6. HITL interrupt 保存审批原因、待执行动作和上下文摘要。
+7. 恢复时验证状态版本和权限。
+8. Tool 返回结构化结果和稳定错误。
+9. 多 Agent 必须有 supervisor、终止条件和共享状态边界。
+10. Agent 不得绕过 KnowledgeQueryService。
+
+## 15. 后台任务标准
+
+对应 `CAP-23` 至 `CAP-26`、`CAP-38`。
+
+任务消息至少包含：
+
+- job_id
+- tenant_id
+- job_type
+- aggregate_id
+- requested_stage
+- attempt
+- idempotency_key
+- trace_id
+- created_at
+
+规则：
+
+1. 数据库先记录业务任务，再投递。
+2. 消费前检查任务当前状态。
+3. ACK 只在安全持久化后发生。
+4. retry 区分瞬时、永久和取消错误。
+5. 取消不等于删除任务记录。
+6. 进度必须单调或明确说明阶段切换。
+7. 死信/最终失败必须可查询。
+8. Worker 心跳和积压指标必须存在。
+9. Worker 必须比较消息 tenant 与数据库 Job tenant；不一致时拒绝、审计且不执行。
+10. API 和 Worker 对任务 envelope 使用同一版本化 Schema 和契约测试。
+
+## 16. 日志、指标与 Trace
+
+每条结构化日志至少包含可用字段：
+
+- timestamp
+- level
+- service/component
+- trace_id
+- tenant_id（仅作为内部隔离/审计标识，不输出敏感租户信息）
+- request_id 或 job_id 或 run_id
+- operation
+- duration_ms
+- outcome
+- error_code
+
+禁止记录：
+
+- API key
+- 数据库密码
+- 完整授权头
+- 无必要的原始文档全文
+- 无必要的用户隐私数据
+
+关键指标：
+
+- API 请求数、错误率、延迟。
+- 队列积压、任务阶段、重试、取消和失败。
+- Parser 页数、耗时和错误。
+- Embedding 条数、Token、延迟和费用。
+- 搜索、Rerank、生成的延迟和错误。
+- Agent 节点、循环、Tool、恢复和 HITL。
+
+## 17. 测试标准
+
+### 17.1 测试层次
+
+| 层次 | 目标 |
+|---|---|
+| Unit | 纯规则、状态机、分数、过滤、DTO |
+| Contract | Port 的所有 Adapter 行为一致 |
+| Integration | PostgreSQL、Redis、对象存储、搜索、模型 stub |
+| E2E | 上传到回答、Agent 到 Tool |
+| Evaluation | 检索、答案、引用、Agent 和性能指标 |
+
+### 17.2 必测故障
+
+- 重复任务。
+- Worker 崩溃。
+- Parser 超时。
+- Embedding 部分失败。
+- 搜索批量写入部分失败。
+- 更新失败保留旧版本。
+- 删除部分失败。
+- 无权限检索。
+- 跨租户 Repository、Search、ObjectStore、队列消息、Tool 和 Citation 访问。
+- owner/visibility 组合和伪造 tenant/resource ID。
+- Agent 循环上限。
+- Checkpoint 恢复。
+- HITL 重复提交。
+- 模型超时和限流。
+
+### 17.3 测试数据
+
+1. fixture 必须说明来源和许可证。
+2. 轨道交通样本脱敏。
+3. 黄金输出版本化。
+4. 评测集和开发集分离。
+5. 不用生产敏感数据作为默认测试资源。
+
+## 18. RAGFlow 复用标准
+
+1. 严格执行[代码复用策略](./04-code-reuse-strategy.md)。
+2. 每个复用文件记录上游完整 commit、路径、符号、许可证和修改。
+3. 不导入 RAGFlow `common.settings`、Peewee Model、Quart Request 或 Canvas。
+4. 上游行为先有测试，再改造。
+5. 第三方模型和资源单独审计。
+6. 直接复用必须获得明确批准；当前无批准项。
+
+## 19. Definition of Done
+
+一项能力只有同时满足下列条件才完成：
+
+1. 能力矩阵条目和阶段一致。
+2. 代码符合导入边界。
+3. 数据库迁移存在并验证；无迁移需求时明确说明。
+4. 单元、契约、集成或 E2E 测试按风险完成。
+5. 错误、超时、取消和重试行为已测试。
+6. 日志、指标和 Trace 足以诊断。
+7. 安全和敏感信息检查通过。
+8. 文档、ADR、源码 provenance 已更新。
+9. 无计划项被误标为已实现。
+10. 用户要求的验收方法通过。
+
+## 20. Codex 交付规则
+
+1. 修改前读取总纲、决策文档和对应专项文档。
+2. 先检查工作树，不覆盖用户修改。
+3. 只修改任务范围内文件。
+4. 优先小步、可验证变更。
+5. 验证命令与结果必须在交付说明中列出。
+6. 未运行的测试必须明确说明原因。
+7. 发现文档与代码冲突时先报告并修正文档状态。
+8. 未经用户决定，不替待确认项做选择。
