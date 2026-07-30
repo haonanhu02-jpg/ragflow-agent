@@ -18,7 +18,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 - 上游固定 commit：`cd846cc9d4e32a19e684c59a1f302601027ef976`。
 - 分析范围：Python。
 - 当前批准直接复制的源文件：无。
-- 当前项目状态：只有文档，没有复用代码。
+- 当前项目状态：Phase 04 已完成最小 RAG，但 RAGFlow 直接复用和改造复用代码仍为零；现有实现均为独立代码。
 - 能力分类以[能力矩阵](./02-ragflow-capability-matrix.md)为准。
 - 每个候选的源码符号和调用关系以[源码证据地图](./research/ragflow-source-map.md)为证据入口；仅有同名文件不构成可复用结论。
 
@@ -85,8 +85,8 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 | `api/db/services/knowledgebase_service.py`、`api/common/check_team_permission.py` | `_visibility_and_status_filter`、`accessible`、`check_kb_team_permission` | Peewee、TenantService、UserTenant、me/team permission、状态枚举 | 极高 | Apache-2.0；当前不复制 | 参考重写 | 提取访问用例测试；用 PermissionChecker 和 Repository/Search tenant 约束重建，不复制分散检查 | `src/ragflow_agent/security/permissions.py`、`src/ragflow_agent/knowledge/ports/permissions.py` |
 | `api/db/services/file_service.py` | `upload_document`、`delete_docs` | Peewee、对象存储全局、Document/File Service | 极高 | Apache-2.0；当前不复制 | 参考重写 | 拆为 DocumentLifecycleService、Repository、ObjectStoragePort | `src/ragflow_agent/lifecycle/` |
 | `api/db/services/document_service.py` | `run`、`do_cancel`、`remove_document`、`delete_chunk_images` | Peewee、settings、Redis、DocStore、TaskService、FileService | 极高 | Apache-2.0；当前不复制 | 参考重写 | 用 DocumentVersion/IngestionJob 和补偿状态机重建 | `src/ragflow_agent/lifecycle/`、`src/ragflow_agent/ingestion/` |
-| `api/db/services/task_service.py` | `queue_tasks`、`get_task`、`do_cancel`、`has_canceled`、`cancel_all_task_of` | Peewee、Redis Streams、settings、Parser 配置；Task tenant 依赖联查 | 极高 | Apache-2.0；当前不复制 | 参考重写 | 同仓库 TaskQueuePort + IngestionJobRepository；消息只含 tenant_id/job_id；具体队列实现待确认 | `src/ragflow_agent/knowledge/ports/tasks.py`、`src/ragflow_agent/ingestion/jobs.py` |
-| `rag/utils/redis_conn.py` | `RedisMsg.ack`、`queue_product`、`queue_consumer`、`get_unacked_iterator` | redis-py、Redis Streams、进程连接和日志 | 高 | Apache-2.0；redis-py 单独登记 | 参考重写 | 作为 TaskQueuePort Redis 候选证据；重新定义 ACK、retry、claim、dead-letter 和 shutdown 契约 | `src/ragflow_agent/infrastructure/queue/redis_streams.py` |
+| `api/db/services/task_service.py` | `queue_tasks`、`get_task`、`do_cancel`、`has_canceled`、`cancel_all_task_of` | Peewee、Redis Streams、settings、Parser 配置；Task tenant 依赖联查 | 极高 | Apache-2.0；当前不复制 | 参考重写 | 同仓库 IngestionQueuePort + IngestionJobRepository；消息只含稳定 tenant/job/version 身份；Phase 04 采用 Redis/ARQ | `src/ragflow_agent/knowledge/ports/queue.py`、`src/ragflow_agent/knowledge/application/ingestion.py` |
+| `rag/utils/redis_conn.py` | `RedisMsg.ack`、`queue_product`、`queue_consumer`、`get_unacked_iterator` | redis-py、Redis Streams、进程连接和日志 | 高 | Apache-2.0；redis-py 单独登记 | 参考重写 | 只作为可靠性反例/需求证据；Phase 04 未复制 Redis Streams，而是通过 QueuePort 独立实现 ARQ Adapter | `src/ragflow_agent/knowledge/infrastructure/queue/arq.py` |
 | `rag/svr/task_executor.py` | `collect`、`handle_task`、`main` | settings、Redis、Service、模型、Parser、DocStore、进程全局；异常后仍最终 ACK | 极高 | Apache-2.0；当前不复制 | 参考重写 | 采用独立 Worker 入口；只参考 pending、并发、心跳和取消，禁止复制无条件 ACK | `src/ragflow_agent/bootstrap/ingestion_worker.py`、`src/ragflow_agent/ingestion/worker.py` |
 | `docker/launch_backend_service.sh` | `run_server`、`task_exe`、进程启动选择 | Bash、环境变量、进程监督、可选 Go 路径 | 高 | Apache-2.0；当前不复制；Go 路径范围外 | 参考重写 | 仅作为同仓库 API/Worker 分进程证据；为目标项目分别提供 Python 入口和部署命令 | `src/ragflow_agent/bootstrap/api.py`、`src/ragflow_agent/bootstrap/ingestion_worker.py`、`deployments/` |
 | `api/db/services/dialog_service.py` | `async_chat`、`rag_agent`、引用修复 | Peewee Service、LLMBundle、settings、Dealer、Prompt、metadata、Langfuse | 极高 | Apache-2.0；当前不复制 | 参考重写 | 拆为 Query、FixedRAG、Citation 和 Agent 服务 | `src/ragflow_agent/retrieval/`、`src/ragflow_agent/generation/`、`src/ragflow_agent/agent/` |
@@ -184,14 +184,22 @@ tests:
 | RAGFlow 源码 | 冻结 commit 根 `LICENSE` 为 Apache-2.0；根目录无 `NOTICE` | 任何滚动基线都要重新检查 LICENSE/NOTICE；复制范围尚未获批 |
 | Python 依赖 | `pyproject.toml` 可定位版本或约束 | 每个候选的实际闭包、传递依赖、许可证兼容性和漏洞状态 |
 | DeepDOC 模型 | 源码调用 `snapshot_download`，可定位 `InfiniFlow/deepdoc`、`InfiniFlow/text_concat_xgb_v1.0` | 权重/词表/训练数据的精确 revision、文件 hash、商用和再分发条件 |
-| Provider 模型 | RAGFlow 有 LLM/Embedding/Reranker/Vision/ASR 适配 | 目标首批模型、服务条款、数据驻留和输出使用限制 |
+| Provider 模型 | Phase 04 已选 DeepSeek `deepseek-chat` 与 `BAAI/bge-m3`，仅通过 Provider Adapter 配置 | 服务条款、数据驻留、输出使用限制、真实模型性能；Reranker/OCR/Vision/ASR 仍待后续阶段 |
 | 原生与容器 | 可从 pyproject、Docker/Helm 定位 ONNX/OpenCV/搜索/对象存储等依赖 | 平台二进制、镜像层、SBOM、CVE、许可证文本与发布包归属 |
 | 数据与素材 | 未批准复用上游 benchmark 文档或模型样本 | 每份黄金样本、轨道交通资料、图片/音频/字体的授权和脱敏 |
+
+### 6.2 Phase 04 实际复用审计
+
+- **直接复用**：0 个 RAGFlow 文件/函数。
+- **改造复用**：0 个 RAGFlow 文件/函数。
+- **参考重写/自行开发**：上传顺序、任务边界、Parser/Chunk 职责、Embedding→Index 顺序、检索和固定回答调用关系只作为 frozen commit 行为证据；目标代码位于 `knowledge/application` 与 `knowledge/infrastructure`。
+- **第三方依赖**：pypdf、ARQ/redis-py、Elasticsearch Client、LangChain OpenAI Adapter 和 boto3 按本项目依赖直接使用，不是从 RAGFlow 抽取。
+- **许可结论**：Phase 04 没有 RAGFlow 派生源码分发义务；后续首次复制或修改上游文件前，必须重新打开 O-004/许可证 ADR，登记精确文件、修改、NOTICE 和传递资源。
 
 ## 7. 与能力和阶段的关系
 
 - Phase 00：完成源码、依赖和许可证登记，不做抽取实验，不合入业务实现。
-- Phase 04：只引入最小 RAG 闭环所需的 Parser/Chunk/检索行为。
+- Phase 04：已完成；只参考最小 RAG 闭环所需的 Parser/Chunk/检索行为，未引入 RAGFlow 源码。
 - Phase 05：集中处理 DeepDOC、OCR、多格式和场景化 Chunk Method。
 - Phase 06：处理 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation。
 - Phase 08：只参考 Agent Retrieval Tool 和 Agentic RAG，不引入 Canvas。

@@ -9,16 +9,21 @@ description = "An independent Agent and RAG system inspired by RAGFlow."
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "alembic>=1.16,<2",
+    "arq>=0.28,<0.29",
     "boto3>=1.39,<2",
+    "elasticsearch[async]>=8.19,<9",
     "fastapi>=0.116,<1",
     "langchain>=1.0,<2",
     "langchain-core>=1.5,<2",
+    "langchain-openai>=1.0,<2",
     "langgraph>=1.2,<2",
     "langgraph-checkpoint-postgres>=3.1,<4",
     "psycopg[binary,pool]>=3.2,<4",
     "pydantic>=2.11,<3",
     "pydantic-settings>=2.10,<3",
-    "redis>=6,<8",
+    "pypdf>=6,<7",
+    "python-multipart>=0.0.20,<1",
+    "redis>=5.2,<6",
     "sqlalchemy[asyncio]>=2.0.41,<3",
     "uvicorn>=0.35,<1",
 ]

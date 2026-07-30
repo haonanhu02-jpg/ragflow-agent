@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Literal, Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +27,8 @@ class WorkerSettings(FrozenSettingsModel):
     poll_interval_seconds: float = Field(default=1.0, gt=0, le=60)
     heartbeat_interval_seconds: float = Field(default=10.0, gt=0, le=300)
     service_name: str = "ragflow-agent-ingestion-worker"
+    max_tries: int = Field(default=3, ge=1, le=20)
+    job_timeout_seconds: int = Field(default=300, ge=1, le=86_400)
 
 
 class DatabaseSettings(FrozenSettingsModel):
@@ -39,10 +41,11 @@ class DatabaseSettings(FrozenSettingsModel):
 
 
 class QueueSettings(FrozenSettingsModel):
-    """Queue endpoint settings without selecting final delivery semantics."""
+    """Redis/ARQ queue settings."""
 
     url: SecretStr = SecretStr("redis://localhost:6379/0")
     namespace: str = "ragflow-agent"
+    queue_name: str = "arq:ragflow-agent:ingestion"
 
 
 class ObjectStoreSettings(FrozenSettingsModel):
@@ -63,17 +66,49 @@ class ObjectStoreSettings(FrozenSettingsModel):
 
 
 class SearchSettings(FrozenSettingsModel):
-    """Search configuration that preserves the unresolved backend decision."""
+    """Elasticsearch adapter configuration."""
 
-    backend: Literal["unconfigured"] = "unconfigured"
-    url: SecretStr | None = None
+    backend: Literal["elasticsearch"] = "elasticsearch"
+    url: SecretStr = SecretStr("http://localhost:9200")
+    index_name: str = "ragflow-agent-chunks-v1"
+    request_timeout_seconds: float = Field(default=30, gt=0, le=300)
+    verify_certs: bool = True
 
 
 class ModelSettings(FrozenSettingsModel):
-    """Provider-neutral model configuration placeholder."""
+    """OpenAI-compatible provider configuration behind internal ports."""
 
-    provider: str | None = None
-    api_key: SecretStr | None = None
+    provider: Literal["openai-compatible"] = "openai-compatible"
+    chat_model: str = "deepseek-chat"
+    chat_base_url: str = "https://api.deepseek.com"
+    chat_api_key: SecretStr | None = None
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_base_url: str = "http://localhost:8080/v1"
+    embedding_api_key: SecretStr | None = None
+    embedding_dimensions: int = Field(default=1024, ge=1, le=65_536)
+    request_timeout_seconds: float = Field(default=60, gt=0, le=600)
+
+    @field_validator("chat_api_key", "embedding_api_key", mode="before")
+    @classmethod
+    def blank_credentials_are_unconfigured(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+
+class IngestionSettings(FrozenSettingsModel):
+    """Minimum upload, parser, chunk, and index profile."""
+
+    max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
+    chunk_max_tokens: int = Field(default=384, ge=16, le=8192)
+    chunk_overlap_tokens: int = Field(default=48, ge=0, le=2048)
+    parser_timeout_seconds: float = Field(default=30, gt=0, le=300)
+
+    @model_validator(mode="after")
+    def overlap_is_smaller_than_chunk(self) -> Self:
+        if self.chunk_overlap_tokens >= self.chunk_max_tokens:
+            raise ValueError("chunk_overlap_tokens must be smaller than chunk_max_tokens")
+        return self
 
 
 class ObservabilitySettings(FrozenSettingsModel):
@@ -102,6 +137,7 @@ class AppSettings(BaseSettings):
     object_store: ObjectStoreSettings = Field(default_factory=ObjectStoreSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
     models: ModelSettings = Field(default_factory=ModelSettings)
+    ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     def redacted_dict(self) -> dict[str, object]:

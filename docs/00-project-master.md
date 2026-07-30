@@ -2,11 +2,11 @@
 document_id: PROJECT-MASTER
 document_role: Codex 项目首要入口与范围事实源
 status: active
-document_version: "0.6.0"
+document_version: "0.7.0"
 created_at: "2026-07-27"
 last_updated_at: "2026-07-30"
 project_root: "D:/download/ragflow-agent"
-project_code_status: phase_03_contracts
+project_code_status: phase_04_minimum_rag
 project_repository: "https://github.com/haonanhu02-jpg/ragflow-agent"
 project_default_branch: main
 project_phase_00_baseline_commit: "5c015405e4c25346999cbb21736c61a87d5f8cbe"
@@ -28,7 +28,7 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 1. 读取本文件。
 2. 读取 [`docs/07-decisions-and-risks.md`](./07-decisions-and-risks.md)；独立 `docs/adr/` 文件当前尚未生成。
 3. 根据任务读取本文件第 18 节索引中的专项文档；未生成的文档不得被当成已有事实。
-4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 03 已完成，Phase 04 至 Phase 10 为“预规划草案/未执行”，真正执行前必须复审并确认。
+4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 04 已完成，Phase 05 至 Phase 10 为“预规划草案/未执行”，真正执行前必须复审并确认。
 5. 检查实际代码、数据库迁移和自动化测试，确认“已实现状态”没有与文档漂移。
 
 ### 0.1 状态标签
@@ -118,9 +118,9 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 - **[事实]** Phase 01 使用 Python 3.13 和 `uv` 建立项目 `.venv` 与可复现 `uv.lock`，配置 pytest、ruff、strict mypy、导入边界和密钥卫生门禁；`.venv` 是本地忽略产物。
 - **[事实]** 项目已实现与知识库解耦的最小 Agent 基础：AgentState/Event v1、Graph/Node/Edge/Router、结构化模型/Tool 端口、重试/超时/取消、官方 PostgreSQL Checkpointer 的租户作用域适配、Trace 和确定性最小闭环。
 - **[事实]** 项目已实现 Phase 03 知识领域模型、状态机、AuthorizationContext/PermissionChecker、统一 Ports、KnowledgeService/KnowledgeQueryService 和内存契约 Adapter。
-- **[事实]** 项目仍没有真实 ingestion、Parser/Chunker、Embedding、搜索索引/检索、固定 RAG、KnowledgeBaseTool、真实模型调用或生产部署实现。
-- **[事实]** 当前有可运行的 API/Worker 工程空壳、开发基础设施、Agent Runtime 和知识契约，但没有业务 API、知识业务数据库表、真实对象存储/Search/Queue Adapter 或可消费任务的 Ingestion Worker。
-- **[事实]** Phase 00 至 Phase 03 已完成；当前处于 Phase 04 准入门禁，O-002/O-006/O-007 尚未解决。
+- **[事实]** Phase 04 已实现最小 ingestion、TXT/Markdown/PDF Parser、General Chunker、BGE-M3 Provider Adapter、Elasticsearch BM25/KNN/RRF、固定 RAG、Citation/Trace、知识 API 和 Redis/ARQ Worker；真实 PostgreSQL/MinIO/Redis/Elasticsearch 测试通过。
+- **[事实]** 外部 DeepSeek/BGE-M3 服务、完整 Parser/OCR、完整在线检索策略、KnowledgeBaseTool、生命周期一致性和生产部署仍未实现；CI 只使用 Fake/Stub Provider。
+- **[事实]** Phase 00 至 Phase 04 已完成；当前处于 Phase 05 计划复审门禁。
 
 ### 3.2 双基线定义
 
@@ -439,7 +439,7 @@ Chat API / DialogService.async_chat
 约束：
 
 1. **[规划]** `KnowledgeQueryService.retrieve()` 是两条路径的共同入口。
-2. **[规划]** 固定 RAG 不经过 Agent 图，以避免不必要的延迟和不确定性。
+2. **[事实]** Phase 04 固定 RAG 不经过 Agent 图，以避免不必要的延迟和不确定性。
 3. **[规划]** Agent 不得绕过知识库服务直接访问搜索引擎。
 4. **[规划]** 两条路径使用同一 RetrievalQuery、RetrievalResult、Citation 和 RetrievalTrace。
 
@@ -447,7 +447,7 @@ Chat API / DialogService.async_chat
 
 ## 11. 模块与目录规划
 
-以下是总体目录目标。`bootstrap/`、`api/`、`agent/`、`observability/` 和部分 `infrastructure/` 已由 Phase 01/02 创建；其余目录仍属 **[规划]**。ADR-016 已冻结 Python 包路径为 `src/ragflow_agent`，目录出现不表示对应完整业务能力已经实现。
+以下是总体目录目标。`bootstrap/`、`api/`、`agent/`、`observability/`、`knowledge/{domain,ports,application,infrastructure}` 和部分顶层 `infrastructure/` 已由 Phase 01 至 Phase 04 创建；其余目录仍属 **[规划]**。ADR-016 已冻结 Python 包路径为 `src/ragflow_agent`，目录出现不表示对应完整业务能力已经实现。
 
 ```text
 D:/download/ragflow-agent/
@@ -507,7 +507,7 @@ D:/download/ragflow-agent/
 2. `ports/` 只定义稳定接口和领域数据结构。
 3. `bootstrap/api.py` 和 `bootstrap/ingestion_worker.py` 是同一模块化单体的两个进程入口；二者使用同一领域模型、应用服务和端口。
 4. API 与 Worker 之间只传递版本化任务消息和稳定 ID，不传递不可控的大型 Python 对象，也不通过内部 HTTP 形成伪微服务。
-5. `infrastructure/ragflow_adapters/` 是允许出现 RAGFlow 派生代码和适配依赖的唯一默认位置；最终物理隔离形式仍为 **[待确认]**。
+5. `infrastructure/ragflow_adapters/` 是未来允许出现 RAGFlow 派生代码和适配依赖的唯一默认位置；Phase 04 没有任何派生代码，后续首次复制或修改前必须重新进行许可证审查并形成 ADR。
 6. `api/` 不包含解析、检索融合或 Agent 业务算法。
 7. `agent/` 通过 Tool 和应用服务访问知识库，不直接调用基础设施。
 8. `tests/contract/` 验证不同搜索、对象存储、模型和 RAGFlow 适配实现遵守统一接口。
@@ -638,7 +638,7 @@ Phase 03 `IngestionJob/Task` v1 已实现 `PENDING -> RUNNING -> SUCCEEDED|FAILE
 
 ## 14. 开发阶段与阶段依赖
 
-Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
+Phase 00 至 Phase 04 已完成；Phase 05 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
 
 | 阶段 | 名称 | 主要产出 | 依赖 | 当前状态 |
 |---|---|---|---|---|
@@ -646,7 +646,7 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 | Phase 01 | 项目骨架 | Python 包、配置、FastAPI、独立 Worker、基础设施端口、测试与开发环境 | Phase 00 | 已完成；P01-T01 至 P01-T10 验收通过 |
 | Phase 02 | Agent基础 | LangGraph State、Graph、Node、Edge、Router、Checkpoint、Tool、Trace 和最小 Agent 闭环 | Phase 01 | 已完成；P02-T01 至 P02-T10 验收通过 |
 | Phase 03 | 知识库统一接口 | 核心实体、状态机、统一 Ports、第一版权限契约和契约测试 | Phase 02 | 已完成；P03-T01 至 P03-T11 验收通过 |
-| Phase 04 | 最小RAG闭环 | 上传、基础解析/Chunk、Embedding、索引、向量检索、固定回答、引用和端到端测试 | Phase 03 | 预规划草案/未执行 |
+| Phase 04 | 最小RAG闭环 | 上传、TXT/Markdown/PDF、General Chunk、Embedding、Elasticsearch BM25/KNN/RRF、固定回答、引用和端到端测试 | Phase 03 | 已完成；P04-T01 至 P04-T12 验收通过 |
 | Phase 05 | Parser与Chunk | 八类格式、OCR、版面、表格、Chunk 策略映射和元数据保留 | Phase 04 | 预规划草案/未执行 |
 | Phase 06 | 在线检索 | 查询改写、跨语言、全文/向量/混合检索、过滤、Rerank、融合、降级、Citation、Trace | Phase 04、Phase 05 | 预规划草案/未执行 |
 | Phase 07 | 文档生命周期 | 更新、删除、重解析、索引版本、幂等、补偿和一致性 | Phase 05、Phase 06 | 预规划草案/未执行 |
@@ -672,8 +672,9 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 - **[事实]** Phase 00 的 `P00-T01` 至 `P00-T13` 已全部执行、验证并通过验收；用户于 2026-07-30 确认 Phase 00 完成。
 - **[事实]** Phase 01 的 `P01-T01` 至 `P01-T10` 已全部执行并通过阶段验收。
 - **[事实]** Phase 02 的 `P02-T01` 至 `P02-T10` 已全部执行并通过阶段验收。
-- **[事实]** Phase 03 的 `P03-T01` 至 `P03-T11` 已全部执行并通过阶段验收；当前处于 Phase 04 阶段间门禁。
-- **[事实]** Phase 04 至 Phase 10 为“预规划草案/未执行”。
+- **[事实]** Phase 03 的 `P03-T01` 至 `P03-T11` 已全部执行并通过阶段验收。
+- **[事实]** Phase 04 的 `P04-T01` 至 `P04-T12` 已全部执行并通过阶段验收；当前处于 Phase 05 计划复审门禁。
+- **[事实]** Phase 05 至 Phase 10 为“预规划草案/未执行”。
 
 ### 15.2 已完成
 
@@ -697,7 +698,7 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 18. **[事实]** 已生成 `docs/research/ragflow-baseline.md`、`project-baseline.md` 和 `ragflow-source-map.md`；源码结论固定到 commit `cd846cc9d4e32a19e684c59a1f302601027ef976`。
 19. **[事实]** P00-T12 原始跨文档一致性审计通过；14 个 Markdown 文件、当时 42 项能力、阶段编号、链接、表格和固定源码链接检查为零错误。
 20. **[事实]** 用户随后确认 Phase 00 出口；ADR-013 将“研究阶段完成”和“下一阶段执行准入”分离，Phase 00 已完成。
-21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；Phase 01 至 Phase 03 已执行，Phase 04 至 Phase 10 未执行。
+21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；Phase 01 至 Phase 04 已执行，Phase 05 至 Phase 10 未执行。
 22. **[事实]** 用户最新明确要求 Phase 09 规划时序 RAG；能力矩阵新增 `CAP-43`，不追溯改变 Phase 00 原始 42 项验收快照。
 23. **[决策]** ADR-016 已解决 O-001 与 O-012：冻结项目/包/服务命名、Git 仓库、GitHub Actions 和 `mypy`；这些 Phase 01 工程配置现已落地。
 24. **[事实]** Phase 01 已建立可安装包、类型化配置、日志/Trace、端口边界、可逆空迁移、FastAPI/Worker 空壳、Docker 开发环境和 CI 质量门禁。
@@ -706,14 +707,17 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 27. **[决策]** ADR-017 冻结官方 PostgreSQL Checkpointer、AgentState/Event v1、租户作用域和确定性测试模型基线。
 28. **[事实]** Phase 03 已实现知识领域/状态机、统一 Ports、`AuthorizationContext`、`PermissionChecker`、tenant-scoped Repository/UoW、`KnowledgeService`、`KnowledgeQueryService` 和契约/权限负向测试；没有创建业务表或真实基础设施 Adapter。
 29. **[决策]** ADR-018 冻结 `private|tenant`、显式 `actor_id`、`sha256-v1` Chunk ID、受控 MetadataFilter、共享知识查询入口和 Agent 快照映射边界。
+30. **[决策]** ADR-019 冻结 Phase 04 的 Elasticsearch 8.19、Redis/ARQ、DeepSeek OpenAI-compatible、BGE-M3、PostgreSQL、S3/MinIO 和无 RAGFlow 源码抽取边界。
+31. **[事实]** Phase 04 已实现知识迁移、S3 Adapter、Redis/ARQ Adapter、Ingestion pipeline、TXT/Markdown/PDF、General Chunk、模型 Provider Adapter、Elasticsearch BM25/KNN/RRF、FixedRagService、知识 API、Citation/Trace 和评测基线。
+32. **[事实]** Phase 04 本地真实后端验收为 153 passed、0 skipped；默认无外部基础设施环境为 143 passed、10 个显式 skip；外部 DeepSeek/BGE-M3 未调用，不得把 Fake Provider 验证描述为真实模型验证。
 
 ### 15.3 下一步
 
 下一步必须按阶段门禁执行：
 
-1. 根据 Phase 03 的实际 DTO、Ports、状态机、权限和统一查询服务复审 `phase-04-minimum-rag.md`。
-2. Phase 04 当前只具备 P04-T01“冻结最小技术选型与垂直切片”的计划复审入口；不得自动执行。P04-T01 必须解决 O-002（首个搜索引擎）、O-006（后台任务/可靠消息）和 O-007（首批模型），若首次复制 RAGFlow 源码还要解决 O-004。
-3. P04-T02 起只有在上述事项 Resolved、Phase 04 计划再次冻结并获得明确指令后才能执行；不得因 Phase 03 完成自动实施最小 RAG。
+1. 根据 Phase 04 的实际 `BasicObjectParser`、`GeneralChunker`、Chunk/Index/Citation 字段和无源码抽取边界复审 `phase-05-parser-and-chunk.md`。
+2. Phase 05 仍是预规划草案；必须先确认 Parser/OCR 复用、许可证、资源、黄金样本和依赖范围，不能因 Phase 04 完成自动执行。
+3. Phase 06 必须把 Phase 04 的最小 RRF 当作基线增强，不得重新实现第二套 BM25/KNN 主链路。
 4. 每个后续阶段执行前，继续根据上一阶段实际结果重新审查其“预规划草案”。
 
 ---
@@ -740,8 +744,9 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 | D-014 | 时序 RAG 作为 Phase 09 默认关闭的实验性自研能力；RAGFlow timeline 仅作局部参考 |
 | D-015 | Phase 02/08 与 Phase 05/09 的职责按 ADR-015 分离，禁止重复实现 HITL/预算或生成式 Chunk 增强 |
 | D-016 | 项目/发行包为 `ragflow-agent`，import package 为 `ragflow_agent`；仓库使用 `main` + GitHub `origin`，首个 CI 为 GitHub Actions，类型检查器为 `mypy` |
-| D-017 | Phase 02 使用 LangGraph StateGraph、官方异步 PostgreSQL Checkpointer + 租户作用域适配、AgentState/Event v1 和确定性模型门禁；真实模型仍由 O-007 决定 |
+| D-017 | Phase 02 使用 LangGraph StateGraph、官方异步 PostgreSQL Checkpointer + 租户作用域适配、AgentState/Event v1 和确定性模型门禁；Phase 04 的真实模型选择后由 D-019 补充 |
 | D-018 | Phase 03 使用自研知识领域/Ports；AuthorizationContext 为 tenant/actor/request，visibility 为 private/tenant，Repository/Storage/Queue/Search/Citation/Trace 强制 tenant，固定 RAG 与 Tool 共用 KnowledgeQueryService |
+| D-019 | Phase 04 使用 Elasticsearch 8.19、Redis + ARQ 0.28、DeepSeek OpenAI-compatible、BGE-M3 1024 维、PostgreSQL、S3/MinIO；CI 使用 Fake Provider；本阶段不复制、抽取或改写 RAGFlow 源码 |
 
 ### 16.2 已解决的原待确认问题
 
@@ -751,15 +756,15 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 | O-005 | 已由 D-012/ADR-012 和 D-018/ADR-018 解决 |
 | O-001 | 已由 D-016/ADR-016 解决 |
 | O-012 | 已由 D-016/ADR-016 解决 |
+| O-002 | 已由 D-019/ADR-019 解决：首个且本阶段唯一搜索实现为 Elasticsearch |
+| O-004 | Phase 04 已由 D-019/ADR-019 按“不抽取源码”解决；后续首次复制前重开 |
+| O-006 | 已由 D-019/ADR-019 解决：Redis + ARQ 最小可靠任务链路 |
+| O-007 | Phase 04 已由 D-019/ADR-019 解决：DeepSeek + BGE-M3；Reranker/OCR/Vision 后续另审 |
 
 ### 16.3 仍待确认问题
 
 | 编号 | 问题 | 未确认前的处理 |
 |---|---|---|
-| O-002 | Elasticsearch 或 OpenSearch 作为首个实现 | 只定义 SearchPort |
-| O-004 | RAGFlow 复用代码的物理隔离方式 | 只进行源码审计，不复制代码 |
-| O-006 | 后台任务库和可靠消息方案 | 只定义 TaskQueuePort |
-| O-007 | 首批 LLM、Embedding、Reranker、OCR 和 Vision 模型 | 只定义能力和模型注册接口 |
 | O-008 | 空结果降级的默认行为 | RetrievalResult 保留 `empty_reason` |
 | O-009 | GraphRAG 和 RAPTOR 的首个落地范围 | Phase 09 前通过评测需求决定 |
 | O-010 | 前端或管理控制台范围 | 当前只规划 API，不假定 UI 已确定 |
@@ -870,7 +875,7 @@ Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 均为 **[规划]**。�
 | [`docs/phases/phase-01-project-skeleton.md`](./phases/phase-01-project-skeleton.md) | Phase 01 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-02-agent-foundation.md`](./phases/phase-02-agent-foundation.md) | Phase 02 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-03-knowledge-interface.md`](./phases/phase-03-knowledge-interface.md) | Phase 03 详细规划与执行记录 | 已完成 |
-| [`docs/phases/phase-04-minimum-rag.md`](./phases/phase-04-minimum-rag.md) | Phase 04 详细规划 | 预规划草案/未执行 |
+| [`docs/phases/phase-04-minimum-rag.md`](./phases/phase-04-minimum-rag.md) | Phase 04 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-05-parser-and-chunk.md`](./phases/phase-05-parser-and-chunk.md) | Phase 05 详细规划 | 预规划草案/未执行 |
 | [`docs/phases/phase-06-online-retrieval.md`](./phases/phase-06-online-retrieval.md) | Phase 06 详细规划 | 预规划草案/未执行 |
 | [`docs/phases/phase-07-document-lifecycle.md`](./phases/phase-07-document-lifecycle.md) | Phase 07 详细规划 | 预规划草案/未执行 |

@@ -47,6 +47,26 @@ services:
       timeout: 3s
       retries: 20
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "${RAGFLOW_AGENT_DEV_ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail http://localhost:9200/_cluster/health?wait_for_status=yellow",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
   api:
     build:
       context: .
@@ -60,6 +80,11 @@ services:
       RAGFLOW_AGENT_OBJECT_STORE__BUCKET: ragflow-agent
       RAGFLOW_AGENT_OBJECT_STORE__ACCESS_KEY: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_USER}
       RAGFLOW_AGENT_OBJECT_STORE__SECRET_KEY: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD}
+      RAGFLOW_AGENT_SEARCH__URL: http://elasticsearch:9200
+      RAGFLOW_AGENT_SEARCH__VERIFY_CERTS: "false"
+      RAGFLOW_AGENT_MODELS__CHAT_API_KEY: ${RAGFLOW_AGENT_DEEPSEEK_API_KEY:-}
+      RAGFLOW_AGENT_MODELS__EMBEDDING_BASE_URL: ${RAGFLOW_AGENT_BGE_M3_BASE_URL:-http://host.docker.internal:8080/v1}
+      RAGFLOW_AGENT_MODELS__EMBEDDING_API_KEY: ${RAGFLOW_AGENT_BGE_M3_API_KEY:-}
     ports:
       - "${RAGFLOW_AGENT_DEV_API_PORT:-8000}:8000"
     depends_on:
@@ -68,6 +93,8 @@ services:
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     healthcheck:
       test:
@@ -85,19 +112,27 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command:
-      [
-        "python",
-        "-m",
-        "ragflow_agent.bootstrap.ingestion_worker",
-        "--development-idle",
-      ]
+    command: ["python", "-m", "ragflow_agent.bootstrap.ingestion_worker"]
     environment:
       RAGFLOW_AGENT_ENVIRONMENT: development
       RAGFLOW_AGENT_DATABASE__URL: postgresql+psycopg://ragflow_agent:${RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD}@postgres:5432/ragflow_agent
       RAGFLOW_AGENT_QUEUE__URL: redis://redis:6379/0
+      RAGFLOW_AGENT_OBJECT_STORE__ENDPOINT_URL: http://minio:9000
+      RAGFLOW_AGENT_OBJECT_STORE__BUCKET: ragflow-agent
+      RAGFLOW_AGENT_OBJECT_STORE__ACCESS_KEY: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_USER}
+      RAGFLOW_AGENT_OBJECT_STORE__SECRET_KEY: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD}
+      RAGFLOW_AGENT_SEARCH__URL: http://elasticsearch:9200
+      RAGFLOW_AGENT_SEARCH__VERIFY_CERTS: "false"
+      RAGFLOW_AGENT_MODELS__EMBEDDING_BASE_URL: ${RAGFLOW_AGENT_BGE_M3_BASE_URL:-http://host.docker.internal:8080/v1}
+      RAGFLOW_AGENT_MODELS__EMBEDDING_API_KEY: ${RAGFLOW_AGENT_BGE_M3_API_KEY:-}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
@@ -109,3 +144,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  elasticsearch-data:

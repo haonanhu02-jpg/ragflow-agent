@@ -1,4 +1,4 @@
-name: Phase 03 quality gate
+name: Phase 04 quality gate
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: phase-03-${{ github.workflow }}-${{ github.ref }}
+  group: phase-04-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -30,12 +30,39 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.3
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: "false"
+          ES_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl --fail http://localhost:9200/_cluster/health?wait_for_status=yellow"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
     env:
       RAGFLOW_AGENT_DATABASE__URL: postgresql+psycopg://ragflow_agent:phase01-ci-only@127.0.0.1:5432/ragflow_agent
       RAGFLOW_AGENT_TEST_DATABASE_URL: postgresql+psycopg://ragflow_agent:phase01-ci-only@127.0.0.1:5432/ragflow_agent
+      RAGFLOW_AGENT_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+      RAGFLOW_AGENT_TEST_ELASTICSEARCH_URL: http://127.0.0.1:9200
+      RAGFLOW_AGENT_TEST_S3_ENDPOINT_URL: http://127.0.0.1:9000
+      RAGFLOW_AGENT_TEST_S3_ACCESS_KEY: phase04-ci-minio
+      RAGFLOW_AGENT_TEST_S3_SECRET_KEY: phase04-ci-minio-secret
       RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD: phase01-ci-only
-      RAGFLOW_AGENT_DEV_MINIO_ROOT_USER: phase01-ci-only
-      RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD: phase01-ci-only
+      RAGFLOW_AGENT_DEV_MINIO_ROOT_USER: phase04-ci-minio
+      RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD: phase04-ci-minio-secret
 
     steps:
       - uses: actions/checkout@v5
@@ -48,6 +75,20 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --frozen --all-groups
 
+      - name: Start MinIO
+        run: |
+          docker run --detach --name phase04-minio \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER=phase04-ci-minio \
+            --env MINIO_ROOT_PASSWORD=phase04-ci-minio-secret \
+            minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:9000/minio/health/live && break
+            sleep 2
+          done
+          curl --fail http://127.0.0.1:9000/minio/health/live
+
       - name: Lint
         run: uv run ruff check .
 
@@ -57,12 +98,14 @@ jobs:
       - name: Secret hygiene
         run: uv run python scripts/check_secret_hygiene.py
 
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
       - name: Test
         run: uv run pytest
 
       - name: Migration round trip
         run: |
-          uv run alembic upgrade head
           uv run alembic downgrade base
           uv run alembic upgrade head
 

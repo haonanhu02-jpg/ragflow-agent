@@ -1,0 +1,73 @@
+"""ARQ process entry and persisted ingestion dispatch."""
+
+from __future__ import annotations
+
+from typing import Any, cast
+
+from arq import Retry, create_pool
+from arq.connections import RedisSettings
+from arq.typing import StartupShutdown, WorkerCoroutine
+from arq.worker import Worker
+
+from ragflow_agent.config import AppSettings
+from ragflow_agent.knowledge.application.ingestion import RetryableIngestionError
+from ragflow_agent.knowledge.domain.ingestion import IngestionEnvelope
+from ragflow_agent.knowledge.infrastructure.queue import arq_deserialize, arq_serialize
+from ragflow_agent.knowledge.runtime import MinimumRagRuntime, build_minimum_rag_runtime
+
+
+async def process_ingestion(context: dict[Any, Any], envelope_json: str) -> str:
+    """Validate a JSON envelope and execute one persisted pipeline delivery."""
+    runtime = context.get("minimum_rag_runtime")
+    if not isinstance(runtime, MinimumRagRuntime):
+        raise RuntimeError("ARQ worker runtime is not initialized")
+    envelope = IngestionEnvelope.model_validate_json(envelope_json)
+    delivery_attempt = int(context.get("job_try", 1))
+    try:
+        job = await runtime.ingestion_pipeline.handle(
+            envelope,
+            delivery_attempt=delivery_attempt,
+        )
+    except RetryableIngestionError as error:
+        raise Retry(defer=min(2**delivery_attempt, 30)) from error
+    return job.id
+
+
+async def run_arq_ingestion_worker(
+    settings: AppSettings,
+    *,
+    burst: bool = False,
+) -> None:
+    """Run the independent ARQ Worker with explicit resource ownership."""
+    redis_pool = await create_pool(
+        RedisSettings.from_dsn(settings.queue.url.get_secret_value()),
+        default_queue_name=settings.queue.queue_name,
+        job_serializer=arq_serialize,
+        job_deserializer=arq_deserialize,
+    )
+    runtime = build_minimum_rag_runtime(settings)
+
+    async def startup(context: dict[Any, Any]) -> None:
+        await runtime.open(open_queue=False)
+        context["minimum_rag_runtime"] = runtime
+
+    async def shutdown(context: dict[Any, Any]) -> None:
+        context.pop("minimum_rag_runtime", None)
+        await runtime.close()
+
+    worker = Worker(
+        functions=[cast(WorkerCoroutine, process_ingestion)],
+        queue_name=settings.queue.queue_name,
+        redis_pool=redis_pool,
+        burst=burst,
+        on_startup=cast(StartupShutdown, startup),
+        on_shutdown=cast(StartupShutdown, shutdown),
+        job_timeout=settings.worker.job_timeout_seconds,
+        max_tries=settings.worker.max_tries,
+        retry_jobs=True,
+        allow_abort_jobs=True,
+        job_serializer=arq_serialize,
+        job_deserializer=arq_deserialize,
+        ctx={},
+    )
+    await worker.async_run()

@@ -72,6 +72,14 @@ class MemoryTenantRepository[Entity: TenantEntity]:
             )
         self._values[entity.id] = entity
 
+    async def save(self, *, tenant_id: str, entity: Entity) -> None:
+        if entity.tenant_id != tenant_id:
+            raise KnowledgeAuthorizationError(reason_code="tenant_mismatch")
+        current = self._values.get(entity.id)
+        if current is None or current.tenant_id != tenant_id:
+            raise KnowledgeNotFoundError("knowledge_resource", entity.id)
+        self._values[entity.id] = entity
+
 
 class MemoryDocumentVersionRepository(MemoryTenantRepository[DocumentVersion]):
     """Memory DocumentVersion repository with scoped aggregate listing."""

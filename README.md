@@ -9,11 +9,15 @@ tenant-scoped PostgreSQL checkpoints, trace events, and a deterministic minimal
 Agent loop. Phase 03 adds versioned knowledge-domain contracts, first-version
 tenant/owner/visibility authorization, tenant-scoped repositories and capability
 ports, plus shared `KnowledgeService` and `KnowledgeQueryService` boundaries.
+Phase 04 adds the minimum RAG vertical slice: PostgreSQL knowledge persistence,
+S3/MinIO objects, Redis/ARQ ingestion, TXT/Markdown/PDF parsing, General
+Chunking, provider-isolated DeepSeek/BGE-M3 adapters, Elasticsearch
+BM25/KNN/RRF retrieval, fixed RAG, citations, retrieval trace, and real-backend
+integration tests.
 
-Production knowledge repositories and adapters, ingestion execution, parsing,
-chunking, embedding, indexing, retrieval, fixed RAG, KnowledgeBaseTool, real
-model providers, HITL, memory, and multi-Agent behavior are intentionally not
-implemented yet.
+Complex parsing/OCR, full online retrieval and reranking, document lifecycle,
+KnowledgeBaseTool, real-provider CI, HITL, memory, and multi-Agent behavior are
+intentionally deferred to later phases.
 
 ## Project entrypoints
 
@@ -40,14 +44,16 @@ Copy `.env.example` to `.env`, replace every `change-me` value, then run:
 
 ```powershell
 docker compose -f docker-compose.dev.yml config
-docker compose -f docker-compose.dev.yml up --build --wait
+docker compose -f docker-compose.dev.yml up -d postgres redis minio elasticsearch --wait
+uv run alembic upgrade head
+docker compose -f docker-compose.dev.yml up -d --build api worker --wait
 docker compose -f docker-compose.dev.yml down
 ```
 
-The topology contains PostgreSQL, Redis, MinIO, the API, and a non-consuming
-Worker shell using the same application image. The shell runs only through the
-explicit development-only flag and cannot acknowledge or reject tasks. Phase 01
-does not select a search backend and does not run an ingestion implementation. To remove
-development data, use the explicit destructive command
+The topology contains PostgreSQL, Redis, MinIO, Elasticsearch, the API, and a
+real ARQ ingestion Worker using the same application image. BGE-M3 is expected
+at the configured OpenAI-compatible endpoint; DeepSeek credentials remain
+optional until a fixed-RAG answer is requested. To remove development data, use
+the explicit destructive command
 `docker compose -f docker-compose.dev.yml down --volumes` only after confirming
 that the named development volumes are no longer needed.

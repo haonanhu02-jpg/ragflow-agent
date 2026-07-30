@@ -428,6 +428,15 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 4. 评测集和开发集分离。
 5. 不用生产敏感数据作为默认测试资源。
 
+### 17.4 Phase 04 基础设施与 Provider 门禁
+
+1. CI 必须显式启动临时 PostgreSQL、Redis、MinIO 和 Elasticsearch，设置 `RAGFLOW_AGENT_TEST_*` 后再运行完整 pytest；没有环境变量时，相关测试必须明确 skip，不能把 skip 报告成真实集成通过。
+2. DeepSeek 和 BGE-M3 在 CI 中使用实现相同内部 Port 的 Fake/Stub；不得要求 API Key、GPU 或外部模型服务，也不得把 Fake 结果描述成真实供应商验证。
+3. Elasticsearch Client/Server 固定 8.19 兼容线，mapping dimensions、BM25、KNN、RRF、active version 和 tenant filter 必须有真实后端测试。
+4. ARQ 固定 0.28，redis-py 固定 `>=5.2,<6`；ARQ/Redis 类型不得进入领域或应用层，升级必须重跑唯一 job ID 和 retry/terminal failure 测试。
+5. S3 测试必须覆盖 SHA-256/size、tenant namespace、流式读写、跨 tenant 拒绝和显式对象清理。
+6. 跨后端 E2E 必须清楚记录真实组件与 Fake 组件，禁止用单一内存 Adapter 测试冒充真实闭环。
+
 ## 18. RAGFlow 复用标准
 
 1. 严格执行[代码复用策略](./04-code-reuse-strategy.md)。

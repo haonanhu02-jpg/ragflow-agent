@@ -6,7 +6,13 @@ import uvicorn
 from pydantic import SecretStr
 
 from ragflow_agent.api import create_app
-from ragflow_agent.config import AppSettings, DatabaseSettings, load_settings
+from ragflow_agent.config import (
+    AppSettings,
+    DatabaseSettings,
+    ObjectStoreSettings,
+    load_settings,
+)
+from ragflow_agent.knowledge.runtime import build_minimum_rag_runtime
 
 
 def _check_settings() -> AppSettings:
@@ -14,15 +20,30 @@ def _check_settings() -> AppSettings:
     return AppSettings(
         database=DatabaseSettings(
             url=SecretStr("postgresql+psycopg://check:check@localhost/check")
-        )
+        ),
+        object_store=ObjectStoreSettings(
+            access_key=SecretStr("bootstrap-check"),
+            secret_key=SecretStr("bootstrap-check"),
+        ),
     )
 
 
 def check_bootstrap() -> None:
     """Validate app construction without connecting to infrastructure."""
-    app = create_app(_check_settings())
+    settings = _check_settings()
+    app = create_app(
+        settings,
+        minimum_rag_runtime=build_minimum_rag_runtime(settings),
+    )
     paths = set(app.openapi()["paths"])
-    required = {"/health/live", "/health/ready"}
+    required = {
+        "/health/live",
+        "/health/ready",
+        "/v1/knowledge-bases",
+        "/v1/knowledge-bases/{knowledge_base_id}/documents",
+        "/v1/ingestion-jobs/{job_id}",
+        "/v1/rag/query",
+    }
     if not required.issubset(paths):
         raise RuntimeError(f"API bootstrap is missing routes: {sorted(required - paths)}")
 
@@ -42,8 +63,9 @@ def main() -> None:
         return
 
     settings = load_settings()
+    runtime = build_minimum_rag_runtime(settings)
     uvicorn.run(
-        create_app(settings),
+        create_app(settings, minimum_rag_runtime=runtime),
         host=settings.api.host,
         port=settings.api.port,
         log_level=settings.observability.log_level.lower(),

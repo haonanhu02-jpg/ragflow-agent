@@ -1,0 +1,504 @@
+"""Elasticsearch 8 minimum BM25, KNN, and RRF hybrid adapter."""
+
+from __future__ import annotations
+
+import asyncio
+from time import perf_counter
+from typing import Any, cast
+
+from elasticsearch import AsyncElasticsearch, BadRequestError
+
+from ragflow_agent.config import SearchSettings
+from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
+from ragflow_agent.knowledge.domain.errors import (
+    KnowledgeAuthorizationError,
+    KnowledgeConflictError,
+)
+from ragflow_agent.knowledge.domain.retrieval import (
+    Citation,
+    FilterOperator,
+    IndexRecord,
+    IndexVersion,
+    MetadataFilter,
+    RetrievalCandidate,
+    RetrievalEmptyReason,
+    RetrievalQuery,
+    RetrievalResult,
+    RetrievalStage,
+    RetrievalTrace,
+    RetrievalTraceEvent,
+    ScoreBreakdown,
+    TraceAttribute,
+)
+from ragflow_agent.knowledge.ports.embedding import EmbeddingInput, EmbeddingPort, EmbeddingRequest
+
+_RRF_K = 60
+
+
+class ElasticsearchSearchAdapter:
+    """Map backend-neutral records and queries to Elasticsearch 8 APIs."""
+
+    def __init__(
+        self,
+        settings: SearchSettings,
+        *,
+        embedding: EmbeddingPort,
+        embedding_model_id: str,
+        embedding_dimensions: int,
+        client: AsyncElasticsearch | None = None,
+    ) -> None:
+        self._settings = settings
+        self._index_name = settings.index_name
+        self._embedding = embedding
+        self._embedding_model_id = embedding_model_id
+        self._dimensions = embedding_dimensions
+        self._client = client or AsyncElasticsearch(
+            settings.url.get_secret_value(),
+            request_timeout=settings.request_timeout_seconds,
+            verify_certs=settings.verify_certs,
+        )
+
+    async def close(self) -> None:
+        await self._client.close()
+
+    async def ensure_index(self) -> None:
+        if await self._client.indices.exists(index=self._index_name):
+            await self._validate_index_mapping()
+            return
+        try:
+            await self._client.indices.create(
+                index=self._index_name,
+                mappings={
+                    "dynamic": "strict",
+                    "properties": {
+                        "index_version_id": {"type": "keyword"},
+                        "tenant_id": {"type": "keyword"},
+                        "knowledge_base_id": {"type": "keyword"},
+                        "owner_id": {"type": "keyword"},
+                        "visibility": {"type": "keyword"},
+                        "document_id": {"type": "keyword"},
+                        "document_version_id": {"type": "keyword"},
+                        "chunk_id": {"type": "keyword"},
+                        "content": {"type": "text"},
+                        "media_type": {"type": "keyword"},
+                        "created_at": {"type": "date"},
+                        "active": {"type": "boolean"},
+                        "heading_path": {"type": "keyword"},
+                        "page_start": {"type": "integer"},
+                        "page_end": {"type": "integer"},
+                        "language": {"type": "keyword"},
+                        "embedding": {
+                            "type": "dense_vector",
+                            "dims": self._dimensions,
+                            "index": True,
+                            "similarity": "cosine",
+                        },
+                    },
+                },
+            )
+        except BadRequestError:
+            if not await self._client.indices.exists(index=self._index_name):
+                raise
+        await self._validate_index_mapping()
+
+    async def _validate_index_mapping(self) -> None:
+        response = await self._client.indices.get_mapping(index=self._index_name)
+        try:
+            dimensions = int(
+                response[self._index_name]["mappings"]["properties"]["embedding"]["dims"]
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise KnowledgeConflictError(
+                "Elasticsearch index has no compatible embedding mapping",
+                error_code="search_index_mapping_incompatible",
+            ) from error
+        if dimensions != self._dimensions:
+            raise KnowledgeConflictError(
+                "Elasticsearch index embedding dimensions differ from configuration",
+                error_code="search_index_dimension_mismatch",
+                details={"expected": self._dimensions, "actual": dimensions},
+            )
+
+    async def upsert(
+        self,
+        context: AuthorizationContext,
+        version: IndexVersion,
+        records: tuple[IndexRecord, ...],
+    ) -> None:
+        self._require_tenant(context, version.tenant_id)
+        if version.embedding.dimensions != self._dimensions:
+            raise KnowledgeConflictError(
+                "index version dimensions do not match Elasticsearch mapping",
+                error_code="index_dimension_mismatch",
+            )
+        operations: list[dict[str, Any]] = []
+        for record in records:
+            expected = (version.tenant_id, version.knowledge_base_id, version.id)
+            actual = (record.tenant_id, record.knowledge_base_id, record.index_version_id)
+            if actual != expected or len(record.embedding) != self._dimensions:
+                raise KnowledgeConflictError(
+                    "index record is incompatible with index version",
+                    error_code="index_record_incompatible",
+                )
+            document_id = self._document_key(record)
+            operations.extend(
+                [
+                    {"index": {"_index": self._index_name, "_id": document_id}},
+                    self._source(record, active=False),
+                ]
+            )
+        if operations:
+            response = await self._client.bulk(operations=operations, refresh="wait_for")
+            if bool(response.get("errors")):
+                raise KnowledgeConflictError(
+                    "Elasticsearch bulk upsert was partially rejected",
+                    error_code="search_bulk_partial_failure",
+                )
+
+    async def delete(
+        self,
+        context: AuthorizationContext,
+        *,
+        index_version_id: str,
+        chunk_ids: tuple[str, ...],
+    ) -> None:
+        if not chunk_ids:
+            return
+        await self._client.delete_by_query(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "filter": [
+                        {"term": {"tenant_id": context.tenant_id}},
+                        {"term": {"index_version_id": index_version_id}},
+                        {"terms": {"chunk_id": list(chunk_ids)}},
+                    ]
+                }
+            },
+            refresh=True,
+            conflicts="proceed",
+        )
+
+    async def activate(
+        self,
+        context: AuthorizationContext,
+        version: IndexVersion,
+    ) -> None:
+        self._require_tenant(context, version.tenant_id)
+        base_filter = [
+            {"term": {"tenant_id": version.tenant_id}},
+            {"term": {"knowledge_base_id": version.knowledge_base_id}},
+        ]
+        await self._client.update_by_query(
+            index=self._index_name,
+            query={"bool": {"filter": base_filter}},
+            script={"source": "ctx._source.active = false", "lang": "painless"},
+            refresh=True,
+            conflicts="proceed",
+        )
+        response = await self._client.update_by_query(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "filter": [
+                        *base_filter,
+                        {"term": {"index_version_id": version.id}},
+                    ]
+                }
+            },
+            script={"source": "ctx._source.active = true", "lang": "painless"},
+            refresh=True,
+            conflicts="proceed",
+        )
+        if int(response.get("updated", 0)) == 0:
+            raise KnowledgeConflictError(
+                "index version contains no records to activate",
+                error_code="index_activation_empty",
+            )
+
+    async def retrieve(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> RetrievalResult:
+        self._require_tenant(context, query.tenant_id)
+        started = perf_counter()
+        embedding_result = await self._embedding.embed(
+            context,
+            EmbeddingRequest(
+                tenant_id=query.tenant_id,
+                model_id=self._embedding_model_id,
+                inputs=(EmbeddingInput(id="query", text=query.text),),
+                trace_id=query.trace_id,
+            ),
+        )
+        query_vector = embedding_result.vectors[0].values
+        text_hits, vector_hits = await asyncio.gather(
+            self._full_text_hits(context, query),
+            self._vector_hits(context, query, query_vector),
+        )
+        candidates = self._fuse(text_hits, vector_hits, top_n=query.top_n)
+        elapsed = (perf_counter() - started) * 1000
+        trace = RetrievalTrace(
+            trace_id=query.trace_id,
+            tenant_id=query.tenant_id,
+            original_query=query.text,
+            authorization_applied=True,
+            events=(
+                RetrievalTraceEvent(
+                    sequence=0,
+                    stage=RetrievalStage.AUTHORIZATION,
+                    elapsed_ms=0,
+                    candidate_count=0,
+                    attributes=(TraceAttribute(name="tenant_filter", value=True),),
+                ),
+                RetrievalTraceEvent(
+                    sequence=1,
+                    stage=RetrievalStage.FULL_TEXT,
+                    elapsed_ms=elapsed,
+                    candidate_count=len(text_hits),
+                ),
+                RetrievalTraceEvent(
+                    sequence=2,
+                    stage=RetrievalStage.VECTOR,
+                    elapsed_ms=elapsed,
+                    candidate_count=len(vector_hits),
+                ),
+                RetrievalTraceEvent(
+                    sequence=3,
+                    stage=RetrievalStage.FUSION,
+                    elapsed_ms=elapsed,
+                    candidate_count=len(candidates),
+                    attributes=(TraceAttribute(name="method", value="rrf"),),
+                ),
+                RetrievalTraceEvent(
+                    sequence=4,
+                    stage=RetrievalStage.SELECT,
+                    elapsed_ms=elapsed,
+                    candidate_count=len(candidates),
+                ),
+            ),
+        )
+        return RetrievalResult(
+            query=query,
+            candidates=tuple(candidates),
+            trace=trace,
+            empty_reason=None if candidates else RetrievalEmptyReason.NO_MATCH,
+        )
+
+    async def retrieve_full_text(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> tuple[RetrievalCandidate, ...]:
+        """Expose the Phase 04 BM25 path for contract verification."""
+        hits = await self._full_text_hits(context, query)
+        return tuple(self._candidate(hit, full_text_score=hit.score) for hit in hits[: query.top_n])
+
+    async def retrieve_vector(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> tuple[RetrievalCandidate, ...]:
+        """Expose the Phase 04 KNN path for contract verification."""
+        result = await self._embedding.embed(
+            context,
+            EmbeddingRequest(
+                tenant_id=query.tenant_id,
+                model_id=self._embedding_model_id,
+                inputs=(EmbeddingInput(id="query", text=query.text),),
+                trace_id=query.trace_id,
+            ),
+        )
+        hits = await self._vector_hits(context, query, result.vectors[0].values)
+        return tuple(self._candidate(hit, vector_score=hit.score) for hit in hits[: query.top_n])
+
+    async def _full_text_hits(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> list[_SearchHit]:
+        response = await self._client.search(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "must": [{"match": {"content": {"query": query.text}}}],
+                    "filter": self._filters(context, query),
+                }
+            },
+            size=query.top_k,
+            source_excludes=["embedding"],
+        )
+        return self._hits(response)
+
+    async def _vector_hits(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+        query_vector: tuple[float, ...],
+    ) -> list[_SearchHit]:
+        response = await self._client.search(
+            index=self._index_name,
+            knn={
+                "field": "embedding",
+                "query_vector": list(query_vector),
+                "k": query.top_k,
+                "num_candidates": max(query.top_k, min(query.top_k * 4, 10_000)),
+                "filter": {"bool": {"filter": self._filters(context, query)}},
+            },
+            size=query.top_k,
+            source_excludes=["embedding"],
+        )
+        return self._hits(response)
+
+    def _filters(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> list[dict[str, Any]]:
+        filters: list[dict[str, Any]] = [
+            {"term": {"tenant_id": context.tenant_id}},
+            {"terms": {"knowledge_base_id": list(query.knowledge_base_ids)}},
+            {"term": {"active": True}},
+            {
+                "bool": {
+                    "should": [
+                        {"term": {"owner_id": context.actor_id}},
+                        {"term": {"visibility": Visibility.TENANT.value}},
+                    ],
+                    "minimum_should_match": 1,
+                }
+            },
+        ]
+        filters.extend(self._metadata_filter(item) for item in query.filters)
+        return filters
+
+    @staticmethod
+    def _metadata_filter(item: MetadataFilter) -> dict[str, Any]:
+        field_name = item.field.value
+        if item.operator is FilterOperator.EQUALS:
+            return {"term": {field_name: item.value}}
+        if item.operator is FilterOperator.IN:
+            return {"terms": {field_name: list(cast(tuple[object, ...], item.value))}}
+        operation = "gte" if item.operator is FilterOperator.GREATER_THAN_OR_EQUAL else "lte"
+        return {"range": {field_name: {operation: item.value}}}
+
+    @staticmethod
+    def _hits(response: Any) -> list[_SearchHit]:
+        raw_hits = cast(list[dict[str, Any]], response["hits"]["hits"])
+        return [
+            _SearchHit(
+                source=cast(dict[str, Any], hit["_source"]),
+                score=float(hit.get("_score") or 0),
+            )
+            for hit in raw_hits
+        ]
+
+    def _fuse(
+        self,
+        text_hits: list[_SearchHit],
+        vector_hits: list[_SearchHit],
+        *,
+        top_n: int,
+    ) -> list[RetrievalCandidate]:
+        by_chunk: dict[str, dict[str, Any]] = {}
+        for score_name, hits in (("full_text", text_hits), ("vector", vector_hits)):
+            for rank, hit in enumerate(hits, start=1):
+                chunk_id = str(hit.source["chunk_id"])
+                entry = by_chunk.setdefault(
+                    chunk_id,
+                    {"hit": hit, "rrf": 0.0, "full_text": None, "vector": None},
+                )
+                entry["rrf"] = float(entry["rrf"]) + 1 / (_RRF_K + rank)
+                entry[score_name] = hit.score
+        ranked = sorted(by_chunk.values(), key=lambda item: float(item["rrf"]), reverse=True)
+        return [
+            self._candidate(
+                cast(_SearchHit, item["hit"]),
+                full_text_score=cast(float | None, item["full_text"]),
+                vector_score=cast(float | None, item["vector"]),
+                fusion_score=float(item["rrf"]),
+            )
+            for item in ranked[:top_n]
+        ]
+
+    @staticmethod
+    def _candidate(
+        hit: _SearchHit,
+        *,
+        full_text_score: float | None = None,
+        vector_score: float | None = None,
+        fusion_score: float | None = None,
+    ) -> RetrievalCandidate:
+        source = hit.source
+        quote = str(source["content"])
+        page_number = source.get("page_start")
+        citation = Citation(
+            tenant_id=str(source["tenant_id"]),
+            knowledge_base_id=str(source["knowledge_base_id"]),
+            document_id=str(source["document_id"]),
+            document_version_id=str(source["document_version_id"]),
+            chunk_id=str(source["chunk_id"]),
+            quote=quote,
+            page_number=int(page_number) if page_number is not None else None,
+            source_uri=(
+                f"documents/{source['document_id']}/versions/{source['document_version_id']}"
+            ),
+        )
+        final_score = fusion_score if fusion_score is not None else hit.score
+        return RetrievalCandidate(
+            tenant_id=citation.tenant_id,
+            knowledge_base_id=citation.knowledge_base_id,
+            document_id=citation.document_id,
+            document_version_id=citation.document_version_id,
+            chunk_id=citation.chunk_id,
+            content=quote,
+            score=ScoreBreakdown(
+                final_score=final_score,
+                full_text_score=full_text_score,
+                vector_score=vector_score,
+                fusion_score=fusion_score,
+            ),
+            citation=citation,
+        )
+
+    @staticmethod
+    def _source(record: IndexRecord, *, active: bool) -> dict[str, Any]:
+        return {
+            "index_version_id": record.index_version_id,
+            "tenant_id": record.tenant_id,
+            "knowledge_base_id": record.knowledge_base_id,
+            "owner_id": record.owner_id,
+            "visibility": record.visibility.value,
+            "document_id": record.document_id,
+            "document_version_id": record.document_version_id,
+            "chunk_id": record.chunk_id,
+            "content": record.content,
+            "media_type": record.media_type,
+            "created_at": record.created_at.isoformat(),
+            "active": active,
+            "heading_path": list(record.metadata.heading_path),
+            "page_start": record.metadata.page_start,
+            "page_end": record.metadata.page_end,
+            "language": record.metadata.language,
+            "embedding": list(record.embedding),
+        }
+
+    @staticmethod
+    def _document_key(record: IndexRecord) -> str:
+        return f"{record.tenant_id}:{record.index_version_id}:{record.chunk_id}"
+
+    @staticmethod
+    def _require_tenant(context: AuthorizationContext, tenant_id: str) -> None:
+        if context.tenant_id != tenant_id:
+            raise KnowledgeAuthorizationError(reason_code="tenant_mismatch")
+
+
+class _SearchHit:
+    """Small internal hit shape insulated from Elasticsearch response classes."""
+
+    __slots__ = ("score", "source")
+
+    def __init__(self, *, source: dict[str, Any], score: float) -> None:
+        self.source = source
+        self.score = score

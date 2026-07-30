@@ -17,7 +17,11 @@ TOKEN_PATTERN = re.compile(
 PRIVATE_KEY_PATTERN = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")
 ASSIGNMENT_PATTERN = re.compile(
     r"(?i)\b(?:password|secret|token|api[_-]?key|access[_-]?key)"
-    r"\s*[:=]\s*[\"']?([^\s,\"']+)"
+    r"\s*[:=]\s*(?:"
+    r"SecretStr\(\s*[\"'](?P<wrapped>[^\"']+)[\"']|"
+    r"[\"'](?P<quoted>[^\"']+)[\"']|"
+    r"(?P<bare>[^\s,\)]+)"
+    r")"
 )
 ALLOWED_VALUES = {
     "change-me",
@@ -30,7 +34,8 @@ ALLOWED_VALUES = {
     "test",
     "unset",
 }
-ALLOWED_PREFIXES = ("${", "phase01-", "test-", "dummy-")
+ALLOWED_PREFIXES = ("${", "bootstrap-", "phase01-", "test-", "dummy-")
+REFERENCE_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 SKIPPED_FILES = {"uv.lock"}
 SKIPPED_PATHS: set[Path] = set()
 
@@ -44,8 +49,18 @@ def scan_text(text: str, *, include_assignments: bool = True) -> list[str]:
         findings.append("provider-token")
     if include_assignments:
         for match in ASSIGNMENT_PATTERN.finditer(text):
-            value = match.group(1).strip()
+            value = next(
+                group
+                for group in (
+                    match.group("wrapped"),
+                    match.group("quoted"),
+                    match.group("bare"),
+                )
+                if group is not None
+            ).strip()
             normalized = value.lower()
+            if match.group("bare") is not None and REFERENCE_PATTERN.fullmatch(value):
+                continue
             if normalized in ALLOWED_VALUES or normalized.startswith(ALLOWED_PREFIXES):
                 continue
             findings.append("credential-assignment")

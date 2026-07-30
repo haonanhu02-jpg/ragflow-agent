@@ -16,7 +16,8 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 - **计划状态**：预规划草案。
 - **执行状态**：未执行。
-- Phase 04 后必须按真实 ParsedDocument、ChunkRecord、index metadata 和资源 Profile 重审。
+- **准入复核**：Phase 04 已完成，`BasicObjectParser`、`GeneralChunker`、Chunk/Index/Citation 字段和真实后端闭环可作为输入；本计划尚未获确认，未进入执行。
+- Phase 04 未复制或改写 RAGFlow 源码；Phase 05 如拟采用任何派生代码，必须在 P05-T01 重新打开 O-004/许可证审查。
 - 导航：[阶段索引](./README.md) · [Phase 04](./phase-04-minimum-rag.md) · [Phase 06](./phase-06-online-retrieval.md) · [复用策略](../04-code-reuse-strategy.md)
 
 ## 1. 目标、必要性和 Phase 00 依据
@@ -28,7 +29,8 @@ Phase 00 证明 DeepDOC/`rag/app` 具备高价值复杂解析和场景分块，�
 ## 2. 前置、输入、范围和排除
 
 - **前置阶段**：Phase 04。
-- **进入条件**：Minimum RAG 真实闭环通过；O-004 在首次抽取前解决；Parser/OCR 模型和可选依赖许可完成门禁；本计划复审确认。
+- **进入 P05-T01 条件**：Minimum RAG 真实闭环已通过；本计划按 Phase 04 实际结果复审并由用户确认。
+- **进入 P05-T02 条件**：P05-T01 已逐文件决定独立实现/参考重写/改造复用，任何源码抽取已重新解决 O-004，Parser/OCR 模型、可选依赖、黄金样本和 CPU/GPU 资源门禁已记录并通过。
 - **输入**：ParsedDocument/Chunk 契约、基础 pipeline、格式黄金样本、资源预算、RAGFlow 复用登记。
 
 **范围**：格式识别；8 类目标输入；OCR/版面/表格；Parser registry；Chunker registry；naive/paper/book/manual/laws/qa/table/resume/picture 等明确策略的适用映射；页码/bbox/heading/table/image/source_order 元数据；资源、超时、临时文件和降级。
@@ -350,4 +352,3 @@ tests/{contract,golden,integration,performance}/parsing/
 - 实际格式/策略/模型与资源结果：待执行。
 - 实际测试命令和偏差：待执行。
 - 阶段出口结论：待执行。
-

@@ -9,6 +9,7 @@ from ragflow_agent.config import (
     ApiSettings,
     AppSettings,
     DatabaseSettings,
+    ModelSettings,
     ObjectStoreSettings,
     load_settings,
 )
@@ -34,7 +35,9 @@ def test_defaults_are_typed_and_immutable() -> None:
 
     assert settings.api.port == 8000
     assert settings.worker.service_name == "ragflow-agent-ingestion-worker"
-    assert settings.search.backend == "unconfigured"
+    assert settings.search.backend == "elasticsearch"
+    assert settings.models.chat_model == "deepseek-chat"
+    assert settings.models.embedding_model == "BAAI/bge-m3"
     with pytest.raises(ValidationError):
         settings.api.port = 9000
 
@@ -70,3 +73,12 @@ def test_secret_values_are_redacted() -> None:
 
     assert "top-secret" not in rendered
     assert "**********" in rendered
+
+
+def test_blank_optional_model_credentials_are_unconfigured() -> None:
+    settings = ModelSettings.model_validate(
+        {"chat_api_key": "", "embedding_api_key": "   "}
+    )
+
+    assert settings.chat_api_key is None
+    assert settings.embedding_api_key is None

@@ -1,0 +1,1 @@
+"""Minimum RAG evaluation baseline."""

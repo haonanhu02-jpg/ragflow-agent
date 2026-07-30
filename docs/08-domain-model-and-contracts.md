@@ -1,6 +1,6 @@
 ---
 document_id: DOMAIN-MODEL-AND-CONTRACTS
-document_role: Phase 03 领域模型与契约事实
+document_role: Phase 03 领域契约与 Phase 04 Adapter 落地事实
 status: active
 schema_version: 1
 last_updated_at: "2026-07-30"
@@ -9,9 +9,9 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 # 领域模型与统一契约
 
-本文件记录 Phase 03 实际落地的领域语言、不可变量、状态机和端口。代码与本文冲突时，以已通过测试的源码为事实，并在同一任务内修正文档。
+本文件记录 Phase 03 实际落地的领域语言、不可变量、状态机和端口，以及 Phase 04 对这些端口的最小真实 Adapter 落地。代码与本文冲突时，以已通过测试的源码为事实，并在同一任务内修正文档。
 
-导航：[项目主文档](./00-project-master.md) · [目标架构](./03-target-architecture.md) · [决策与风险](./07-decisions-and-risks.md) · [Phase 03](./phases/phase-03-knowledge-interface.md)
+导航：[项目主文档](./00-project-master.md) · [目标架构](./03-target-architecture.md) · [决策与风险](./07-decisions-and-risks.md) · [Phase 03](./phases/phase-03-knowledge-interface.md) · [Phase 04](./phases/phase-04-minimum-rag.md)
 
 ## 1. 边界和术语
 
@@ -39,7 +39,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 2. `Document` 必须属于同 tenant 的 `KnowledgeBase`；`DocumentVersion` 必须属于同 tenant 的 `Document`。
 3. `Document.current_version_id` 只能指向同一文档、已就绪的 `DocumentVersion`。
 4. Parser、Chunker、Embedding、Search、Queue 和对象存储只能实现 Phase 03 Ports；领域层不导入 FastAPI、SQLAlchemy、Redis、boto3、LangChain、LangGraph 或 RAGFlow。
-5. 固定 RAG 和 Agent Tool 后续只能调用同一 `KnowledgeQueryService`；Phase 03 不实现真实检索。
+5. 固定 RAG 和 Agent Tool 只能调用同一 `KnowledgeQueryService`；Phase 04 固定 RAG 已遵守，未来 Tool 仍不得旁路。
 6. RAGFlow 源码仅作为用例和缺口证据；Phase 03 不直接复用 Peewee 模型、Service、全局 `settings` 或搜索 DSL。
 
 ## 3. 第一版权限规则
@@ -139,7 +139,7 @@ Phase 03 的 `tests/fakes/knowledge.py` 提供内存或 fixture Adapter，只证
 3. 只在权限通过后调用 `RetrieverPort`。
 4. 要求返回 Trace 明确记录 `authorization_applied=true`。
 
-Phase 03 没有实现上传 API、对象存储 Adapter、Parser、Chunker、Embedding、搜索、Queue 消费、Prompt 或回答生成。
+Phase 03 当时没有实现上传 API、对象存储 Adapter、Parser、Chunker、Embedding、搜索、Queue 消费、Prompt 或回答生成。Phase 04 随后在不修改领域协议的前提下落地这些能力的最小实现。
 
 ## 8. Agent 契约映射
 
@@ -172,10 +172,19 @@ Phase 03 已通过：
 
 完整命令与最终数量以 [Phase 03 执行记录](./phases/phase-03-knowledge-interface.md) 为准。
 
-## 10. 仍未实现
+## 10. Phase 04 Adapter 落地与仍未实现
 
-- SQLAlchemy 业务表和 Repository Adapter。
-- 真实对象存储、任务队列、Parser、Chunker、Embedding、SearchIndex、Retriever、Reranker 和 Trace 后端。
-- 上传/Worker 数据面、索引写入、固定 RAG 回答与 KnowledgeBaseTool。
-- 复杂 RBAC、部门权限、动态数据规则、可靠 outbox 和跨存储补偿。
-- Elasticsearch/OpenSearch、任务库和首批模型选型；分别由 O-002、O-006、O-007 阻止 Phase 04 准入。
+Phase 04 已实现：
+
+- SQLAlchemy 五类知识业务表、Repository/UoW Adapter 和 Alembic `20260730_0002`。
+- S3-compatible/MinIO ObjectStorage、Redis/ARQ Queue、TXT/Markdown/PDF Parser、General Chunker。
+- BGE-M3 OpenAI-compatible Embedding Adapter、Elasticsearch 8.19 SearchIndex/Retriever、最小日志 Trace。
+- 上传/Job API、Worker pipeline、BM25/KNN/RRF、固定 RAG、Citation/RetrievalTrace。
+
+仍未实现：
+
+- Reranker、完整查询改写/跨语言/阈值/空结果重试和持久 Retrieval Trace。
+- KnowledgeBaseTool、完整 Agentic RAG。
+- OCR/版面/表格/八类格式和场景 Chunk Method。
+- 复杂 RBAC、部门权限、动态数据规则、可靠 outbox、跨存储补偿、取消/DLQ/批量与生命周期清理。
+- 真实 DeepSeek/BGE-M3 smoke、模型注册/配额/降级；CI 只有 Fake/Stub Provider。

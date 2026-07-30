@@ -4,7 +4,7 @@ document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
 document_version: "0.4.0"
 last_updated_at: "2026-07-30"
-current_phase: Phase 03 completed; Phase 04 entry blocked
+current_phase: Phase 04 completed; Phase 05 plan review gate
 roadmap_range: Phase 00-10
 ---
 
@@ -20,14 +20,14 @@ roadmap_range: Phase 00-10
 
 - **[事实]** 目标项目根目录为 `D:/download/ragflow-agent`。
 - **[事实]** 目标项目是 Git 仓库，默认分支为 `main`，`origin` 实际配置为 `https://github.com/haonanhu02-jpg/ragflow-agent.git`；P01-T01 开始前 `HEAD` 与 `origin/main` 均为 Phase 00 基线 commit `5c015405e4c25346999cbb21736c61a87d5f8cbe`。
-- **[事实]** 当前已有可安装包、类型化配置、日志/Trace、基础设施端口、空迁移、FastAPI/Worker 空壳、LangGraph Agent Runtime、知识领域/Ports/权限/统一查询契约、测试、GitHub Actions 和 Docker 开发拓扑；仍没有知识业务表、真实 ingestion 数据面或 RAG 闭环。Phase 00 原始文件快照见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
+- **[事实]** 当前已有可安装包、类型化配置、日志/Trace、LangGraph Agent Runtime、知识领域/Ports/权限/统一查询契约、知识业务迁移、FastAPI 知识 API、Redis/ARQ Ingestion Worker、S3/MinIO、Elasticsearch 全文/向量/最小混合检索和固定 RAG 闭环。Phase 00 原始文件快照见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
 - **[决策]** RAGFlow 冻结事实基线为 `cd846cc9d4e32a19e684c59a1f302601027ef976`，长期源码结论必须固定到该 commit。
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 未执行。Phase 03 已实现契约和内存测试 Adapter，但知识库基础设施与 RAG 业务闭环尚未开始。
+- **[事实]** Phase 00 至 Phase 04 已完成；Phase 05 至 Phase 10 未执行。Phase 04 使用真实 PostgreSQL、MinIO、Redis 和 Elasticsearch 验证了垂直切片；DeepSeek/BGE-M3 的真实外部服务调用未作为 CI 或阶段出口前提。
 
-Phase 00 至 Phase 03 已按详细计划执行并通过验收；Phase 04 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 04 已按详细计划执行并通过验收；Phase 05 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
 
 ### 0.2 本次路线图校正
 
@@ -96,7 +96,7 @@ flowchart LR
 | Phase 01 | 项目骨架 | Phase 00 | `CAP-36 模型注册与调用`、`CAP-37 FastAPI 服务接口`、`CAP-40 日志、指标与链路追踪`基础 | 已确认 | 已完成 |
 | Phase 02 | Agent基础 | Phase 01 | `CAP-29 LangGraph 状态、路由与循环`、`CAP-30 Checkpoint 与运行恢复`；CAP-31 仅复用前置 Checkpoint | 已确认 | 已完成 |
 | Phase 03 | 知识库统一接口 | Phase 02 | `CAP-03 统一文档结构`契约、`CAP-16 权限过滤`/`CAP-41 权限与安全`第一版边界、统一 Ports | 已确认 | 已完成 |
-| Phase 04 | 最小RAG闭环 | Phase 03 | `CAP-01`/`CAP-04`基础；`CAP-08`、`CAP-09`、`CAP-10`、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-38`基础 | 预规划草案 | 未执行 |
+| Phase 04 | 最小RAG闭环 | Phase 03 | `CAP-01`/`CAP-04`基础；`CAP-08`、`CAP-09`、`CAP-10`、`CAP-11`最小 RRF、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-38`基础 | 已确认 | 已完成 |
 | Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 预规划草案 | 未执行 |
 | Phase 06 | 在线检索 | Phase 04、Phase 05 | `CAP-11` 至 `CAP-22` | 预规划草案 | 未执行 |
 | Phase 07 | 文档生命周期 | Phase 05、Phase 06 | `CAP-24`、`CAP-25`、`CAP-26`、`CAP-38`可靠化 | 预规划草案 | 未执行 |
@@ -300,17 +300,17 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 ### 验收、后续与状态
 
 - **验收标准**：领域层无基础设施导入；所有 Ports 有契约测试骨架；状态转换有单测；无 tenant 的通用数据访问不能进入应用层；跨租户负向测试通过；固定 RAG 和 Agent Tool 引用同一 Retrieval DTO。
-- **下一阶段进入条件**：契约已稳定。Phase 04 目前只具备 P04-T01 选型复审入口；P04-T02 起要求 `O-002`、`O-006`、`O-007` 已解决，如抽取 RAGFlow 代码则 `O-004` 已解决，并再次冻结 Phase 04 计划。
+- **下一阶段进入条件（Phase 03 出口记录）**：契约稳定后，Phase 04 先从 P04-T01 完成选型复审；P04-T02 起要求 `O-002`、`O-006`、`O-007` 已解决，如抽取 RAGFlow 代码则 `O-004` 已解决。该条件现已由 ADR-019 和 Phase 04 实施满足。
 - **当前状态**：已完成；P03-T01 至 P03-T11、领域/权限/Repository/Ports/Service 契约及完整阶段门禁均通过。
 - **已知风险**：抽象过度；状态机过早固化；权限约束只留接口未测试；搜索后端细节泄漏进 DTO。
-- **技术决策结果**：ADR-018 冻结 `AuthorizationContext(tenant_id,actor_id,request_id)`、`private|tenant`、tenant-scoped Repository/UoW、`sha256-v1` Chunk ID、受控 MetadataFilter 和共享 `KnowledgeQueryService`；O-002/O-006/O-007 仍阻止 Phase 04，O-004 仅在首次复制上游代码前阻止。
+- **技术决策结果**：ADR-018 冻结 `AuthorizationContext(tenant_id,actor_id,request_id)`、`private|tenant`、tenant-scoped Repository/UoW、`sha256-v1` Chunk ID、受控 MetadataFilter 和共享 `KnowledgeQueryService`；O-002/O-006/O-007 在 Phase 03 出口时尚未解决，现已由 ADR-019 关闭；O-004 在 Phase 04 以不复制上游源码闭环。
 
 ## 7. Phase 04：最小RAG闭环
 
 ### 目标与必要性
 
 - **阶段目标**：交付上传到带引用回答的第一个真实垂直切片，证明 API、Worker、解析、Chunk、Embedding、索引、检索和生成可以端到端协作。
-- **为什么需要**：先用最小闭环验证契约和基础设施，才能有证据地扩展复杂 Parser、混合检索和高级 RAG。
+- **为什么需要**：先用最小闭环验证契约和基础设施，才能有证据地扩展复杂 Parser、完整在线检索和高级 RAG。
 
 ### 依赖与输入
 
@@ -319,8 +319,8 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 
 ### 工作范围与明确排除
 
-- **主要范围**：一种简单文本格式和一条 PDF 路径；General Chunk；一个 Embedding；一个 SearchPort Adapter；全文/向量基础检索；FastAPI 上传/状态/固定问答；独立 Worker；基础 Citation；最小模型注册和 Trace。
-- **不包含**：完整 OCR/版面/多格式；混合融合、跨语言、Reranker；更新/删除一致性；正式 `KnowledgeBaseTool`；GraphRAG、RAPTOR、多模态。
+- **主要范围**：TXT/Markdown/PDF；General Chunk；BGE-M3 Provider Adapter；Elasticsearch 8.19 Adapter；BM25/KNN/最小 RRF；FastAPI 上传/状态/固定问答；Redis/ARQ 独立 Worker；基础 Citation 和 Retrieval Trace。
+- **不包含**：完整 OCR/版面/八类格式；复杂融合、跨语言、查询改写、Reranker；更新/删除一致性；正式 `KnowledgeBaseTool`；GraphRAG、RAPTOR、多模态。
 
 ### 主要交付物
 
@@ -344,16 +344,16 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 |---|---|
 | LangChain | Chat Model、Embeddings、Prompt、结构化输出和标准模型适配 |
 | LangGraph | 不进入固定 RAG 主链路；仅保持 Phase 02 Agent Runtime 可用 |
-| RAGFlow | 参考或经隔离层改造最小 Parser/Chunk/检索/引用行为 |
+| RAGFlow | 只参考冻结源码的职责、调用顺序和行为目标；本阶段无源码复制或改造复用 |
 | 自研 | FastAPI、Worker、领域状态、版本、SearchPort、FixedRAG、Citation、幂等和 tenant 隔离 |
 
 ### 验收、后续与状态
 
 - **验收标准**：上传 → 解析 → Chunk → Embedding → 索引 → 检索 → 生成 → Citation 全链路通过；API/Worker 独立启动；结果可追溯到 DocumentVersion/Chunk；重复任务不产生重复数据；跨租户消息和查询被拒绝。
-- **下一阶段进入条件**：最小链路与基线评测稳定；Parser/Chunk 扩展不会改变核心 DTO；Phase 05 详细计划已确认。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 03 实际结果复审。
-- **已知风险**：外部模型不稳定；搜索后端语义差异；PDF 路径依赖过重；任务 ACK/重试错误；最小切片被过度扩张。
-- **待确认技术决策**：`O-002` 搜索引擎；`O-006` 任务与可靠消息；`O-007` 首批 LLM/Embedding/OCR；`O-004` 如发生首次源码抽取。
+- **下一阶段进入条件**：最小链路与基线评测稳定；Parser/Chunk 扩展不改变核心 DTO；Phase 05 详细计划必须依据实际 `BasicObjectParser`、`GeneralChunker` 和 provenance 边界复审。
+- **当前状态**：已完成；P04-T01 至 P04-T12、Fake/真实后端垂直切片和阶段门禁通过。
+- **已知风险**：ARQ maintenance-only（R-028）；Elasticsearch 版本/语义漂移（R-029）；跨存储补偿与残留清理尚未实现（R-027）；外部模型真实性能尚未验证。
+- **技术决策结果**：ADR-019 已解决 O-002/O-006/O-007；O-004 在 Phase 04 以“不复制、抽取或改写 RAGFlow 源码”闭环，后续首次复制前必须重开许可审查。
 
 ## 8. Phase 05：Parser与Chunk
 
@@ -685,9 +685,10 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 01：详细计划已确认，P01-T01 至 P01-T10 和阶段门禁已完成。
 - Phase 02：详细计划已确认，P02-T01 至 P02-T10 和阶段门禁已完成。
 - Phase 03：已确认并完成；P03-T01 至 P03-T11 和阶段验收通过。
-- Phase 04 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
-- 当前已具备最小 Agent Runtime，但没有知识库、ingestion、检索或 RAG 业务能力；工程骨架、Agent Checkpoint/Trace 和 CI 已验证。
-- 下一步是按 Phase 02 实际契约复审并确认 Phase 03，不自动执行。
+- Phase 04：已确认并完成；P04-T01 至 P04-T12、真实后端与阶段验收通过。
+- Phase 05 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
+- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、最小离线 ingestion、全文/向量/RRF 检索和固定 RAG；复杂 Parser/Chunk、完整在线检索、生命周期、Agentic RAG 和生产化尚未实现。
+- 下一步是依据 Phase 04 实际结果复审并确认 Phase 05；不得自动执行。
 
 ### 15.2 Phase 00 一致性债务处理
 

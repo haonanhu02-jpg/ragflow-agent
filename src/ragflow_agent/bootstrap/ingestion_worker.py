@@ -11,6 +11,7 @@ from ragflow_agent.config import AppSettings, WorkerSettings, load_settings
 from ragflow_agent.infrastructure.queue import DevelopmentIdleQueue, UnconfiguredQueue
 from ragflow_agent.shared.ports import QueuePort
 from ragflow_agent.worker import IngestionWorker, WorkerState
+from ragflow_agent.worker.arq_worker import run_arq_ingestion_worker
 
 
 def build_worker(
@@ -39,7 +40,10 @@ async def run_worker(
 ) -> None:
     if development_idle and settings.environment != "development":
         raise RuntimeError("--development-idle is restricted to the development environment")
-    queue: QueuePort = DevelopmentIdleQueue() if development_idle else UnconfiguredQueue()
+    if not development_idle:
+        await run_arq_ingestion_worker(settings)
+        return
+    queue: QueuePort = DevelopmentIdleQueue()
     worker = build_worker(settings.worker, queue=queue)
     loop = asyncio.get_running_loop()
     for signal_name in ("SIGINT", "SIGTERM"):

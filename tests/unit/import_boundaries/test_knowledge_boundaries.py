@@ -47,6 +47,7 @@ def test_knowledge_application_does_not_import_adapters_or_process_entrypoints()
         "ragflow_agent.api",
         "ragflow_agent.bootstrap",
         "ragflow_agent.infrastructure",
+        "ragflow_agent.knowledge.infrastructure",
         "ragflow_agent.worker",
     )
     violations: list[str] = []

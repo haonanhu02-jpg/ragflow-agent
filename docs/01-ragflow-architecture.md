@@ -318,7 +318,7 @@ DOCX、Excel 和 PPT Parser 的依赖较轻，但仍会产生 RAGFlow 特有的�
 - `handle_task` 对成功、取消和异常处理后均执行 `redis_msg.ack()`；异常后的 ACK 不会触发 Redis pending 重试。
 - `requeue_msg` 辅助函数存在，但主 Worker 调用链未形成统一死信、退避和失败分类。
 
-目标任务端口必须明确 lease/claim、retryable/permanent/cancelled、ACK、backoff、dead-letter、shutdown 和 stale-job reconciliation；具体队列实现仍是 O-006。
+目标任务端口必须明确 lease/claim、retryable/permanent/cancelled、ACK、backoff、dead-letter、shutdown 和 stale-job reconciliation；ADR-019 已选择 Redis/ARQ 作为 Phase 04 最小实现，完整可靠性语义仍由 Phase 07 验收。
 
 ## 6. 在线检索与回答完整链路
 

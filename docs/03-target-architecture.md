@@ -13,13 +13,13 @@ architecture_status: partially_implemented
 
 ## 1. 架构状态
 
-- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现与知识库解耦的 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约及内存契约 Adapter；真实知识库基础设施、ingestion 数据面和 RAG 仍未实现。
+- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约，Phase 04 已实现 PostgreSQL/S3/Redis/Elasticsearch 最小 ingestion 与固定 RAG 垂直切片。
 - **[决策]** 目标项目独立运行，不以 RAGFlow API 或 RAGFlow 服务为运行时依赖。
 - **[决策]** Agent 使用 LangChain + LangGraph。
 - **[决策]** 第一版是模块化单体：FastAPI 与独立 Ingestion Worker 同仓库、共享领域模型和基础设施端口、通过任务队列连接，不拆微服务。
 - **[决策]** 第一版强制 tenant 隔离并实现 owner/visibility、`AuthorizationContext` 和 `PermissionChecker`。
 - **[规划]** 本文定义逻辑组件、依赖方向、端口、数据所有权和运行链路。
-- **[待确认]** RAGFlow 适配代码的物理隔离、首个搜索引擎和具体任务队列实现。
+- **[决策]** ADR-019 冻结首个搜索引擎为 Elasticsearch 8.19、队列为 Redis + ARQ 0.28；Phase 04 不含 RAGFlow 派生代码，后续首次复制前重新审查物理隔离和许可证。
 
 ## 2. 架构原则
 
@@ -78,8 +78,8 @@ flowchart TB
     subgraph Infra["基础设施适配层"]
         PG["PostgreSQL/SQLAlchemy"]
         Obj["MinIO/S3"]
-        Search["Elasticsearch/OpenSearch"]
-        Queue["Redis/Task Queue"]
+        Search["Elasticsearch 8.19"]
+        Queue["Redis/ARQ"]
         Models["LangChain Model Adapters"]
         RF["RAGFlow Python Adapters"]
         Obs["Observability Backend"]
@@ -182,11 +182,10 @@ Agent 不接收搜索引擎原始 hit，不直接修改 Document，不直接持�
 - SQLAlchemy Repository Adapter
 - MinIO/S3 ObjectStorage Adapter
 - Elasticsearch Adapter
-- OpenSearch Adapter
-- Redis Adapter
-- Task Queue Adapter
+- OpenSearch/其他 Search Adapter（后续可选，不在 Phase 04）
+- Redis/ARQ Queue Adapter
 - LangChain Model Adapter
-- RAGFlow Parser/Chunk/Retrieval Algorithm Adapter
+- RAGFlow Parser/Chunk/Retrieval Algorithm Adapter（后续候选；Phase 04 无实现）
 - Observability Adapter
 
 SearchIndexPort 和 RetrieverPort 可以由同一搜索后端类实现，但写入和查询接口必须分开测试。
@@ -346,6 +345,8 @@ PermissionChecker
 
 ## 7. 离线链路设计
 
+**[事实]** Phase 04 已落地 `UploadService → S3ObjectStorage → PostgreSQL Job/Task → ArqIngestionQueue → IngestionPipeline → BasicObjectParser → GeneralChunker → EmbeddingPort → ElasticsearchSearchAdapter`。下图中的 `DocumentLifecycleService` 和完整候选索引补偿仍是 Phase 07 目标，不得误写为现状。
+
 ```mermaid
 sequenceDiagram
     participant C as Client
@@ -377,7 +378,7 @@ sequenceDiagram
     I->>R: activate version
 ```
 
-失败规则：
+完整目标失败规则：
 
 1. Parser 失败：DocumentVersion 为 FAILED，原始文件保留。
 2. Embedding 失败：不激活索引版本，可从 Chunk 工件重试。
@@ -387,7 +388,11 @@ sequenceDiagram
 6. Worker 处理结束前持久化终态或可重试状态；只有符合任务协议的路径才 ACK。
 7. 消息 tenant 与数据库 Job tenant 不一致：拒绝执行、记录安全事件，不自动改写 tenant。
 
+Phase 04 已实现规则 1、2、5、6、7 的最小形态；规则 3、4 的跨存储补偿、旧版本保持和残留清理仍属于 Phase 07。
+
 ## 8. 在线链路设计
+
+**[事实]** Phase 04 当前在线路径是权限先行 `KnowledgeQueryService → Elasticsearch BM25 + KNN → RRF → TopN → fixed-rag-v1 context → ChatProvider → Citation/RetrievalTrace`。下列 QueryRewrite、跨语言、清理、Reranker、阈值、邻近/TOC 和降级链路仍为 Phase 06 目标。
 
 ```text
 RetrievalQuery
@@ -535,7 +540,7 @@ RAGFlow 的 `timeline.yaml → compile_structure_from_text/merge_compiled_struct
 - 二者共享领域模型、应用服务、端口和基础设施 Adapter，不复制代码。
 - 二者之间不建立内部 REST/gRPC 服务调用；任务队列是 ingestion 命令边界。
 - 第一版不拆独立微服务、独立仓库或独立版本发布。
-- `O-006` 仍决定具体任务库和可靠消息方案；该开放项不改变已确认的进程拓扑。
+- Redis + ARQ 0.28 已作为 Phase 04 具体实现，ARQ 类型被限制在 Queue/Worker Adapter；替换实现不改变进程拓扑。
 - 后续如拆微服务，必须有新的 ADR、性能/组织证据和数据所有权迁移方案。
 
 ## 14. 与其他文档的契约

@@ -30,7 +30,7 @@ adr_mode: registry
 
 ### ADR-001：独立 Agent + RAG 系统
 
-- **Status**：Accepted
+- **Status**：Accepted and implemented in Phase 04
 - **Date**：2026-07-27
 
 **Context**
@@ -440,12 +440,51 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 
 - Phase 04 必须实现这些 Ports，而不能另建一套 DTO、权限 if/else 或 tenant-free Repository。
 - `AuthorizationContext`、状态机、Chunk ID 和 Retrieval schema 的破坏性变更必须升级 schema/ADR，并提供迁移或兼容读。
-- O-002/O-006/O-007 仍阻止 Phase 04 执行；若首次复制 RAGFlow 源码，还必须先解决 O-004。
+- 在 ADR-018 作出时，O-002/O-006/O-007 仍阻止 Phase 04 执行；这些事项随后由 ADR-019 关闭。若未来首次复制 RAGFlow 源码，仍必须重新审查 O-004 边界。
 - 应用数据库、对象存储、搜索和外部 Trace 不是同一事务；可靠 outbox、幂等和补偿仍按 Phase 07 完成，见 R-027。
 
 **References**
 
 [`docs/08-domain-model-and-contracts.md`](./08-domain-model-and-contracts.md)；[`phase-03-knowledge-interface.md`](./phases/phase-03-knowledge-interface.md)；[`Knowledgebase/Document/Task`](https://github.com/infiniflow/ragflow/blob/cd846cc9d4e32a19e684c59a1f302601027ef976/api/db/db_models.py)
+
+### ADR-019：Phase 04 最小 RAG 基础设施与 Provider Profile
+
+- **Status**：Accepted
+- **Date**：2026-07-30
+
+**Context**
+
+Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002、O-006、O-007 仍阻止真实垂直切片。Phase 04 需要一个可验证而不过度扩张的 PostgreSQL → 对象存储 → Queue → Worker → Parser → Chunker → Embedding → Search → 固定回答组合。
+
+**Decision**
+
+- 首个且本阶段唯一搜索后端为 Elasticsearch 8.19 系列，使用官方异步 Python Client；实现 BM25、KNN 和最小 RRF 混合检索。Elasticsearch DSL 只能存在于 Adapter，领域与应用层仍只依赖 `SearchIndexPort`/`RetrieverPort`。Infinity、OpenSearch、Milvus 和其他引擎不在 Phase 04 实现范围。
+- Redis 是队列基础设施，Python 任务库选择 ARQ 0.28 系列，并将其兼容的 Python Redis Client 锁在 `redis>=5.2,<6`；Redis 服务端版本仍由部署配置独立管理。选择原因是 asyncio 原生、依赖面小、支持 Redis、唯一 Job ID、重试、延迟、取消和悲观执行，适合当前同仓库独立 Worker。Celery 功能和运维面超过本阶段；RQ/Dramatiq 以同步 Worker 为主；Taskiq 更灵活但会为最小单队列链路引入额外 Broker/Result Backend 选择。
+- ARQ 当前处于 maintenance-only 模式，因此只使用 `create_pool`、`enqueue_job`、唯一 `_job_id`、Worker retry/abort 等稳定最小接口；ARQ 类型不得进入领域消息、应用服务或数据库。若其 Python/Redis 兼容性、修复响应或安全维护不能满足要求，通过 `IngestionQueuePort` 更换 Adapter。
+- 默认 Chat Provider 为 DeepSeek OpenAI-compatible API，默认模型 `deepseek-chat`；默认 Embedding 为 `BAAI/bge-m3`，维度 1024。业务服务只依赖项目 Provider/Embedding Ports；LangChain OpenAI-compatible Adapter 位于基础设施层。
+- CI 和默认测试只使用 Fake/Stub Provider，不需要 API Key、外部模型服务或 GPU。真实 Provider 为显式 opt-in，端点、模型和凭据只通过环境变量提供。
+- Phase 04 不要求 Reranker；保留 `RerankerPort`，BGE Reranker 在后续阶段作为独立 Adapter 接入。
+- 元数据和业务事实继续存 PostgreSQL；对象存储采用 S3-compatible Adapter，本地默认 MinIO；搜索使用 Elasticsearch；Queue 使用 Redis + ARQ。所有外部端点通过配置替换。
+- Phase 04 不复制、抽取或改写任何 RAGFlow 源码，只参考冻结 commit 的公开架构、职责和行为目标并独立实现。若后续需要复制或修改 RAGFlow 源码，必须暂停、重新审查 Apache-2.0 notice、文件 provenance、内部依赖和分发义务，并形成新 ADR。
+- Phase 04 的 CI 仅在工作流显式声明临时服务容器时运行 PostgreSQL、Redis、MinIO 和 Elasticsearch 集成测试；否则测试必须明确 skip，不能伪造成功。
+
+**Consequences**
+
+- P04-T01 的 O-002、O-006、O-007 和 Phase 04 范围内的 O-004 门禁解除。
+- Phase 04 只验证一个最小 Profile，不承诺多引擎一致性、完整分布式调度、生产身份系统、复杂 Parser、Reranker 或 Provider 高可用。
+- ARQ maintenance-only 和 Elasticsearch 版本升级分别由 R-028、R-029 监控。
+
+**Verification**
+
+- 锁定依赖并运行 `uv lock --check`、`uv sync --frozen --all-groups` 和 `uv pip check`。
+- 使用真实临时 Redis 验证唯一消息 ID、入队、消费失败不伪成功和重试边界。
+- 使用真实 Elasticsearch 验证 mapping、bulk upsert、tenant/KB 强制过滤、BM25、KNN 和混合检索。
+- 使用 Fake BGE/Chat Provider 完成上传到带 Citation 回答的 E2E；真实 DeepSeek/BGE 只作本地 opt-in smoke。
+- **实际结果**：Python 3.13 下 ARQ 0.28 + redis-py 5.3.1、Elasticsearch Client/Server 8.19.3、真实 PostgreSQL/MinIO/Redis/Elasticsearch 全量测试 153 passed、0 skipped；外部 DeepSeek/BGE 未执行，不得声称已验证。
+
+**References**
+
+[`phase-04-minimum-rag.md`](./phases/phase-04-minimum-rag.md)；[ARQ documentation](https://arq-docs.helpmanual.io/)；[Elasticsearch async client](https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/async.html)
 
 ## 3. 开放与已解决的待决策事项
 
@@ -461,14 +500,16 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 
 ### O-002：首个搜索引擎
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-019
 - **Decision deadline**：Phase 04 开始前
 - **Question**：首个 SearchPort Adapter 使用 Elasticsearch 还是 OpenSearch？
 - **Options**：
   - Elasticsearch：与 RAGFlow 默认路径更接近。
   - OpenSearch：独立开源生态和相似 API。
 - **Required evidence**：BM25、KNN、过滤、批量写入、索引别名、部署资源和许可证比较。
-- **Current handling**：只定义端口，不写具体 DSL。
+- **Decision**：Phase 04 只实现 Elasticsearch 8.19 Adapter；保留 SearchPort，不并行实现其他引擎。
+- **Current handling**：Elasticsearch DSL 只允许存在于基础设施 Adapter。
 
 ### O-003：API 与 Ingestion 物理拓扑
 
@@ -478,10 +519,12 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 
 ### O-004：RAGFlow 复用代码物理隔离
 
-- **Status**：Deferred
+- **Status**：Resolved for Phase 04
+- **Resolution**：ADR-019
 - **Decision deadline**：首次抽取代码前
 - **Question**：内部 Adapter 包、独立 Python 包或独立 Worker？
-- **Current handling**：只做源码审计，不复制。
+- **Decision**：Phase 04 不复制、抽取或改写 RAGFlow 源码；不存在本阶段复用代码的物理隔离问题。
+- **Current handling**：只保留固定 commit 源码依据和独立实现 provenance；后续首次复制前必须重新打开许可证审查并形成 ADR。
 - **Required evidence**：依赖大小、模型资源、进程稳定性、许可证和部署影响。
 
 ### O-005：多租户和权限模型
@@ -493,18 +536,22 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 
 ### O-006：后台任务与可靠消息实现
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-019
 - **Decision deadline**：Phase 04 开始前
 - **Question**：使用哪种任务库和消息语义？
 - **Required capability**：ACK、重试、取消、延迟、积压、崩溃恢复、幂等、可观察。
-- **Current handling**：TaskQueuePort 和 IngestionJob 契约优先。
+- **Decision**：Redis + ARQ 0.28；只实现 ingestion 所需最小可靠链路，领域和应用层只依赖 `IngestionQueuePort`。
+- **Current handling**：唯一 Job ID、重试、失败状态和 Worker ACK 语义通过 Adapter/集成测试固化。
 
 ### O-007：首批模型
 
-- **Status**：Deferred
+- **Status**：Resolved for Phase 04
+- **Resolution**：ADR-019
 - **Decision deadline**：Phase 04 开始前
 - **Question**：LLM、Embedding、Reranker、OCR、Vision、ASR 的首批 Provider/模型？
-- **Current handling**：只定义模型能力和注册接口。
+- **Decision**：Chat 默认 DeepSeek OpenAI-compatible `deepseek-chat`；Embedding 默认 `BAAI/bge-m3`、1024 维；Reranker 不作为 Phase 04 门禁。
+- **Current handling**：业务只依赖 Provider/Embedding Ports；CI 使用 Fake/Stub，真实端点和凭据仅来自环境变量。
 - **Required evidence**：语言、维度、上下文、成本、延迟、隐私、部署、许可证和回退。
 
 ### O-008：空结果降级默认策略
@@ -571,7 +618,7 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 | R-011 | GraphRAG/RAPTOR 增加复杂度但无质量收益 | 高 | 高 | 成本上升、指标不升 | 默认关闭；Phase 10 对照评测 | Phase 09/10 | Open |
 | R-012 | RAGFlow/第三方许可证或模型再分发不清楚 | 中 | 严重 | 缺许可证、权重限制、样本来源不明 | provenance、依赖清单、人工法律复核 | 所有复用阶段 | Open |
 | R-013 | 文档规划过度，Minimum RAG 延迟 | 中 | 中 | Phase 00 持续扩大而无出口 | Phase 00 已归档；Phase 01 后按任务 DoD 推进 | Phase 00 | Mitigated |
-| R-014 | 抽象过度导致 Phase 04 没有垂直切片 | 中 | 高 | 只有 Protocol/DTO，没有端到端请求 | Phase 04 出口必须完成上传到回答 | Phase 03/04 | Open |
+| R-014 | 抽象过度导致 Phase 04 没有垂直切片 | 中 | 高 | 只有 Protocol/DTO，没有端到端请求 | Phase 04 已完成 Fake 与真实基础设施上传到回答 E2E | Phase 03/04 | Closed |
 | R-015 | 测试数据不能代表复杂企业文档 | 高 | 高 | 黄金样本过于简单，线上质量差 | 多格式复杂样本、轨道交通脱敏集、错误样本 | Phase 05/10 | Open |
 | R-016 | LLM/Embedding/Reranker 供应商波动 | 高 | 中 | 限流、价格、模型下线、响应变化 | 模型注册、契约测试、回退、版本锁定 | Phase 04/10 | Open |
 | R-017 | Trace 记录敏感原文 | 中 | 严重 | 日志或 Trace 泄露文档内容 | 数据最小化、脱敏、访问控制、保留策略 | Phase 01/06/10 | Open |
@@ -585,6 +632,8 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 | R-025 | 官方 PostgreSQL Checkpointer 升级导致内部 schema 或恢复语义漂移 | 中 | 高 | 依赖升级后 setup、恢复、list/delete 或并发测试失败 | 锁定依赖；不手改上游表；真实 PostgreSQL 迁移/恢复回归；升级前审查 release notes | Phase 02 持续/Phase 10 | Monitoring |
 | R-026 | Agent 最小授权快照与知识 AuthorizationContext 映射漂移 | 中 | 高 | Tool Adapter 错把 `user_id` 当 tenant、恢复后跳过权限重验或字段改名破坏 Checkpoint | AgentState v1 不破坏；显式 `user_id → actor_id` Adapter；tenant/thread/run 与 PermissionChecker 双重验证；跨租户 Tool 契约测试 | Phase 08 | Open |
 | R-027 | 数据库提交与对象存储、搜索、Queue、Trace 非原子导致部分成功 | 高 | 高 | 写入已提交但事件/索引/Trace 失败，重试产生重复或状态漂移 | Phase 03 只定义端口；Phase 04 命令使用幂等键；Phase 07 落地 outbox、候选索引、补偿、残留扫描和故障注入 | Phase 04/07 | Open |
+| R-028 | ARQ maintenance-only 导致未来 Python/Redis 兼容或安全修复不足 | 中 | 高 | 新 Python/Redis 无法运行、关键缺陷长期无修复 | 锁定 0.28；只用最小接口；QueuePort 隔离；真实 Redis 回归；必要时替换 Adapter | Phase 04/10 | Monitoring |
+| R-029 | Elasticsearch Client/Server 版本或 KNN 语义漂移 | 中 | 高 | mapping、查询参数、分数或过滤在升级后变化 | 锁定 8.19 系列；真实 BM25/KNN/混合/tenant 契约测试；DSL 限于 Adapter | Phase 04/06/10 | Monitoring |
 
 ## 5. 风险处理规则
 
@@ -596,9 +645,9 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-017。
-- Resolved：O-001 → ADR-016；O-003 → ADR-011；O-005 → ADR-012；O-012 → ADR-016。
-- Deferred：O-002、O-004、O-006、O-007、O-008、O-009、O-010、O-011。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-019。
+- Resolved：O-001 → ADR-016；O-002/O-006/O-007 → ADR-019；O-003 → ADR-011；O-004（Phase 04 不抽取）→ ADR-019；O-005 → ADR-012；O-012 → ADR-016。
+- Deferred：O-008、O-009、O-010、O-011。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
 - Superseded：ADR-006 → ADR-014。
 - 当前没有通过待决策事项擅自形成的实现。
@@ -639,3 +688,23 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 - **计划偏差**：未创建 `budgets.py`，技术限额由 `RuntimeLimits` 承担；官方 Checkpointer 通过自身 `setup()` 管理内部表，不创建项目 Alembic 业务迁移；持久恢复由真实 PostgreSQL 验证，内存 Saver 只用于快速测试。
 - **新增风险**：R-025 监控官方 Checkpointer schema 和恢复语义随依赖升级漂移。
 - **下一门禁**：根据 Phase 02 的最小授权快照、Tool 和 Checkpoint 契约复审并确认 Phase 03 计划；Phase 03 必须建立统一 `AuthorizationContext`、`PermissionChecker` 和知识库领域接口，不得直接扩展 Agent 临时类型为知识模型。
+
+## 10. Phase 03 出口审查记录
+
+### 2026-07-30 / P03-T11
+
+- **结论**：P03-T01 至 P03-T11 已完成并通过阶段验收；不自动进入 Phase 04。
+- **实现边界**：已实现知识领域、状态机、统一 Ports、tenant-scoped Repository/UoW 契约、`AuthorizationContext`、`PermissionChecker`、`KnowledgeService` 和 `KnowledgeQueryService`；当时没有真实知识基础设施或 RAG。
+- **决策**：ADR-018 冻结 `private|tenant`、显式 actor、稳定 Chunk/Index/Retrieval schema 和固定 RAG/Tool 共享查询入口。
+- **下一门禁**：O-002/O-006/O-007 以及发生源码抽取时的 O-004 必须先解决。
+
+## 11. Phase 04 出口审查记录
+
+### 2026-07-30 / P04-T12
+
+- **结论**：P04-T01 至 P04-T12 已完成；Phase 04 通过真实后端、Fake Provider、迁移、tenant、Citation/Trace、ruff、strict mypy、密钥卫生和完整 pytest 阶段门禁，不自动进入 Phase 05。
+- **实现边界**：已实现 PostgreSQL 知识表、S3/MinIO、Redis/ARQ、TXT/Markdown/PDF、General Chunk、BGE-M3/DeepSeek Provider Adapter、Elasticsearch BM25/KNN/RRF、固定 RAG、Citation/Trace 和知识 API；未实现真实外部模型 smoke、OCR/版面、完整在线检索、生命周期或 Agent Tool。
+- **验证证据**：本地临时 Compose 下 153 passed、0 skipped；Fake-only 默认环境 143 passed、10 个显式基础设施 skip；`ruff`、`mypy`、bootstrap、Compose config、Alembic round trip 和 secret hygiene 通过。
+- **决策与合规**：ADR-019 已实施；Phase 04 直接复用和改造复用 RAGFlow 源码均为零，后续首次复制前必须重新许可证审查。
+- **计划偏差**：用户准入决策将最小 RRF 混合检索提前到 Phase 04；ARQ 要求 `redis<6`；复杂调度、补偿、流式回答和真实 Provider 验证仍按后续阶段处理。
+- **下一门禁**：依据 Phase 04 实际 Parser/Chunk/provenance 复审 Phase 05 计划，确认复杂格式、OCR、资源、样本和许可证后才可执行。

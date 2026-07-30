@@ -14,6 +14,8 @@ class TenantRepository[Entity](Protocol):
 
     async def add(self, *, tenant_id: str, entity: Entity) -> None: ...
 
+    async def save(self, *, tenant_id: str, entity: Entity) -> None: ...
+
 
 @runtime_checkable
 class KnowledgeBaseRepository(TenantRepository[KnowledgeBase], Protocol):
