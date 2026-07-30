@@ -6,11 +6,14 @@ ingestion-worker process shells, tests, and a reproducible development
 environment. Phase 02 adds a knowledge-independent LangGraph Agent runtime with
 versioned state/events, structured model and Tool ports, bounded error handling,
 tenant-scoped PostgreSQL checkpoints, trace events, and a deterministic minimal
-Agent loop.
+Agent loop. Phase 03 adds versioned knowledge-domain contracts, first-version
+tenant/owner/visibility authorization, tenant-scoped repositories and capability
+ports, plus shared `KnowledgeService` and `KnowledgeQueryService` boundaries.
 
-Knowledge-base domains, ingestion, parsing, chunking, embedding, indexing,
-retrieval, fixed RAG, KnowledgeBaseTool, real model providers, HITL, memory, and
-multi-Agent behavior are intentionally not implemented yet.
+Production knowledge repositories and adapters, ingestion execution, parsing,
+chunking, embedding, indexing, retrieval, fixed RAG, KnowledgeBaseTool, real
+model providers, HITL, memory, and multi-Agent behavior are intentionally not
+implemented yet.
 
 ## Project entrypoints
 

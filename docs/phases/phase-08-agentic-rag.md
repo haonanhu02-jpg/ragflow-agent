@@ -293,14 +293,14 @@ tests/{unit,contract,integration,e2e,evaluation,security}/agentic_rag/
 - **为什么需要**：多 Tool/多检索显著放大成本和故障面。
 - **输入**：P08-T02 至 P08-T10。
 - **前置任务**：P08-T02 至 P08-T10。
-- **操作步骤**：预算 ledger；每节点/Tool 消耗；hard/soft limit；checkpoint；恢复重验；Trace 关联 retrieval/tool/citation；终止原因。
+- **操作步骤**：预算 ledger；分别记录并限制业务循环次数、输入/输出/总 Token、端到端运行时间和模型/Tool 费用；定义各维度 hard/soft limit；checkpoint；恢复重验；Trace 关联 retrieval/tool/citation；终止原因。
 - **涉及文件**：Agent budgets/runtime/trace、测试。
 - **预期输出**：Agentic 运行治理。
 - **RAGFlow 源码依据**：上游 Agentic 固定图无完整治理证据。
 - **实现或复用方式**：LangGraph + 自研。
-- **测试方法**：每种超限、崩溃恢复、重复副作用、Trace。
+- **测试方法**：分别注入循环次数、Token、运行时间和费用超限；验证 soft/hard limit、崩溃恢复、重复副作用和 Trace。
 - **验证命令**：`uv run pytest tests/fault/agentic_rag/test_runtime_governance.py -q`
-- **验收标准**：无无限循环；副作用节点幂等/审批；成本可解释。
+- **验收标准**：业务循环次数、Token、运行时间和费用四类预算均有独立可配置上限、独立超限测试和稳定终止原因；Checkpoint 恢复后已消耗预算不回退；无无限循环；副作用节点幂等/审批；成本可解释。
 - **风险和回滚方法**：默认保守上限；恢复冲突终止而非重放。
 - **实际执行结果**：待执行。
 - **实际验证结果**：待执行。

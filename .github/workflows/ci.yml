@@ -1,4 +1,4 @@
-name: Phase 02 quality gate
+name: Phase 03 quality gate
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: phase-02-${{ github.workflow }}-${{ github.ref }}
+  group: phase-03-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

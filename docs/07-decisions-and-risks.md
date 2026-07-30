@@ -9,7 +9,7 @@ adr_mode: registry
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [领域契约](./08-domain-model-and-contracts.md)
 
 ## 1. ADR 规则
 
@@ -398,7 +398,7 @@ Phase 01 已提供 Python 3.13、PostgreSQL、类型化配置、Trace 和质量�
 **Decision**
 
 - Agent Runtime 使用 LangGraph `StateGraph`；应用节点只依赖 Agent 领域、端口和应用服务。
-- 持久 Checkpointer 使用官方 `langgraph-checkpoint-postgres::AsyncPostgresSaver`，由其 `setup()` 管理 Checkpoint 表；本项目通过 `TenantScopedCheckpointStore` 组合 state version、`tenant_id` 和逻辑 `thread_id`，不把 Checkpoint 表建模为业务实体。
+- 持久 Checkpointer 使用官方 `langgraph-checkpoint-postgres::AsyncPostgresSaver`，由其 `setup()` 管理 Checkpoint 表；项目声明兼容范围为 `langgraph-checkpoint-postgres>=3.1,<4`、`psycopg[binary,pool]>=3.2,<4`，Phase 02 冻结锁定版本分别为 `3.1.0`、`psycopg 3.3.4` 和 `psycopg-pool 3.3.1`。本项目通过 `TenantScopedCheckpointStore` 组合 state version、`tenant_id` 和逻辑 `thread_id`，不把 Checkpoint 表建模为业务实体。
 - `AgentState` 和 `AgentEvent` 从 v1 开始版本化；只持久化 JSON-safe 数据，禁止密钥、客户端和基础设施对象。
 - 恢复必须同时验证 tenant、thread 和 run；跨租户 token 和状态失败关闭。
 - Phase 02 使用确定性 `AgentModelPort`/Tool 测试替身作为门禁；真实 Chat Model 供应商继续由 O-007 在 Phase 04 前决定。
@@ -409,11 +409,43 @@ Phase 01 已提供 Python 3.13、PostgreSQL、类型化配置、Trace 和质量�
 - 增加直接依赖 `langgraph-checkpoint-postgres` 和 `psycopg[pool]`；CI 的 PostgreSQL 服务同时验证官方 Checkpointer。
 - 内存 Checkpointer 只允许 unit/E2E 快速测试，不得作为持久恢复验收证据。
 - 官方 Checkpointer schema 的升级由依赖锁定、真实 PostgreSQL 回归和 R-025 管理；项目 Alembic 不接管其内部表。
+- 依赖升级验证必须执行 `uv lock --check`、真实 PostgreSQL 上的 `tests/integration/agent/test_checkpoint.py` 与 `tests/integration/agent/test_runtime_recovery.py`，并验证 `setup()`、写入、恢复、list、delete、并发 thread、重复 resume 和跨租户拒绝；任一失败均阻止升级。
 - Phase 03 可以复用 Agent 的最小授权快照传递，但仍必须建立统一 `AuthorizationContext` 和 `PermissionChecker`，不得把本决策误写成权限模型已完成。
 
 **References**
 
 [`phase-02-agent-foundation.md`](./phases/phase-02-agent-foundation.md)；[`agentic_rag_graph.py::build_agentic_graph`](https://github.com/infiniflow/ragflow/blob/cd846cc9d4e32a19e684c59a1f302601027ef976/rag/advanced_rag/agentic_rag_graph.py)
+
+### ADR-018：Phase 03 知识领域、授权与统一查询契约 v1
+
+- **Status**：Accepted
+- **Date**：2026-07-30
+
+**Context**
+
+RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品表：只有 Knowledgebase 直接保存 `tenant_id`，Document/Task 通过父关系获得 tenant；`KnowledgebaseService._visibility_and_status_filter/accessible` 和 `add_tenant_id_to_kwargs` 混合 user、tenant、owner 与 team 语义。Phase 02 的 `AgentAuthorizationContext` 是 Checkpoint-safe 最小快照，不是知识资源权限模型。固定 RAG、Agent Tool、API、Worker 和未来 Adapter 需要同一套 provider-neutral 领域与查询协议。
+
+**Decision**
+
+- 知识领域位于 `src/ragflow_agent/knowledge/{domain,application,ports}`；领域和 Ports 禁止导入 FastAPI、SQLAlchemy、Redis、boto3、LangChain、LangGraph、Agent 或 RAGFlow。
+- `AuthorizationContext` v1 固定为 `tenant_id + actor_id + request_id`；visibility v1 只含 `private` 和 `tenant`。跨 tenant 永远拒绝；private 只允许 owner；tenant visibility 只向同 tenant 非 owner 开放读取，写、删除和管理仍要求 owner。
+- Phase 02 `AgentAuthorizationContext.user_id` 不做破坏性改名；未来知识库 Tool Adapter 显式映射为 `actor_id`，并重新执行 `PermissionChecker`。
+- KnowledgeBase、Document、DocumentVersion、IngestionJob/Task、ParsedDocument/Block、ChunkRecord、Retrieval/Citation/Trace 和 IndexVersion/Record 使用严格、不可变、版本化 DTO；所有 tenant-owned 实体显式保存 `tenant_id`。
+- Repository 的读取和写入都要求显式 tenant，写入实体必须与调用 tenant 一致；对象键固定使用 `tenants/{tenant_id}/...`；Queue envelope、Search record、Citation 和 Trace 均携带 tenant。
+- Chunk ID v1 使用 `sha256-v1` 稳定算法；MetadataFilter 只暴露后端无关白名单字段/操作符，不暴露 Elasticsearch/OpenSearch DSL。
+- `KnowledgeService` 统一处理创建/读取/文档登记，`KnowledgeQueryService` 是固定 RAG 与未来 KnowledgeBaseTool 的唯一权限先行检索入口。
+- 本阶段只提供内存/fixture 契约 Adapter，不创建业务表、真实 Parser/Chunker/Embedding/Search/Queue 或回答流程。
+
+**Consequences**
+
+- Phase 04 必须实现这些 Ports，而不能另建一套 DTO、权限 if/else 或 tenant-free Repository。
+- `AuthorizationContext`、状态机、Chunk ID 和 Retrieval schema 的破坏性变更必须升级 schema/ADR，并提供迁移或兼容读。
+- O-002/O-006/O-007 仍阻止 Phase 04 执行；若首次复制 RAGFlow 源码，还必须先解决 O-004。
+- 应用数据库、对象存储、搜索和外部 Trace 不是同一事务；可靠 outbox、幂等和补偿仍按 Phase 07 完成，见 R-027。
+
+**References**
+
+[`docs/08-domain-model-and-contracts.md`](./08-domain-model-and-contracts.md)；[`phase-03-knowledge-interface.md`](./phases/phase-03-knowledge-interface.md)；[`Knowledgebase/Document/Task`](https://github.com/infiniflow/ragflow/blob/cd846cc9d4e32a19e684c59a1f302601027ef976/api/db/db_models.py)
 
 ## 3. 开放与已解决的待决策事项
 
@@ -455,9 +487,9 @@ Phase 01 已提供 Python 3.13、PostgreSQL、类型化配置、Trace 和质量�
 ### O-005：多租户和权限模型
 
 - **Status**：Resolved
-- **Resolution**：ADR-012
+- **Resolution**：ADR-012、ADR-018
 - **Decision**：第一版强制 tenant 隔离并实现 owner/visibility、AuthorizationContext 和 PermissionChecker；复杂 RBAC、部门权限与动态数据规则后置。
-- **Remaining design detail**：visibility 枚举和继承、具体表约束在 Phase 03 详细设计中固化，但不得削弱已接受的最低边界。
+- **Resolved design detail**：visibility v1 为 `private|tenant`；同 tenant 非 owner 仅可读取 tenant-visible 资源，其他操作要求 owner；具体数据库约束在 Phase 04 Adapter 中按相同契约落地。
 
 ### O-006：后台任务与可靠消息实现
 
@@ -551,6 +583,8 @@ Phase 01 已提供 Python 3.13、PostgreSQL、类型化配置、Trace 和质量�
 | R-023 | 预生成的后续阶段计划与上一阶段实际产物漂移 | 高 | 高 | 计划引用的接口、文件或决策已变化 | ADR-013；每阶段入口重新审查；未审查不得执行 | Phase 01–10 | Open |
 | R-024 | 时序 RAG 范围和后端未定义导致 Phase 09 失控 | 高 | 高 | 同时引入新存储、算法和数据模型且无基线 | ADR-014；O-011；默认关闭；独立数据集和实验门禁 | Phase 09/10 | Open |
 | R-025 | 官方 PostgreSQL Checkpointer 升级导致内部 schema 或恢复语义漂移 | 中 | 高 | 依赖升级后 setup、恢复、list/delete 或并发测试失败 | 锁定依赖；不手改上游表；真实 PostgreSQL 迁移/恢复回归；升级前审查 release notes | Phase 02 持续/Phase 10 | Monitoring |
+| R-026 | Agent 最小授权快照与知识 AuthorizationContext 映射漂移 | 中 | 高 | Tool Adapter 错把 `user_id` 当 tenant、恢复后跳过权限重验或字段改名破坏 Checkpoint | AgentState v1 不破坏；显式 `user_id → actor_id` Adapter；tenant/thread/run 与 PermissionChecker 双重验证；跨租户 Tool 契约测试 | Phase 08 | Open |
+| R-027 | 数据库提交与对象存储、搜索、Queue、Trace 非原子导致部分成功 | 高 | 高 | 写入已提交但事件/索引/Trace 失败，重试产生重复或状态漂移 | Phase 03 只定义端口；Phase 04 命令使用幂等键；Phase 07 落地 outbox、候选索引、补偿、残留扫描和故障注入 | Phase 04/07 | Open |
 
 ## 5. 风险处理规则
 

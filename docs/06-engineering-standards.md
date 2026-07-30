@@ -9,7 +9,7 @@ applies_to: D:/download/ragflow-agent
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [决策与风险](./07-decisions-and-risks.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md)
 
 ## 1. 适用范围
 
@@ -206,9 +206,17 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 9. CitationBuilder 在生成前再次验证候选 tenant/visibility，不返回无权元数据。
 10. 第一版不要求复杂 RBAC、部门权限和动态数据规则，但接口和 Schema 变化不得阻断这些能力后续接入。
 
+### 8.2 Phase 03 已冻结契约
+
+1. 知识 `AuthorizationContext` v1 字段为 `tenant_id + actor_id + request_id`；Phase 02 Agent 快照的 `user_id` 只能由 Adapter 显式映射为 `actor_id`。
+2. visibility v1 只能是 `private|tenant`；同 tenant 非 owner 对 tenant-visible 资源只拥有 READ。
+3. Repository `get` 必须要求 `tenant_id + resource_id`，`add` 必须要求 `tenant_id + entity` 并拒绝 scope 不一致；当前内存契约测试是所有未来 Adapter 的最低门禁。
+4. DocumentVersion、ParsedDocument、ChunkRecord、Ingestion、Retrieval 和 Index DTO 的破坏性变化必须升级 schema/算法标识并更新 ADR-018。
+5. 固定 RAG 与 KnowledgeBaseTool 必须调用 `KnowledgeQueryService.retrieve`，不得直接调用 `RetrieverPort` 或 Search 客户端。
+
 ## 9. 对象存储
 
-1. Object key 使用稳定 ID。
+1. Object key 使用稳定 ID，并以 `tenants/{tenant_id}/` 开头。
 2. 保存内容哈希、长度和 MIME。
 3. 上传后验证写入结果。
 4. 下载必须有大小和超时限制。
@@ -232,7 +240,7 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 ### 10.2 Chunk
 
 1. Chunker 输入统一 ParsedDocument。
-2. Chunk ID 稳定算法必须版本化。
+2. Chunk ID 稳定算法必须版本化；当前 v1 为 `sha256-v1`。
 3. 记录 source_block_ids。
 4. Token 上限、重叠、父子关系和表图上下文必须配置化。
 5. 自动关键词、自动问题、摘要、标题和 TOC 是独立增强步骤。
@@ -267,6 +275,7 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 9. 空结果与后端错误使用不同 `empty_reason/error_code`。
 10. RetrievalTrace 足以重建每个阶段。
 11. SearchPort Adapter 必须运行相同契约测试。
+12. 当前 Retrieval schema v1 强制 query、trace、candidate、citation 的 tenant 和知识库范围一致；`authorization_applied` 必须为真。
 
 ### 12.1 时序 RAG 附加标准
 

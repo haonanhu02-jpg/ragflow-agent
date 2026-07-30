@@ -2,9 +2,9 @@
 document_id: DEVELOPMENT-ROADMAP
 document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
-document_version: "0.3.1"
+document_version: "0.4.0"
 last_updated_at: "2026-07-30"
-current_phase: Phase 01 execution
+current_phase: Phase 03 completed; Phase 04 entry blocked
 roadmap_range: Phase 00-10
 ---
 
@@ -20,14 +20,14 @@ roadmap_range: Phase 00-10
 
 - **[事实]** 目标项目根目录为 `D:/download/ragflow-agent`。
 - **[事实]** 目标项目是 Git 仓库，默认分支为 `main`，`origin` 实际配置为 `https://github.com/haonanhu02-jpg/ragflow-agent.git`；P01-T01 开始前 `HEAD` 与 `origin/main` 均为 Phase 00 基线 commit `5c015405e4c25346999cbb21736c61a87d5f8cbe`。
-- **[事实]** 当前已有可安装包、类型化配置、日志/Trace、基础设施端口、空迁移、FastAPI/Worker 空壳、LangGraph Agent Runtime、测试、GitHub Actions 和 Docker 开发拓扑；仍没有知识库、ingestion 或 RAG 业务功能。Phase 00 原始文件快照见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
+- **[事实]** 当前已有可安装包、类型化配置、日志/Trace、基础设施端口、空迁移、FastAPI/Worker 空壳、LangGraph Agent Runtime、知识领域/Ports/权限/统一查询契约、测试、GitHub Actions 和 Docker 开发拓扑；仍没有知识业务表、真实 ingestion 数据面或 RAG 闭环。Phase 00 原始文件快照见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
 - **[决策]** RAGFlow 冻结事实基线为 `cd846cc9d4e32a19e684c59a1f302601027ef976`，长期源码结论必须固定到该 commit。
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00、Phase 01 和 Phase 02 已完成；Phase 03 至 Phase 10 未执行，知识库和 RAG 业务实现仍未开始。
+- **[事实]** Phase 00 至 Phase 03 已完成；Phase 04 至 Phase 10 未执行。Phase 03 已实现契约和内存测试 Adapter，但知识库基础设施与 RAG 业务闭环尚未开始。
 
-Phase 00 至 Phase 02 已按详细计划执行并通过验收；Phase 03 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 03 已按详细计划执行并通过验收；Phase 04 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
 
 ### 0.2 本次路线图校正
 
@@ -95,7 +95,7 @@ flowchart LR
 | Phase 00 | 研究与基线 | 无 | 全部能力的源码证据、边界、差距和采用分类 | 已确认 | 已完成 |
 | Phase 01 | 项目骨架 | Phase 00 | `CAP-36 模型注册与调用`、`CAP-37 FastAPI 服务接口`、`CAP-40 日志、指标与链路追踪`基础 | 已确认 | 已完成 |
 | Phase 02 | Agent基础 | Phase 01 | `CAP-29 LangGraph 状态、路由与循环`、`CAP-30 Checkpoint 与运行恢复`；CAP-31 仅复用前置 Checkpoint | 已确认 | 已完成 |
-| Phase 03 | 知识库统一接口 | Phase 02 | `CAP-03 统一文档结构`契约、`CAP-16 权限过滤`/`CAP-41 权限与安全`第一版边界、统一 Ports | 预规划草案 | 未执行 |
+| Phase 03 | 知识库统一接口 | Phase 02 | `CAP-03 统一文档结构`契约、`CAP-16 权限过滤`/`CAP-41 权限与安全`第一版边界、统一 Ports | 已确认 | 已完成 |
 | Phase 04 | 最小RAG闭环 | Phase 03 | `CAP-01`/`CAP-04`基础；`CAP-08`、`CAP-09`、`CAP-10`、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-38`基础 | 预规划草案 | 未执行 |
 | Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 预规划草案 | 未执行 |
 | Phase 06 | 在线检索 | Phase 04、Phase 05 | `CAP-11` 至 `CAP-22` | 预规划草案 | 未执行 |
@@ -300,10 +300,10 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 ### 验收、后续与状态
 
 - **验收标准**：领域层无基础设施导入；所有 Ports 有契约测试骨架；状态转换有单测；无 tenant 的通用数据访问不能进入应用层；跨租户负向测试通过；固定 RAG 和 Agent Tool 引用同一 Retrieval DTO。
-- **下一阶段进入条件**：契约稳定；`O-002`、`O-006`、`O-007` 已在 Phase 04 开始前解决；如抽取 RAGFlow 代码，`O-004` 已解决；Phase 04 详细计划已确认。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 02 实际结果复审。
+- **下一阶段进入条件**：契约已稳定。Phase 04 目前只具备 P04-T01 选型复审入口；P04-T02 起要求 `O-002`、`O-006`、`O-007` 已解决，如抽取 RAGFlow 代码则 `O-004` 已解决，并再次冻结 Phase 04 计划。
+- **当前状态**：已完成；P03-T01 至 P03-T11、领域/权限/Repository/Ports/Service 契约及完整阶段门禁均通过。
 - **已知风险**：抽象过度；状态机过早固化；权限约束只留接口未测试；搜索后端细节泄漏进 DTO。
-- **待确认技术决策**：`visibility` 枚举与继承；Repository 事务边界；Chunk 稳定 ID 算法；Filter AST；RAGFlow 代码物理隔离 `O-004`。
+- **技术决策结果**：ADR-018 冻结 `AuthorizationContext(tenant_id,actor_id,request_id)`、`private|tenant`、tenant-scoped Repository/UoW、`sha256-v1` Chunk ID、受控 MetadataFilter 和共享 `KnowledgeQueryService`；O-002/O-006/O-007 仍阻止 Phase 04，O-004 仅在首次复制上游代码前阻止。
 
 ## 7. Phase 04：最小RAG闭环
 
@@ -684,7 +684,8 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 00：已完成。
 - Phase 01：详细计划已确认，P01-T01 至 P01-T10 和阶段门禁已完成。
 - Phase 02：详细计划已确认，P02-T01 至 P02-T10 和阶段门禁已完成。
-- Phase 03 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
+- Phase 03：已确认并完成；P03-T01 至 P03-T11 和阶段验收通过。
+- Phase 04 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
 - 当前已具备最小 Agent Runtime，但没有知识库、ingestion、检索或 RAG 业务能力；工程骨架、Agent Checkpoint/Trace 和 CI 已验证。
 - 下一步是按 Phase 02 实际契约复审并确认 Phase 03，不自动执行。
 

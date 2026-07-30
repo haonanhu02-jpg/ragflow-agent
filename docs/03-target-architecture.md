@@ -9,11 +9,11 @@ architecture_status: partially_implemented
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md)
 
 ## 1. 架构状态
 
-- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现与知识库解耦的 LangGraph Agent Runtime；知识库、RAG 和 ingestion 业务仍未实现。
+- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现与知识库解耦的 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约及内存契约 Adapter；真实知识库基础设施、ingestion 数据面和 RAG 仍未实现。
 - **[决策]** 目标项目独立运行，不以 RAGFlow API 或 RAGFlow 服务为运行时依赖。
 - **[决策]** Agent 使用 LangChain + LangGraph。
 - **[决策]** 第一版是模块化单体：FastAPI 与独立 Ingestion Worker 同仓库、共享领域模型和基础设施端口、通过任务队列连接，不拆微服务。
@@ -296,23 +296,23 @@ Document
 DocumentVersion
   id
   tenant_id
+  knowledge_base_id
   document_id
   content_hash
-  parser_version
-  chunker_version
-  embedding_version
-  index_version
+  content_hash_algorithm
+  media_type
+  size_bytes
   object_key
-  state
+  status
 ```
 
-Document 是长期身份，DocumentVersion 是一次可追踪内容与索引产物。更新和重新解析不得覆盖旧版本事实。
+**[事实]** Phase 03 已实现以上核心字段、REGISTERED/INGESTING/READY/FAILED/SUPERSEDED/DELETED 状态转换和 ready 同范围版本激活。Parser、Chunker、Embedding 和 Index 的版本身份分别进入 `ParsedDocument`、`ChunkRecord` 和 `IndexVersion/Record`；真实持久化与生命周期编排尚未实现。
 
 ### 6.2 ParsedDocument 与 Chunk
 
-Parser 输出 `ParsedDocument`，Chunker 输入 `ParsedDocument` 并输出 `ChunkDraft`。Parser 不直接写搜索引擎，Chunker 不调用 API Service。
+Parser 输出 `ParsedDocument`，Chunker 输入 `ParsedDocument` 并输出 `ChunkRecord`。Parser 不直接写搜索引擎，Chunker 不调用 API Service。
 
-`Chunk.id` 应由 DocumentVersion、策略版本、来源 block 和顺序稳定生成；精确算法待 Phase 03 契约设计决定。
+**[事实]** `ChunkRecord.id` v1 使用 `sha256-v1`，由 tenant、DocumentVersion、顺序、来源 Block ID 和内容摘要稳定生成；破坏性改变必须升级算法标识。
 
 ### 6.3 RetrievalCandidate 与 Citation
 
@@ -334,17 +334,15 @@ Parser 输出 `ParsedDocument`，Chunker 输入 `ParsedDocument` 并输出 `Chun
 ```text
 AuthorizationContext
   tenant_id
-  user_id
+  actor_id
   request_id
 
 PermissionChecker
-  require_same_tenant(context, resource_tenant_id)
-  can_read(context, owner_id, visibility)
-  can_write(context, owner_id, visibility)
-  build_retrieval_constraint(context, requested_kb_ids, requested_doc_ids)
+  check(context, ResourceAuthorization, PermissionAction) -> PermissionDecision
+  require(context, ResourceAuthorization, PermissionAction) -> None
 ```
 
-`KnowledgeBase` 和 `Document` 至少具有 `tenant_id`、`owner_id`、`visibility`。`DocumentVersion`、`IngestionJob`、`ParsedDocument`、`ParsedBlock`、`Chunk`、索引记录、Citation、RetrievalTrace 和 Agent/Tool 运行数据至少具有 `tenant_id`。复杂 RBAC、部门关系和动态数据规则只扩展 `PermissionChecker` 的实现，不改变调用方绕过权限的能力。
+**[事实]** visibility v1 为 `private|tenant`：跨 tenant 永远拒绝；private 只允许 owner；tenant-visible 资源向同 tenant 非 owner 开放读取，写/删除/管理仍要求 owner。`KnowledgeBase` 和 `Document` 具有 `tenant_id`、`owner_id`、`visibility`；DocumentVersion、IngestionJob/Task、ParsedDocument、ChunkRecord、IndexRecord、Citation、RetrievalTrace 均显式携带 tenant。复杂 RBAC、部门关系和动态数据规则只扩展 `PermissionChecker` 的实现，不能改变调用方不得绕过权限的规则。完整事实见 [`docs/08-domain-model-and-contracts.md`](./08-domain-model-and-contracts.md) 和 ADR-018。
 
 ## 7. 离线链路设计
 
