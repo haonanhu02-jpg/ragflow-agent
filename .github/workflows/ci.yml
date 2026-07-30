@@ -1,0 +1,73 @@
+name: Phase 01 quality gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase-01-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ragflow_agent
+          POSTGRES_USER: ragflow_agent
+          POSTGRES_PASSWORD: phase01-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ragflow_agent -d ragflow_agent"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      RAGFLOW_AGENT_DATABASE__URL: postgresql+psycopg://ragflow_agent:phase01-ci-only@127.0.0.1:5432/ragflow_agent
+      RAGFLOW_AGENT_TEST_DATABASE_URL: postgresql+psycopg://ragflow_agent:phase01-ci-only@127.0.0.1:5432/ragflow_agent
+      RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD: phase01-ci-only
+      RAGFLOW_AGENT_DEV_MINIO_ROOT_USER: phase01-ci-only
+      RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD: phase01-ci-only
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.21"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: uv run mypy src/ragflow_agent tests
+
+      - name: Secret hygiene
+        run: uv run python scripts/check_secret_hygiene.py
+
+      - name: Test
+        run: uv run pytest
+
+      - name: Migration round trip
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Bootstrap and Compose checks
+        run: |
+          uv run python -m ragflow_agent.bootstrap.api --check
+          uv run python -m ragflow_agent.bootstrap.ingestion_worker --check
+          docker compose -f docker-compose.dev.yml config --quiet

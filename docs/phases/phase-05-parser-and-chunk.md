@@ -38,12 +38,12 @@ Phase 00 证明 DeepDOC/`rag/app` 具备高价值复杂解析和场景分块，�
 ## 3. 交付物和目标模块
 
 ```text
-src/<package>/knowledge/infrastructure/
+src/ragflow_agent/knowledge/infrastructure/
   parsers/{text,markdown,html,docx,pptx,xlsx,pdf,image}/
   ragflow_adapters/{parsing,chunking,vision}/
   chunkers/{general,paper,book,manual,laws,qa,table,resume,picture}/
-src/<package>/knowledge/application/parser_registry.py
-src/<package>/knowledge/application/chunker_registry.py
+src/ragflow_agent/knowledge/application/parser_registry.py
+src/ragflow_agent/knowledge/application/chunker_registry.py
 tests/{contract,golden,integration,performance}/parsing/
 ```
 

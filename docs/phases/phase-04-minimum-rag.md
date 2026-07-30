@@ -52,10 +52,10 @@ RAGFlow 离线主链路为：
 ## 5. 目标模块和文件
 
 ```text
-src/<package>/knowledge/application/{upload,ingestion,query,fixed_rag}.py
-src/<package>/knowledge/infrastructure/{database,object_store,queue,parsers,embedding,search,models}/
-src/<package>/api/routes/{knowledge_bases,documents,rag}.py
-src/<package>/worker/ingestion_pipeline.py
+src/ragflow_agent/knowledge/application/{upload,ingestion,query,fixed_rag}.py
+src/ragflow_agent/knowledge/infrastructure/{database,object_store,queue,parsers,embedding,search,models}/
+src/ragflow_agent/api/routes/{knowledge_bases,documents,rag}.py
+src/ragflow_agent/worker/ingestion_pipeline.py
 tests/{contract,integration,e2e,evaluation}/minimum_rag/
 ```
 
@@ -334,7 +334,7 @@ tests/{contract,integration,e2e,evaluation}/minimum_rag/
 - **RAGFlow 源码依据**：核对 provenance 和冻结链接。
 - **实现或复用方式**：审计。
 - **测试方法**：Unit/Contract/Integration/E2E/Evaluation/Security。
-- **验证命令**：`uv run pytest`; `uv run ruff check .`; `uv run <type-checker>`
+- **验证命令**：`uv run pytest`; `uv run ruff check .`; `uv run mypy src/ragflow_agent tests`
 - **验收标准**：CAP-08/10/21/23/27/38 基础路径通过；CAP-01/04/09 仅按实际最小范围标记。
 - **风险和回滚方法**：任何越权、引用或索引一致性失败阻止出口。
 - **实际执行结果**：待执行。
@@ -365,4 +365,3 @@ tests/{contract,integration,e2e,evaluation}/minimum_rag/
 - 实际 E2E/评测/安全结果：待执行。
 - 复用 provenance 与偏差：待执行。
 - 阶段出口结论：待执行。
-

@@ -2,7 +2,7 @@
 document_id: ENGINEERING-STANDARDS
 status: active
 last_updated_at: "2026-07-30"
-applies_to: D:/download/myself
+applies_to: D:/download/ragflow-agent
 ---
 
 # 工程标准
@@ -13,7 +13,7 @@ applies_to: D:/download/myself
 
 ## 1. 适用范围
 
-本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目没有业务代码，因此工具配置和命令将在 Phase 01 落地；本文件定义不得违反的行为。
+本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目仍没有业务功能代码；P01-T02 已在 `pyproject.toml` 落地 Python 包、依赖锁定和基础质量工具，后续任务继续按本文件实施工程底座。
 
 冲突处理：
 
@@ -64,20 +64,22 @@ applies_to: D:/download/myself
 
 模型权重和原生二进制不等同于 Python 包，必须单独登记。
 
-### 3.4 Phase 01 待落地工具
+### 3.4 Phase 01 已落地的基础工具
 
 - `pytest` 作为测试运行器。
-- `ruff` 作为格式和 lint 候选。
-- 类型检查器仍待 Phase 01 决定。
-- 命令确定后写入根 `AGENTS.md` 和 README。
+- `ruff` 作为格式和 lint 工具。
+- `mypy` 以 strict 模式作为类型检查器。
+- `uv` 负责创建项目 `.venv`、同步依赖和维护 `uv.lock`。
+- 当前规范命令为 `uv sync --frozen --all-groups`、`uv run pytest`、`uv run ruff check .`、`uv run mypy src/ragflow_agent tests` 和 `uv run python scripts/check_secret_hygiene.py`。
+- 根 `AGENTS.md`、README 和 `.github/workflows/ci.yml` 已固化相同质量入口。
 
-在工具未确定前，不得在文档伪造已存在的 CI 命令。
+Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远程 CI 的实际结论必须以对应 commit 的运行结果为准。
 
 ## 4. 包结构与导入边界
 
 ### 4.1 领域层
 
-`src/app/knowledge/domain`：
+`src/ragflow_agent/knowledge/domain`：
 
 - 只包含实体、值对象、状态规则和领域错误。
 - 不导入 FastAPI、SQLAlchemy、LangChain、LangGraph、Redis、MinIO、Elasticsearch、OpenSearch 或 RAGFlow。
@@ -86,7 +88,7 @@ applies_to: D:/download/myself
 
 ### 4.2 端口层
 
-`src/app/knowledge/ports`：
+`src/ragflow_agent/knowledge/ports`：
 
 - 定义 Protocol/ABC、请求和响应 DTO。
 - 不包含具体客户端。
@@ -115,7 +117,7 @@ applies_to: D:/download/myself
 
 ### 4.6 进程入口
 
-- `src/app/bootstrap/api.py` 和 `src/app/bootstrap/ingestion_worker.py` 是同一模块化单体的两个入口。
+- `src/ragflow_agent/bootstrap/api.py` 和 `src/ragflow_agent/bootstrap/ingestion_worker.py` 是同一模块化单体的两个入口。
 - 两个入口共享领域模型、应用服务和端口，不复制代码、不建立内部 HTTP 调用。
 - FastAPI 入口不得导入并直接运行 Parser/OCR/Embedding pipeline。
 - Worker 入口不得导入 API 路由，也不得构造 HTTP request context。

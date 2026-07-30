@@ -355,14 +355,47 @@ Phase 00 后的旧总览曾把基础 HITL/预算放入 Phase 02，把自动关�
 - Phase 05 保留高级增强扩展点，但不得实现 Phase 09 的生成式能力。
 - 详细计划、路线图、能力矩阵和阶段索引使用同一边界；执行前仍按 ADR-013 复审。
 
+### ADR-016：项目身份、仓库与 Phase 01 质量平台
+
+- **Status**：Accepted
+- **Date**：2026-07-30
+
+**Context**
+
+Phase 01 的首个任务必须在创建 Python 包和质量配置前解决 O-001 与 O-012。用户已确认项目名称、Python 名称、Git 仓库、默认分支、远程仓库、首个 CI 平台和类型检查器；实际 Git 检查也确认 `main` 与 `origin/main` 指向同一个 Phase 00 基线 commit。
+
+**Decision**
+
+- 项目名和 Python 发行包名均为 `ragflow-agent`。
+- Python import package 为 `ragflow_agent`，计划源码根目录为 `src/ragflow_agent`。
+- API 服务标识为 `ragflow-agent-api`，Ingestion Worker 服务标识为 `ragflow-agent-ingestion-worker`；日志和 Trace 默认使用同名 service name。
+- 配置环境变量前缀为 `RAGFLOW_AGENT_`。
+- 项目 Git 根目录为 `D:/download/ragflow-agent`，默认分支为 `main`。
+- `origin` 实际配置为 `https://github.com/haonanhu02-jpg/ragflow-agent.git`，与用户提供的不带 `.git` 后缀的仓库 URL 指向同一仓库。
+- 首个 CI 平台使用 GitHub Actions；P01-T10 已创建 `.github/workflows/ci.yml`。
+- Python 类型检查器使用 `mypy`；P01-T02 已写入项目开发依赖和 strict 质量配置。
+
+**Consequences**
+
+- O-001 与 O-012 已解决，Phase 01 计划已确认，P01-T01 可以完成。
+- 所有目标模块路径必须使用 `src/ragflow_agent`，不得继续保留旧的包路径占位符。
+- 本决策只冻结命名和工具选择，不表示 Python 包、服务入口、CI 或 mypy 配置已经实现。
+- 后续若变更发行包、import package、服务标识、默认分支、CI 平台或类型检查器，必须新增 ADR 并执行全仓引用和迁移影响检查。
+
+**References**
+
+用户于 2026-07-30 对 O-001、O-012 和 Phase 01 计划的确认；项目仓库 `.git/config`、`refs/heads/main` 与 `refs/remotes/origin/main`；[`phase-01-project-skeleton.md`](./phases/phase-01-project-skeleton.md)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-016
 - **Decision deadline**：Phase 01 开始前
 - **Question**：项目、发行包和 import package 使用什么名称？
-- **Current handling**：文档使用 `src/app` 占位，不创建包；ADR-013 已将其限定为 Phase 01 执行门禁，不再阻止 Phase 00 归档。
+- **Decision**：项目名和发行包名为 `ragflow-agent`；import package 为 `ragflow_agent`；源码根目录为 `src/ragflow_agent`。
+- **Current handling**：命名已冻结且 Python 包已由 Phase 01 创建；变更仍须新增 ADR。
 - **Impact**：目录、配置前缀、日志 service name、镜像名。
 
 ### O-002：首个搜索引擎
@@ -446,10 +479,12 @@ Phase 00 后的旧总览曾把基础 HITL/预算放入 Phase 02，把自动关�
 
 ### O-012：Phase 01 仓库与质量工具选择
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-016
 - **Decision deadline**：P01-T01
 - **Question**：是否在目标目录初始化 Git；首个 CI 平台和 Python 类型检查器采用什么？
-- **Current handling**：不执行 `git init`，不生成 CI 配置，不把任一类型检查器写成已确认技术栈；Phase 01 文档使用 `<type-checker>` 占位。
+- **Decision**：使用已初始化的 Git 仓库，默认分支 `main`，远程 `origin` 实际配置为 `https://github.com/haonanhu02-jpg/ragflow-agent.git`；首个 CI 平台为 GitHub Actions；类型检查器为 `mypy`。
+- **Current handling**：仓库事实、GitHub Actions CI 与 `mypy` 配置均已由 Phase 01 实施并通过本地门禁；远程运行状态按提交记录。
 - **Impact**：分支/提交事实源、质量命令、CI 文件路径、Phase 01 DoD。
 
 ## 4. 风险登记
@@ -497,9 +532,9 @@ Phase 00 后的旧总览曾把基础 HITL/预算放入 Phase 02，把自动关�
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-015。
-- Resolved：O-003 → ADR-011；O-005 → ADR-012。
-- Deferred：O-001、O-002、O-004、O-006、O-007、O-008、O-009、O-010、O-011、O-012。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-016。
+- Resolved：O-001 → ADR-016；O-003 → ADR-011；O-005 → ADR-012；O-012 → ADR-016。
+- Deferred：O-002、O-004、O-006、O-007、O-008、O-009、O-010、O-011。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
 - Superseded：ADR-006 → ADR-014。
 - 当前没有通过待决策事项擅自形成的实现。
@@ -519,3 +554,13 @@ Phase 00 后的旧总览曾把基础 HITL/预算放入 Phase 02，把自动关�
 - **依据**：P00-T01 至 P00-T13 已有产出和验收；用户本次确认同时完成辅助文档整体结果与出口确认。
 - **门禁调整**：按 ADR-013，O-001 保留为 Phase 01 执行门禁，不再阻止 Phase 00 归档。
 - **Phase 01 状态**：允许生成详细计划，但在 O-001 和计划确认完成前仍不得执行。
+
+## 8. Phase 01 出口审查记录
+
+### 2026-07-30 / P01-T10
+
+- **结论**：P01-T01 至 P01-T10 已完成，Phase 01 通过本地阶段验收；不自动进入 Phase 02。
+- **实现边界**：已实现包、配置、日志/Trace、基础设施端口、SQLAlchemy/Alembic 空基线、FastAPI/Worker 空壳、Docker 开发拓扑和 GitHub Actions 门禁；未实现 Agent、知识库、ingestion、Parser、索引或检索。
+- **待决策保持不变**：O-002 搜索后端、O-006 可靠消息、O-007 首批模型均未被 Phase 01 占位实现替代。
+- **计划偏差**：Windows psycopg 使用 Selector loop；Docker Worker 以显式 development-only 非消费模式验证进程健康，默认入口仍 fail-fast；两者均不改变 ADR-011 架构。
+- **下一门禁**：根据真实骨架复审并由用户确认 Phase 02 计划，之后才可从 P02-T01 开始。

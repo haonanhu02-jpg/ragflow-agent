@@ -38,11 +38,11 @@ Phase 00 已核验 `Dealer.search/retrieval`、`FulltextQueryer`、`full_questio
 ## 3. 交付物与目标模块
 
 ```text
-src/<package>/knowledge/application/query/
+src/ragflow_agent/knowledge/application/query/
   preprocess.py rewrite.py translate.py expand.py filters.py
   retrieve.py clean.py fuse.py rerank.py fallback.py
   context.py citations.py trace.py
-src/<package>/knowledge/infrastructure/ragflow_adapters/retrieval/
+src/ragflow_agent/knowledge/infrastructure/ragflow_adapters/retrieval/
 tests/{unit,contract,integration,evaluation}/retrieval/
 ```
 

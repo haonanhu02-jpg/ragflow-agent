@@ -38,7 +38,7 @@ Phase 00 确认 RAGFlow `Retrieval._retrieve_kb` 直接调用 `settings.retrieve
 ## 3. 交付物和目标模块
 
 ```text
-src/<package>/agent/
+src/ragflow_agent/agent/
   tools/{knowledge_base,sql,api}.py
   graphs/agentic_rag.py
   nodes/{plan,retrieve,evaluate,select_tool,memory,finalize}.py

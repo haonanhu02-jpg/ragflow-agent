@@ -1,0 +1,23 @@
+# Project-local Python environment
+.venv/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Quality-tool caches and reports
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/

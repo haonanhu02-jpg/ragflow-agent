@@ -8,7 +8,8 @@ phase_status: completed
 task_execution_status: completed
 created_at: "2026-07-28"
 last_updated_at: "2026-07-30"
-project_root: "D:/download/myself"
+execution_project_root: "D:/download/myself"
+current_project_root: "D:/download/ragflow-agent"
 ragflow_local_snapshot: "D:/ragflow/ragflow-main"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ragflow_tracking_ref: main
@@ -1067,3 +1068,13 @@ Phase 01“项目骨架”只能在以下条件全部满足后开始：
 9. Phase 01 只创建项目骨架，不提前实现 Phase 04“最小RAG闭环”。
 
 O-002、O-006、O-007 的决定期限是 Phase 04 开始前，不阻止 Phase 01 建立抽象和配置骨架；O-004 必须在首次抽取 RAGFlow 代码前解决。
+
+### 17.1 Phase 01 实际准入复核（2026-07-30）
+
+- 条件 1、2：Phase 00 DoD 和用户出口确认已满足。
+- 条件 3、4：O-001、O-012 已由 ADR-016 解决。
+- 条件 5、6：既有技术基线、ADR-011 和 ADR-012 未被替代。
+- 条件 7：用户已确认 Phase 01 详细计划。
+- 条件 8：当前 Git 根目录为 `D:/download/ragflow-agent`；P01-T01 开始前 `main` 与 `origin/main` 同步且工作树干净。
+- 条件 9：P01-T01 只修改规划和执行记录，没有创建业务代码。
+- **结论**：Phase 01 准入条件已满足，允许从 P01-T01 开始；该结论不授权跳过任务依赖或提前执行 P01-T02。

@@ -1,0 +1,111 @@
+name: ragflow-agent-dev
+
+services:
+  postgres:
+    image: postgres@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    environment:
+      POSTGRES_DB: ragflow_agent
+      POSTGRES_USER: ragflow_agent
+      POSTGRES_PASSWORD: ${RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD:?set RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD}
+    ports:
+      - "${RAGFLOW_AGENT_DEV_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ragflow_agent -d ragflow_agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis@sha256:8096655e437712b07503796fb64d81359256cfcff0ab29d95a7da72863786efb
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${RAGFLOW_AGENT_DEV_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_USER:?set RAGFLOW_AGENT_DEV_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD:?set RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD}
+    ports:
+      - "${RAGFLOW_AGENT_DEV_MINIO_PORT:-9000}:9000"
+      - "${RAGFLOW_AGENT_DEV_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "ragflow_agent.bootstrap.api"]
+    environment:
+      RAGFLOW_AGENT_ENVIRONMENT: development
+      RAGFLOW_AGENT_DATABASE__URL: postgresql+psycopg://ragflow_agent:${RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD}@postgres:5432/ragflow_agent
+      RAGFLOW_AGENT_QUEUE__URL: redis://redis:6379/0
+      RAGFLOW_AGENT_OBJECT_STORE__ENDPOINT_URL: http://minio:9000
+      RAGFLOW_AGENT_OBJECT_STORE__BUCKET: ragflow-agent
+      RAGFLOW_AGENT_OBJECT_STORE__ACCESS_KEY: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_USER}
+      RAGFLOW_AGENT_OBJECT_STORE__SECRET_KEY: ${RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD}
+    ports:
+      - "${RAGFLOW_AGENT_DEV_API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      [
+        "python",
+        "-m",
+        "ragflow_agent.bootstrap.ingestion_worker",
+        "--development-idle",
+      ]
+    environment:
+      RAGFLOW_AGENT_ENVIRONMENT: development
+      RAGFLOW_AGENT_DATABASE__URL: postgresql+psycopg://ragflow_agent:${RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD}@postgres:5432/ragflow_agent
+      RAGFLOW_AGENT_QUEUE__URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

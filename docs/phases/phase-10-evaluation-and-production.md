@@ -39,7 +39,7 @@ Phase 00 确认 RAGFlow `test/benchmark` 主要统计延迟/QPS，不提供完�
 
 ```text
 evaluation/{datasets,retrieval,answers,citations,agent,advanced,reports}/
-src/<package>/observability/
+src/ragflow_agent/observability/
 tests/{regression,security,performance,capacity,disaster_recovery}/
 deploy/{docker,config,runbooks}/
 docs/{09-evaluation-and-observability,10-production-runbook}.md

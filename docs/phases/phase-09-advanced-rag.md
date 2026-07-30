@@ -73,14 +73,14 @@ P0/P1/P2/P3 表示本阶段实施优先级，不表示当前已实现。
 ## 5. 交付物与目标模块
 
 ```text
-src/<package>/knowledge/advanced/
+src/ragflow_agent/knowledge/advanced/
   enrichment/{keywords,questions,summaries,toc,parent_child}.py
   multimodal/
   graphrag/
   raptor/
   temporal/
   routing/{feature_flags,index_compatibility}.py
-src/<package>/knowledge/infrastructure/ragflow_adapters/advanced/
+src/ragflow_agent/knowledge/infrastructure/ragflow_adapters/advanced/
 tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 ```
 

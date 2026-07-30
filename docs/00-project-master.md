@@ -2,11 +2,14 @@
 document_id: PROJECT-MASTER
 document_role: Codex 项目首要入口与范围事实源
 status: active
-document_version: "0.5.0"
+document_version: "0.5.2"
 created_at: "2026-07-27"
 last_updated_at: "2026-07-30"
-project_root: "D:/download/myself"
-project_code_status: greenfield
+project_root: "D:/download/ragflow-agent"
+project_code_status: package_scaffold
+project_repository: "https://github.com/haonanhu02-jpg/ragflow-agent"
+project_default_branch: main
+project_phase_00_baseline_commit: "5c015405e4c25346999cbb21736c61a87d5f8cbe"
 ragflow_repository: "https://github.com/infiniflow/ragflow"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ragflow_tracking_ref: main
@@ -25,7 +28,7 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 1. 读取本文件。
 2. 读取 [`docs/07-decisions-and-risks.md`](./07-decisions-and-risks.md)；独立 `docs/adr/` 文件当前尚未生成。
 3. 根据任务读取本文件第 18 节索引中的专项文档；未生成的文档不得被当成已有事实。
-4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 10 计划均已生成，但 Phase 01 为“待确认/未执行”，Phase 02 至 Phase 10 为“预规划草案/未执行”。
+4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 和 Phase 01 已完成，Phase 02 至 Phase 10 为“预规划草案/未执行”，真正执行前必须复审并确认。
 5. 检查实际代码、数据库迁移和自动化测试，确认“已实现状态”没有与文档漂移。
 
 ### 0.1 状态标签
@@ -58,7 +61,8 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 
 ### 1.1 背景
 
-- **[事实]** 项目根目录是 `D:/download/myself`。
+- **[事实]** 项目根目录是 `D:/download/ragflow-agent`。
+- **[决策]** 项目名和发行包名为 `ragflow-agent`，import package 为 `ragflow_agent`，计划源码根目录为 `src/ragflow_agent`。
 - **[事实]** 本项目不是对 RAGFlow 仓库的二次部署，而是一个独立运行的 Agent + RAG 项目。
 - **[事实]** 初期展示数据可以使用轨道交通智能运维场景，包括运维手册、告警日志、历史工单、故障案例、设备图片和其他多模态资料。
 - **[决策]** 底层架构必须保持行业无关，未来可扩展到 OA、财务、采购、HR、生产工艺和其他企业知识场景。
@@ -107,13 +111,15 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 
 ### 3.1 当前项目状态
 
-- **[事实]** 在创建本文件前，`D:/download/myself` 是空目录，没有 `.git`、源码、依赖清单、测试、数据库迁移和项目文档。
-- **[事实]** 本文件是当前项目生成的第一个项目文件。
-- **[事实]** 2026-07-30 重新盘点后，项目由 `AGENTS.md`、总体规划文档、Phase 00 研究产物和 Phase 00 至 Phase 10 阶段计划组成；完整清单见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
-- **[事实]** 项目目录仍没有 `.git`、`src/`、`tests/`、`migrations/`、`pyproject.toml`、`uv.lock` 或部署目录。
+- **[事实]** Phase 00 最初在 `D:/download/myself` 建立文档基线；该原始目录状态属于历史快照，详见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
+- **[事实]** 当前项目已迁移并初始化在 `D:/download/ragflow-agent`，默认分支为 `main`，远程 `origin` 实际配置为 `https://github.com/haonanhu02-jpg/ragflow-agent.git`。
+- **[事实]** P01-T01 开始前，`main` 与 `origin/main` 均指向 Phase 00 基线 commit `5c015405e4c25346999cbb21736c61a87d5f8cbe`，工作树干净。
+- **[事实]** 当前项目已有 Git 元数据、`AGENTS.md`、总体/阶段文档、可安装 `src/ragflow_agent` 包、类型化配置、日志/Trace、基础设施端口、SQLAlchemy/Alembic 空基线、FastAPI 与 Worker 进程入口、测试、GitHub Actions 和 Docker 开发拓扑。
+- **[事实]** Phase 01 使用 Python 3.13 和 `uv` 建立项目 `.venv` 与可复现 `uv.lock`，配置 pytest、ruff、strict mypy、导入边界和密钥卫生门禁；`.venv` 是本地忽略产物。
+- **[事实]** 项目仍没有知识库领域模型、Agent 图、真实 ingestion、Parser、Chunk、Embedding、索引、检索、生成回答或生产部署实现。
 - **[事实]** 当前没有任何业务能力实现。
-- **[事实]** 当前没有可运行服务、知识库、Agent、数据库表、搜索索引或任务 Worker。
-- **[事实]** Phase 00 已完成；当前处于 Phase 01 计划确认与入口准备状态，尚未进入项目骨架开发。
+- **[事实]** 当前有可运行的 API/Worker 工程空壳和开发基础设施，但没有业务 API、知识库、Agent、业务数据库表、搜索索引或可消费任务的 Ingestion Worker。
+- **[事实]** Phase 00 和 Phase 01 已完成；Phase 02 尚未复审、确认或执行。
 
 ### 3.2 双基线定义
 
@@ -433,17 +439,17 @@ Chat API / DialogService.async_chat
 
 ## 11. 模块与目录规划
 
-以下目录尚未创建，属于 **[规划]**。`src/app` 是暂定 Python 包路径，正式包名为 **[待确认]**。
+以下目录尚未创建，属于 **[规划]**。ADR-016 已冻结 Python 包路径为 `src/ragflow_agent`；路径确定不表示目录已经实现。
 
 ```text
-D:/download/myself/
+D:/download/ragflow-agent/
 ├── pyproject.toml
 ├── uv.lock
 ├── README.md
 ├── AGENTS.md
 ├── .env.example
 ├── src/
-│   └── app/
+│   └── ragflow_agent/
 │       ├── bootstrap/
 │       │   ├── api.py
 │       │   └── ingestion_worker.py
@@ -631,12 +637,12 @@ DELETED
 
 ## 14. 开发阶段与阶段依赖
 
-Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
+Phase 00 和 Phase 01 已完成；Phase 02 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
 
 | 阶段 | 名称 | 主要产出 | 依赖 | 当前状态 |
 |---|---|---|---|---|
 | Phase 00 | 研究与基线 | RAGFlow Python 架构、能力矩阵、源码地图、复用分类、目标边界 | 无 | 已完成 |
-| Phase 01 | 项目骨架 | Python 包、配置、FastAPI、独立 Worker、基础设施端口、测试与开发环境 | Phase 00 | 待确认/未执行 |
+| Phase 01 | 项目骨架 | Python 包、配置、FastAPI、独立 Worker、基础设施端口、测试与开发环境 | Phase 00 | 已完成；P01-T01 至 P01-T10 验收通过 |
 | Phase 02 | Agent基础 | LangGraph State、Graph、Node、Edge、Router、Checkpoint、Tool、Trace 和最小 Agent 闭环 | Phase 01 | 预规划草案/未执行 |
 | Phase 03 | 知识库统一接口 | 核心实体、状态机、统一 Ports、第一版权限契约和契约测试 | Phase 02 | 预规划草案/未执行 |
 | Phase 04 | 最小RAG闭环 | 上传、基础解析/Chunk、Embedding、索引、向量检索、固定回答、引用和端到端测试 | Phase 03 | 预规划草案/未执行 |
@@ -663,12 +669,13 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 ### 15.1 当前阶段
 
 - **[事实]** Phase 00 的 `P00-T01` 至 `P00-T13` 已全部执行、验证并通过验收；用户于 2026-07-30 确认 Phase 00 完成。
-- **[事实]** 当前处于 Phase 01 计划确认与入口准备状态；Phase 01 没有执行，项目业务实现进度仍为 0。
-- **[事实]** Phase 01 详细计划状态为“待确认/未执行”；Phase 02 至 Phase 10 为“预规划草案/未执行”。
+- **[事实]** Phase 01 的 `P01-T01` 至 `P01-T10` 已全部执行并通过阶段验收；项目业务实现进度仍为 0。
+- **[事实]** 当前处于 Phase 01 完成后的阶段间门禁；尚未开始 Phase 02。
+- **[事实]** Phase 02 至 Phase 10 为“预规划草案/未执行”。
 
 ### 15.2 已完成
 
-1. **[事实]** 确认项目根目录正确；当前无 Git 元数据和业务源码，只有治理、研究与阶段文档。
+1. **[事实]** 确认当前项目根目录为 `D:/download/ragflow-agent`；Git 仓库、`main` 和 `origin` 已存在，但仍无业务源码。
 2. **[事实]** 确认 RAGFlow 本地辅助快照和远程仓库。
 3. **[决策]** 确认采用冻结 commit + 滚动 `main` 的双基线。
 4. **[决策]** 确认只深入分析 RAGFlow Python，不分析或复现 Go。
@@ -687,17 +694,20 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 17. **[事实]** 已执行并验证 P00-T01 至 P00-T11：双基线、项目盘点、架构/数据/依赖、离线/在线/Agent/生命周期/权限/高级 RAG、当时范围内 42 项能力矩阵和 50 个复用源路径登记。
 18. **[事实]** 已生成 `docs/research/ragflow-baseline.md`、`project-baseline.md` 和 `ragflow-source-map.md`；源码结论固定到 commit `cd846cc9d4e32a19e684c59a1f302601027ef976`。
 19. **[事实]** P00-T12 原始跨文档一致性审计通过；14 个 Markdown 文件、当时 42 项能力、阶段编号、链接、表格和固定源码链接检查为零错误。
-20. **[事实]** 用户随后确认 Phase 00 出口；ADR-013 将“研究阶段完成”和“下一阶段执行准入”分离，Phase 00 已完成而 `O-001` 仍阻止 Phase 01 执行。
-21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；未执行任何 `P01-Txx` 或后续任务。
+20. **[事实]** 用户随后确认 Phase 00 出口；ADR-013 将“研究阶段完成”和“下一阶段执行准入”分离，Phase 00 已完成。
+21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；Phase 01 已执行，Phase 02 至 Phase 10 未执行。
 22. **[事实]** 用户最新明确要求 Phase 09 规划时序 RAG；能力矩阵新增 `CAP-43`，不追溯改变 Phase 00 原始 42 项验收快照。
+23. **[决策]** ADR-016 已解决 O-001 与 O-012：冻结项目/包/服务命名、Git 仓库、GitHub Actions 和 `mypy`；这些 Phase 01 工程配置现已落地。
+24. **[事实]** Phase 01 已建立可安装包、类型化配置、日志/Trace、端口边界、可逆空迁移、FastAPI/Worker 空壳、Docker 开发环境和 CI 质量门禁。
+25. **[事实]** Phase 01 验收没有创建 Agent、知识库、Parser、Embedding、检索或 RAG 业务功能；搜索、模型和可靠消息待决策仍未被擅自固化。
 
 ### 15.3 下一步
 
-下一步必须按用户确认顺序执行：
+下一步必须按阶段门禁执行：
 
-1. 解决 Phase 01 入口阻塞 `O-001`（项目正式名称和 Python 包名）与 `O-012`（Git、CI、类型检查器）。
-2. 由用户确认 Phase 01 详细计划；必要时只修订计划，不执行任务。
-3. 入口条件满足后，从 `P01-T01` 开始执行；不得跳过依赖任务。
+1. 根据 Phase 01 的实际包结构与基础设施边界复审 `phase-02-agent-foundation.md`。
+2. 用户确认修订后的 Phase 02 计划和仍待决策的 Checkpointer/模型边界。
+3. 获得明确指令后，从 `P02-T01` 开始；本阶段完成不自动授权 Phase 02。
 4. 每个后续阶段执行前，必须根据上一阶段实际结果重新审查其“预规划草案”。
 
 ---
@@ -723,6 +733,7 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 | D-013 | 阶段计划生成与阶段执行门禁分离；后续草案必须在执行前按上一阶段实际结果复审 |
 | D-014 | 时序 RAG 作为 Phase 09 默认关闭的实验性自研能力；RAGFlow timeline 仅作局部参考 |
 | D-015 | Phase 02/08 与 Phase 05/09 的职责按 ADR-015 分离，禁止重复实现 HITL/预算或生成式 Chunk 增强 |
+| D-016 | 项目/发行包为 `ragflow-agent`，import package 为 `ragflow_agent`；仓库使用 `main` + GitHub `origin`，首个 CI 为 GitHub Actions，类型检查器为 `mypy` |
 
 ### 16.2 已解决的原待确认问题
 
@@ -730,12 +741,13 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 |---|---|
 | O-003 | 已由 D-011/ADR-011 解决 |
 | O-005 | 已由 D-012/ADR-012 解决 |
+| O-001 | 已由 D-016/ADR-016 解决 |
+| O-012 | 已由 D-016/ADR-016 解决 |
 
 ### 16.3 仍待确认问题
 
 | 编号 | 问题 | 未确认前的处理 |
 |---|---|---|
-| O-001 | 项目正式名称和 Python 包名 | 使用 `src/app` 作为文档占位，不创建包 |
 | O-002 | Elasticsearch 或 OpenSearch 作为首个实现 | 只定义 SearchPort |
 | O-004 | RAGFlow 复用代码的物理隔离方式 | 只进行源码审计，不复制代码 |
 | O-006 | 后台任务库和可靠消息方案 | 只定义 TaskQueuePort |
@@ -744,7 +756,6 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 | O-009 | GraphRAG 和 RAPTOR 的首个落地范围 | Phase 09 前通过评测需求决定 |
 | O-010 | 前端或管理控制台范围 | 当前只规划 API，不假定 UI 已确定 |
 | O-011 | 时序 RAG 数据模型、存储后端和查询协议 | Phase 09 前只保留端口、能力开关和实验验收要求 |
-| O-012 | 是否初始化 Git、首个 CI 平台和类型检查器 | P01-T01 前不执行 Git 初始化、不创建 CI 文件，类型检查命令保持占位 |
 
 ### 16.4 主要风险
 
@@ -847,7 +858,7 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 | `docs/adr/README.md` | ADR 规则和索引 | 未生成 |
 | [`docs/phases/README.md`](./phases/README.md) | 阶段计划与执行状态索引 | 已生成 |
 | [`docs/phases/phase-00-research-and-baseline.md`](./phases/phase-00-research-and-baseline.md) | Phase 00 详细计划和执行记录 | 已完成 |
-| [`docs/phases/phase-01-project-skeleton.md`](./phases/phase-01-project-skeleton.md) | Phase 01 详细规划 | 待确认/未执行 |
+| [`docs/phases/phase-01-project-skeleton.md`](./phases/phase-01-project-skeleton.md) | Phase 01 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-02-agent-foundation.md`](./phases/phase-02-agent-foundation.md) | Phase 02 详细规划 | 预规划草案/未执行 |
 | [`docs/phases/phase-03-knowledge-interface.md`](./phases/phase-03-knowledge-interface.md) | Phase 03 详细规划 | 预规划草案/未执行 |
 | [`docs/phases/phase-04-minimum-rag.md`](./phases/phase-04-minimum-rag.md) | Phase 04 详细规划 | 预规划草案/未执行 |
@@ -939,3 +950,6 @@ Phase 00 是已完成的研究阶段；Phase 01 至 Phase 10 均为 **[规划]**
 | 2026-07-29 | 0.4.0 | 执行 Phase 00 源码研究与登记；对齐 Phase 00–10，更新研究产物、能力、复用、权限、高级 RAG 和当前状态 |
 | 2026-07-29 | 0.4.1 | 完成 P00-T12 一致性审计和 P00-T13 出口审查；记录 Phase 00 出口阻塞与 Phase 01 不准入 |
 | 2026-07-30 | 0.5.0 | 用户确认 Phase 00 完成；生成 Phase 01 至 Phase 10 详细计划；按 ADR-014 恢复时序 RAG 为 CAP-43；更新滚动 main 基线和当前状态 |
+| 2026-07-30 | 0.5.1 | 记录 Phase 01 执行仓库与 ADR-016；冻结项目、包、服务、CI 和类型检查器命名；同步 P01-T01 当前状态 |
+| 2026-07-30 | 0.5.2 | 完成 P01-T02；建立可安装包、Python 3.13 项目环境、依赖锁定、最小测试和 pytest/ruff/mypy 本地质量基线 |
+| 2026-07-30 | 0.6.0 | 完成 P01-T03 至 P01-T10 和 Phase 01 阶段验收；建立配置、观测、端口、迁移、API/Worker 空壳、Docker 与 GitHub Actions 门禁 |

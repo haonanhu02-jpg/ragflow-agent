@@ -52,7 +52,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ## 4. 目标模块与文件
 
 ```text
-src/<package>/knowledge/
+src/ragflow_agent/knowledge/
   domain/{knowledge_base,document,chunk,ingestion,retrieval,authorization}.py
   application/{knowledge_service,permission_service}.py
   ports/{repositories,storage,parsing,chunking,embedding,search,queue,permission,trace}.py

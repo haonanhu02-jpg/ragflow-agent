@@ -27,4 +27,4 @@
    - `docs/00-project-master.md`
    - `docs/05-development-roadmap.md`
    - `docs/02-ragflow-capability-matrix.md`
-
+5. Python 变更至少执行 `uv run ruff check .`、`uv run mypy src/ragflow_agent tests` 和 `uv run pytest`；迁移、API、Worker 或容器变更还要执行当前阶段文件规定的专项命令。

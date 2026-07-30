@@ -45,7 +45,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ## 5. 主要交付物与目标文件
 
 ```text
-src/<package>/agent/
+src/ragflow_agent/agent/
   domain/{state,events,errors,budgets}.py
   application/{runtime,tool_executor}.py
   graphs/minimal_agent.py
@@ -287,7 +287,7 @@ tests/{unit,contract,integration,e2e}/agent/
 - **RAGFlow 源码依据**：核对未误用 Canvas 或上游全局依赖。
 - **实现或复用方式**：审计。
 - **测试方法**：Unit/Contract/Integration/E2E/静态边界。
-- **验证命令**：`uv run pytest tests/**/agent -q`; `uv run ruff check .`; `uv run <type-checker>`
+- **验证命令**：`uv run pytest tests/**/agent -q`; `uv run ruff check .`; `uv run mypy src/ragflow_agent tests`
 - **验收标准**：CAP-29/30/31 基础验收通过；Phase 08 能复用同一 Runtime。
 - **风险和回滚方法**：任何恢复/权限失败均阻止阶段完成。
 - **实际执行结果**：待执行。

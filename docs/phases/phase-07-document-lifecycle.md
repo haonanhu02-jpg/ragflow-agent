@@ -38,9 +38,9 @@ Phase 00 证明 RAGFlow 重解析采用原地状态/先删后建；删除先移�
 ## 3. 交付物与目标模块
 
 ```text
-src/<package>/knowledge/application/lifecycle/
+src/ragflow_agent/knowledge/application/lifecycle/
   update.py reparse.py rebuild.py delete.py publish.py reconcile.py batch.py
-src/<package>/worker/{retry,dead_letter,cancellation,progress}.py
+src/ragflow_agent/worker/{retry,dead_letter,cancellation,progress}.py
 tests/{unit,contract,integration,e2e,fault}/lifecycle/
 docs/09-document-lifecycle.md
 ```
