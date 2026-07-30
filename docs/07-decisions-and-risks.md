@@ -704,7 +704,7 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 
 - **结论**：P04-T01 至 P04-T12 已完成；Phase 04 通过真实后端、Fake Provider、迁移、tenant、Citation/Trace、ruff、strict mypy、密钥卫生和完整 pytest 阶段门禁，不自动进入 Phase 05。
 - **实现边界**：已实现 PostgreSQL 知识表、S3/MinIO、Redis/ARQ、TXT/Markdown/PDF、General Chunk、BGE-M3/DeepSeek Provider Adapter、Elasticsearch BM25/KNN/RRF、固定 RAG、Citation/Trace 和知识 API；未实现真实外部模型 smoke、OCR/版面、完整在线检索、生命周期或 Agent Tool。
-- **验证证据**：本地临时 Compose 下 153 passed、0 skipped；Fake-only 默认环境 143 passed、10 个显式基础设施 skip；`ruff`、`mypy`、bootstrap、Compose config、Alembic round trip 和 secret hygiene 通过。
+- **验证证据**：本地临时 Compose 下 153 passed、0 skipped；Fake-only 默认环境 143 passed、10 个显式基础设施 skip；`ruff`、`mypy`、bootstrap、Compose config、Alembic round trip 和 secret hygiene 通过；代码提交 `0732d47` 的 [GitHub Actions](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30533783441) 成功。
 - **决策与合规**：ADR-019 已实施；Phase 04 直接复用和改造复用 RAGFlow 源码均为零，后续首次复制前必须重新许可证审查。
 - **计划偏差**：用户准入决策将最小 RRF 混合检索提前到 Phase 04；ARQ 要求 `redis<6`；复杂调度、补偿、流式回答和真实 Provider 验证仍按后续阶段处理。
 - **下一门禁**：依据 Phase 04 实际 Parser/Chunk/provenance 复审 Phase 05 计划，确认复杂格式、OCR、资源、样本和许可证后才可执行。

@@ -338,8 +338,8 @@ tests/{contract,integration,e2e,evaluation}/
 - **验收标准**：CAP-08/10/21/23/27/38 基础路径通过；CAP-01/04/09 仅按实际最小范围标记。
 - **风险和回滚方法**：任何越权、引用或索引一致性失败阻止出口。
 - **实际执行结果**：完成源码/许可证、依赖、迁移、tenant、临时文件、敏感信息、Fake/真实测试和文档一致性审查；Phase 04 未引入任何 RAGFlow 派生文件。
-- **实际验证结果**：`ruff check .`、`mypy src tests scripts/check_secret_hygiene.py`、真实后端 `pytest`（153 passed）、默认环境 `pytest`（143 passed、10 skipped）、bootstrap checks、Compose config、Alembic downgrade/upgrade、secret hygiene 均通过。
-- **计划偏差**：完整验收使用本地临时 Compose 基础设施；密钥卫生扫描器原先将运行时 `settings.*` 引用误判为凭据，已收紧为仅检查字面量并新增 3 个回归测试；最终 GitHub Actions 结果在推送后回填。
+- **实际验证结果**：`ruff check .`、`mypy src tests scripts/check_secret_hygiene.py`、真实后端 `pytest`（153 passed）、默认环境 `pytest`（143 passed、10 skipped）、bootstrap checks、Compose config、Alembic downgrade/upgrade、secret hygiene 均通过；代码提交 `0732d47` 的 [GitHub Actions Phase 04 quality gate](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30533783441) 成功。
+- **计划偏差**：完整验收使用本地临时 Compose 基础设施；密钥卫生扫描器原先将运行时 `settings.*` 引用误判为凭据，已收紧为仅检查字面量并新增 3 个回归测试。
 
 ## 10. 测试、验收与 DoD
 

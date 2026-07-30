@@ -709,7 +709,7 @@ Phase 00 至 Phase 04 已完成；Phase 05 至 Phase 10 均为 **[规划]**。�
 29. **[决策]** ADR-018 冻结 `private|tenant`、显式 `actor_id`、`sha256-v1` Chunk ID、受控 MetadataFilter、共享知识查询入口和 Agent 快照映射边界。
 30. **[决策]** ADR-019 冻结 Phase 04 的 Elasticsearch 8.19、Redis/ARQ、DeepSeek OpenAI-compatible、BGE-M3、PostgreSQL、S3/MinIO 和无 RAGFlow 源码抽取边界。
 31. **[事实]** Phase 04 已实现知识迁移、S3 Adapter、Redis/ARQ Adapter、Ingestion pipeline、TXT/Markdown/PDF、General Chunk、模型 Provider Adapter、Elasticsearch BM25/KNN/RRF、FixedRagService、知识 API、Citation/Trace 和评测基线。
-32. **[事实]** Phase 04 本地真实后端验收为 153 passed、0 skipped；默认无外部基础设施环境为 143 passed、10 个显式 skip；外部 DeepSeek/BGE-M3 未调用，不得把 Fake Provider 验证描述为真实模型验证。
+32. **[事实]** Phase 04 本地真实后端验收为 153 passed、0 skipped；默认无外部基础设施环境为 143 passed、10 个显式 skip；代码提交 `0732d47` 的 [GitHub Actions Phase 04 quality gate](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30533783441) 成功；外部 DeepSeek/BGE-M3 未调用，不得把 Fake Provider 验证描述为真实模型验证。
 
 ### 15.3 下一步
 

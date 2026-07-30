@@ -351,7 +351,7 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 
 - **验收标准**：上传 → 解析 → Chunk → Embedding → 索引 → 检索 → 生成 → Citation 全链路通过；API/Worker 独立启动；结果可追溯到 DocumentVersion/Chunk；重复任务不产生重复数据；跨租户消息和查询被拒绝。
 - **下一阶段进入条件**：最小链路与基线评测稳定；Parser/Chunk 扩展不改变核心 DTO；Phase 05 详细计划必须依据实际 `BasicObjectParser`、`GeneralChunker` 和 provenance 边界复审。
-- **当前状态**：已完成；P04-T01 至 P04-T12、Fake/真实后端垂直切片和阶段门禁通过。
+- **当前状态**：已完成；P04-T01 至 P04-T12、Fake/真实后端垂直切片、本地阶段门禁和代码提交 `0732d47` 的 GitHub Actions 均通过。
 - **已知风险**：ARQ maintenance-only（R-028）；Elasticsearch 版本/语义漂移（R-029）；跨存储补偿与残留清理尚未实现（R-027）；外部模型真实性能尚未验证。
 - **技术决策结果**：ADR-019 已解决 O-002/O-006/O-007；O-004 在 Phase 04 以“不复制、抽取或改写 RAGFlow 源码”闭环，后续首次复制前必须重开许可审查。
 

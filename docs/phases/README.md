@@ -41,7 +41,7 @@ current_phase: Phase 04 completed; Phase 05 plan review gate
 - Phase 00 至 Phase 04 已完成；目标项目已具备最小 Agent Runtime、知识领域/Ports/权限/统一查询契约，以及基于真实 PostgreSQL/MinIO/Redis/Elasticsearch 验证的最小 RAG 闭环。
 - P02-T01 至 P02-T10 已完成并通过真实 PostgreSQL、Unit/Contract/Integration/E2E 和静态阶段门禁。
 - P03-T01 至 P03-T11 已完成并通过领域/权限/状态机、Repository/UoW、全部能力 Ports、Service 和导入边界门禁。
-- P04-T01 至 P04-T12 已完成并通过 PostgreSQL/MinIO/Redis/Elasticsearch 真实后端、Fake Provider、迁移、tenant、Citation/Trace 和质量门禁。
+- P04-T01 至 P04-T12 已完成并通过 PostgreSQL/MinIO/Redis/Elasticsearch 真实后端、Fake Provider、迁移、tenant、Citation/Trace、本地质量门禁及代码提交 `0732d47` 的 GitHub Actions。
 - Phase 05 至 Phase 10 都是预规划草案，必须逐阶段复审确认；Phase 05 当前只进入计划复审门禁，不代表已批准执行。
 - 2026-07-30 新增 ADR-017（Phase 02 Agent Runtime 与持久 Checkpoint 基线）、ADR-018（Phase 03 领域/权限/统一查询契约）和 ADR-019（Phase 04 最小 RAG 技术 Profile）；Phase 00 旧一致性审计仍记录当时 42 项基线事实。
 
