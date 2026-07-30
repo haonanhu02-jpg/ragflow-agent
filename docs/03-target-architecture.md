@@ -2,7 +2,7 @@
 document_id: TARGET-ARCHITECTURE
 status: active
 last_updated_at: "2026-07-30"
-architecture_status: planned
+architecture_status: partially_implemented
 ---
 
 # 目标系统架构
@@ -13,7 +13,7 @@ architecture_status: planned
 
 ## 1. 架构状态
 
-- **[事实]** 当前项目只有文档，没有业务代码。
+- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现与知识库解耦的 LangGraph Agent Runtime；知识库、RAG 和 ingestion 业务仍未实现。
 - **[决策]** 目标项目独立运行，不以 RAGFlow API 或 RAGFlow 服务为运行时依赖。
 - **[决策]** Agent 使用 LangChain + LangGraph。
 - **[决策]** 第一版是模块化单体：FastAPI 与独立 Ingestion Worker 同仓库、共享领域模型和基础设施端口、通过任务队列连接，不拆微服务。
@@ -148,6 +148,8 @@ flowchart TB
 - LangChain Tool
 - LangChain Chat Model 和结构化输出
 
+**[事实]** Phase 02 已在 `src/ragflow_agent/agent/` 实现上述基础边界：AgentState/Event v1、最小 StateGraph、模型/Tool 端口与 LangChain Adapter、PostgreSQL Checkpointer、Trace 和错误治理。`AgentRunService` 的 FastAPI 业务入口、知识库 Tool 和完整授权服务仍属后续规划。
+
 核心边界：
 
 ```text
@@ -235,6 +237,8 @@ LangChain 和 LangGraph 属于框架依赖：
 - Citation
 - RetrievalTrace 索引或摘要
 - `tenant_id`、`owner_id`、`visibility` 及最小权限审计数据
+
+**[事实]** Phase 02 的官方 `AsyncPostgresSaver.setup()` 已创建并管理 LangGraph 内部 Checkpoint 表；这些表不属于项目 Alembic 业务模型。目标 AgentThread/AgentRun 业务索引仍未实现。
 
 ### 5.2 对象存储
 
@@ -419,6 +423,8 @@ RetrievalResult → ToolMessage → LangGraph → 继续检索/其他 Tool/HITL/
 
 ## 9. Agent 链路设计
 
+Phase 02 当前已实现 `normalize_input → decide → execute_tool → observe → decide/finish` 的确定性基础图，以及 run/resume、技术上限和 Agent Trace。下列状态/节点清单是完整目标；`plan`、检索 Trace/Citation、HITL、记忆、业务预算、多 Agent 和知识库 Tool 尚未实现。
+
 建议基础状态：
 
 ```text
@@ -450,7 +456,7 @@ error
 9. `validate_answer`
 10. `finish`
 
-节点名称是规划名称，不代表已实现。Phase 02 先完成单 Agent、Checkpoint、Trace 和错误恢复基础；Phase 08 再完成 HITL、预算、记忆、Agentic RAG 和多 Agent。
+其中 `normalize_input`、模型决策、`execute_tool`、`observe` 和 `finish` 已有 Phase 02 最小实现；Planner、知识检索路由、`request_human`、答案证据校验和多 Agent 仍是规划。Phase 08 再完成 HITL、预算、记忆、Agentic RAG 和多 Agent。
 
 ## 10. 高级 RAG 接入
 

@@ -53,3 +53,38 @@ def test_worker_does_not_import_api_routes_or_internal_http_clients() -> None:
                 if imported.startswith(forbidden):
                     violations.append(f"{path.relative_to(PACKAGE_ROOT)} -> {imported}")
     assert violations == []
+
+
+def test_agent_core_does_not_import_concrete_platform_or_later_phase_modules() -> None:
+    forbidden = (
+        "ragflow_agent.api",
+        "ragflow_agent.bootstrap",
+        "ragflow_agent.infrastructure",
+        "ragflow_agent.knowledge",
+        "ragflow_agent.retrieval",
+        "redis",
+        "sqlalchemy",
+    )
+    violations: list[str] = []
+    core_roots = [
+        PACKAGE_ROOT / "agent" / "domain",
+        PACKAGE_ROOT / "agent" / "ports",
+        PACKAGE_ROOT / "agent" / "application",
+        PACKAGE_ROOT / "agent" / "graphs",
+        PACKAGE_ROOT / "agent" / "nodes",
+    ]
+    for root in core_roots:
+        for path in root.rglob("*.py"):
+            for imported in _imports(path):
+                if imported.startswith(forbidden):
+                    violations.append(f"{path.relative_to(PACKAGE_ROOT)} -> {imported}")
+    assert violations == []
+
+
+def test_agent_nodes_never_import_agent_infrastructure() -> None:
+    violations: list[str] = []
+    for path in (PACKAGE_ROOT / "agent" / "nodes").rglob("*.py"):
+        for imported in _imports(path):
+            if imported.startswith("ragflow_agent.agent.infrastructure"):
+                violations.append(f"{path.relative_to(PACKAGE_ROOT)} -> {imported}")
+    assert violations == []

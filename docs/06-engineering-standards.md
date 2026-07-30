@@ -75,6 +75,12 @@ applies_to: D:/download/ragflow-agent
 
 Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远程 CI 的实际结论必须以对应 commit 的运行结果为准。
 
+### 3.5 Phase 02 已落地的 Agent 依赖
+
+- `langgraph-checkpoint-postgres` 是持久 Agent Checkpoint 的直接依赖，版本必须由 `uv.lock` 固定。
+- `psycopg[binary,pool]` 仅安装在项目 `.venv`；Windows 异步 PostgreSQL 测试继续使用 Selector event loop。
+- Checkpointer 升级必须运行真实 PostgreSQL 的 setup、list/delete、失败恢复、并发和跨租户回归；不得只运行内存 Saver 测试。
+
 ## 4. 包结构与导入边界
 
 ### 4.1 领域层
@@ -304,13 +310,16 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 1. AgentState 字段稳定、可序列化、可版本化。
 2. 每个节点只有清晰输入、输出和副作用。
 3. 副作用节点必须可幂等恢复。
-4. Checkpoint key 包含 thread/run 身份。
-5. 最大循环、最大 Tool 调用、Token/成本预算和超时必须配置。
+4. Checkpoint 物理 key 至少包含 state version、tenant 和 thread；持久状态内同时验证 run，恢复令牌不得改变 tenant/thread/run。
+5. Phase 02 的技术递归、重试和超时上限必须有限且不可绕过；最大业务循环、Tool 调用、Token/成本预算在 Phase 08 实现。
 6. HITL interrupt 保存审批原因、待执行动作和上下文摘要。
 7. 恢复时验证状态版本和权限。
 8. Tool 返回结构化结果和稳定错误。
 9. 多 Agent 必须有 supervisor、终止条件和共享状态边界。
 10. Agent 不得绕过 KnowledgeQueryService。
+11. 官方 PostgreSQL Checkpointer 内部表由其 `setup()` 管理，项目 Alembic 不手工接管；业务 AgentThread/AgentRun 表必须与内部表分离。
+12. 内存 Saver 只用于快速测试，不得作为进程重启或持久恢复的验收证据。
+13. Agent Trace sink 失败必须显式标记降级，事件 payload 不得保存密钥、认证头、原始文档全文或 Tool 凭据。
 
 ## 15. 后台任务标准
 

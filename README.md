@@ -1,10 +1,16 @@
 # ragflow-agent
 
-Independent Agent + RAG project. Phase 01 currently provides the Python package,
-typed configuration, infrastructure boundaries, PostgreSQL migrations, FastAPI
-and ingestion-worker process shells, tests, and a reproducible development
-environment. Agent, ingestion, parsing, indexing, retrieval, and RAG behavior
-are intentionally not implemented yet.
+Independent Agent + RAG project. Phase 01 provides the Python package, typed
+configuration, infrastructure boundaries, PostgreSQL migrations, FastAPI and
+ingestion-worker process shells, tests, and a reproducible development
+environment. Phase 02 adds a knowledge-independent LangGraph Agent runtime with
+versioned state/events, structured model and Tool ports, bounded error handling,
+tenant-scoped PostgreSQL checkpoints, trace events, and a deterministic minimal
+Agent loop.
+
+Knowledge-base domains, ingestion, parsing, chunking, embedding, indexing,
+retrieval, fixed RAG, KnowledgeBaseTool, real model providers, HITL, memory, and
+multi-Agent behavior are intentionally not implemented yet.
 
 ## Project entrypoints
 

@@ -20,14 +20,14 @@ roadmap_range: Phase 00-10
 
 - **[事实]** 目标项目根目录为 `D:/download/ragflow-agent`。
 - **[事实]** 目标项目是 Git 仓库，默认分支为 `main`，`origin` 实际配置为 `https://github.com/haonanhu02-jpg/ragflow-agent.git`；P01-T01 开始前 `HEAD` 与 `origin/main` 均为 Phase 00 基线 commit `5c015405e4c25346999cbb21736c61a87d5f8cbe`。
-- **[事实]** 当前已有可安装包、类型化配置、日志/Trace、基础设施端口、空迁移、FastAPI/Worker 空壳、测试、GitHub Actions 和 Docker 开发拓扑；仍没有 Agent/RAG 业务功能。Phase 00 原始文件快照见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
+- **[事实]** 当前已有可安装包、类型化配置、日志/Trace、基础设施端口、空迁移、FastAPI/Worker 空壳、LangGraph Agent Runtime、测试、GitHub Actions 和 Docker 开发拓扑；仍没有知识库、ingestion 或 RAG 业务功能。Phase 00 原始文件快照见 [`docs/research/project-baseline.md`](./research/project-baseline.md)。
 - **[决策]** RAGFlow 冻结事实基线为 `cd846cc9d4e32a19e684c59a1f302601027ef976`，长期源码结论必须固定到该 commit。
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00 和 Phase 01 已完成；Phase 02 至 Phase 10 未执行，所有 Agent/RAG 业务实现仍未开始。
+- **[事实]** Phase 00、Phase 01 和 Phase 02 已完成；Phase 03 至 Phase 10 未执行，知识库和 RAG 业务实现仍未开始。
 
-Phase 00 已按详细计划执行并通过验收；Phase 01 至 Phase 10 的详细计划已生成。P01-T01 仅冻结执行基线和命名，不创建业务代码；阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 02 已按详细计划执行并通过验收；Phase 03 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
 
 ### 0.2 本次路线图校正
 
@@ -94,7 +94,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | Phase 00 | 研究与基线 | 无 | 全部能力的源码证据、边界、差距和采用分类 | 已确认 | 已完成 |
 | Phase 01 | 项目骨架 | Phase 00 | `CAP-36 模型注册与调用`、`CAP-37 FastAPI 服务接口`、`CAP-40 日志、指标与链路追踪`基础 | 已确认 | 已完成 |
-| Phase 02 | Agent基础 | Phase 01 | `CAP-29 LangGraph 状态、路由与循环`、`CAP-30 Checkpoint 与运行恢复`、`CAP-31 Human-in-the-loop`基础 | 预规划草案 | 未执行 |
+| Phase 02 | Agent基础 | Phase 01 | `CAP-29 LangGraph 状态、路由与循环`、`CAP-30 Checkpoint 与运行恢复`；CAP-31 仅复用前置 Checkpoint | 已确认 | 已完成 |
 | Phase 03 | 知识库统一接口 | Phase 02 | `CAP-03 统一文档结构`契约、`CAP-16 权限过滤`/`CAP-41 权限与安全`第一版边界、统一 Ports | 预规划草案 | 未执行 |
 | Phase 04 | 最小RAG闭环 | Phase 03 | `CAP-01`/`CAP-04`基础；`CAP-08`、`CAP-09`、`CAP-10`、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-38`基础 | 预规划草案 | 未执行 |
 | Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 预规划草案 | 未执行 |
@@ -249,9 +249,9 @@ flowchart LR
 
 - **验收标准**：确定性 Tool 图可运行；进程重启后恢复；重试/超时/取消有效；Trace 可还原路径；节点不能访问具体数据库、Redis 或搜索客户端。
 - **下一阶段进入条件**：Agent 核心契约和恢复测试通过；Phase 03 详细计划已生成并确认。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 01 实际结果复审。
+- **当前状态**：已完成；P02-T01 至 P02-T10、真实 PostgreSQL 恢复、Unit/Contract/Integration/E2E 和静态门禁均通过。
 - **已知风险**：把测试 Tool 变成长期 Mock；Checkpoint 与业务表混淆；状态不可版本化；模型不稳定导致路由测试脆弱。
-- **待确认技术决策**：Checkpointer 具体实现；Agent 状态序列化版本策略；首个 Chat Model 可延至 Phase 04 前确定。
+- **技术决策结果**：ADR-017 已冻结官方异步 PostgreSQL Checkpointer、租户作用域和 AgentState/Event v1；首个真实 Chat Model 仍按 O-007 延至 Phase 04 前确定。
 
 ## 6. Phase 03：知识库统一接口
 
@@ -683,9 +683,10 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 
 - Phase 00：已完成。
 - Phase 01：详细计划已确认，P01-T01 至 P01-T10 和阶段门禁已完成。
-- Phase 02 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
-- 当前项目没有任何 Agent/RAG 业务能力实现；已经具备可安装包、配置/观测/基础设施边界、迁移、API/Worker 空壳、Docker 和 CI。
-- O-001、O-012 和 Phase 01 计划确认均已解决；下一步是复审并确认 Phase 02，不自动执行。
+- Phase 02：详细计划已确认，P02-T01 至 P02-T10 和阶段门禁已完成。
+- Phase 03 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
+- 当前已具备最小 Agent Runtime，但没有知识库、ingestion、检索或 RAG 业务能力；工程骨架、Agent Checkpoint/Trace 和 CI 已验证。
+- 下一步是按 Phase 02 实际契约复审并确认 Phase 03，不自动执行。
 
 ### 15.2 Phase 00 一致性债务处理
 

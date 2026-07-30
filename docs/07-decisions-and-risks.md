@@ -386,6 +386,35 @@ Phase 01 的首个任务必须在创建 Python 包和质量配置前解决 O-001
 
 用户于 2026-07-30 对 O-001、O-012 和 Phase 01 计划的确认；项目仓库 `.git/config`、`refs/heads/main` 与 `refs/remotes/origin/main`；[`phase-01-project-skeleton.md`](./phases/phase-01-project-skeleton.md)
 
+### ADR-017：Phase 02 Agent Runtime 与持久 Checkpoint 基线
+
+- **Status**：Accepted
+- **Date**：2026-07-30
+
+**Context**
+
+Phase 01 已提供 Python 3.13、PostgreSQL、类型化配置、Trace 和质量门禁。Phase 02 需要在不选择真实模型供应商、不创建知识库领域和不复用 RAGFlow Canvas 的前提下，完成可恢复的 LangGraph Agent 基础。冻结 RAGFlow `rag/advanced_rag/agentic_rag_graph.py::build_agentic_graph` 以无参数 `g.compile()` 编译，不能满足持久恢复要求。
+
+**Decision**
+
+- Agent Runtime 使用 LangGraph `StateGraph`；应用节点只依赖 Agent 领域、端口和应用服务。
+- 持久 Checkpointer 使用官方 `langgraph-checkpoint-postgres::AsyncPostgresSaver`，由其 `setup()` 管理 Checkpoint 表；本项目通过 `TenantScopedCheckpointStore` 组合 state version、`tenant_id` 和逻辑 `thread_id`，不把 Checkpoint 表建模为业务实体。
+- `AgentState` 和 `AgentEvent` 从 v1 开始版本化；只持久化 JSON-safe 数据，禁止密钥、客户端和基础设施对象。
+- 恢复必须同时验证 tenant、thread 和 run；跨租户 token 和状态失败关闭。
+- Phase 02 使用确定性 `AgentModelPort`/Tool 测试替身作为门禁；真实 Chat Model 供应商继续由 O-007 在 Phase 04 前决定。
+- Phase 02 只实现技术递归、重试和超时上限；HITL、记忆以及循环/Token/时间/费用业务预算仍属于 Phase 08。
+
+**Consequences**
+
+- 增加直接依赖 `langgraph-checkpoint-postgres` 和 `psycopg[pool]`；CI 的 PostgreSQL 服务同时验证官方 Checkpointer。
+- 内存 Checkpointer 只允许 unit/E2E 快速测试，不得作为持久恢复验收证据。
+- 官方 Checkpointer schema 的升级由依赖锁定、真实 PostgreSQL 回归和 R-025 管理；项目 Alembic 不接管其内部表。
+- Phase 03 可以复用 Agent 的最小授权快照传递，但仍必须建立统一 `AuthorizationContext` 和 `PermissionChecker`，不得把本决策误写成权限模型已完成。
+
+**References**
+
+[`phase-02-agent-foundation.md`](./phases/phase-02-agent-foundation.md)；[`agentic_rag_graph.py::build_agentic_graph`](https://github.com/infiniflow/ragflow/blob/cd846cc9d4e32a19e684c59a1f302601027ef976/rag/advanced_rag/agentic_rag_graph.py)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
@@ -521,6 +550,7 @@ Phase 01 的首个任务必须在创建 Python 包和质量配置前解决 O-001
 | R-022 | 文档关系行先删除而对象、索引或派生数据清理失败 | 中 | 高 | `remove_document` 后续 best-effort cleanup 留下孤儿数据 | 删除先撤销可见性；补偿日志；幂等清理；reconciliation；保留审计墓碑 | Phase 07/10 | Open |
 | R-023 | 预生成的后续阶段计划与上一阶段实际产物漂移 | 高 | 高 | 计划引用的接口、文件或决策已变化 | ADR-013；每阶段入口重新审查；未审查不得执行 | Phase 01–10 | Open |
 | R-024 | 时序 RAG 范围和后端未定义导致 Phase 09 失控 | 高 | 高 | 同时引入新存储、算法和数据模型且无基线 | ADR-014；O-011；默认关闭；独立数据集和实验门禁 | Phase 09/10 | Open |
+| R-025 | 官方 PostgreSQL Checkpointer 升级导致内部 schema 或恢复语义漂移 | 中 | 高 | 依赖升级后 setup、恢复、list/delete 或并发测试失败 | 锁定依赖；不手改上游表；真实 PostgreSQL 迁移/恢复回归；升级前审查 release notes | Phase 02 持续/Phase 10 | Monitoring |
 
 ## 5. 风险处理规则
 
@@ -532,7 +562,7 @@ Phase 01 的首个任务必须在创建 Python 包和质量配置前解决 O-001
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-016。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-017。
 - Resolved：O-001 → ADR-016；O-003 → ADR-011；O-005 → ADR-012；O-012 → ADR-016。
 - Deferred：O-002、O-004、O-006、O-007、O-008、O-009、O-010、O-011。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
@@ -564,3 +594,14 @@ Phase 01 的首个任务必须在创建 Python 包和质量配置前解决 O-001
 - **待决策保持不变**：O-002 搜索后端、O-006 可靠消息、O-007 首批模型均未被 Phase 01 占位实现替代。
 - **计划偏差**：Windows psycopg 使用 Selector loop；Docker Worker 以显式 development-only 非消费模式验证进程健康，默认入口仍 fail-fast；两者均不改变 ADR-011 架构。
 - **下一门禁**：根据真实骨架复审并由用户确认 Phase 02 计划，之后才可从 P02-T01 开始。
+
+## 9. Phase 02 出口审查记录
+
+### 2026-07-30 / P02-T10
+
+- **结论**：P02-T01 至 P02-T10 已完成；Phase 02 通过 Unit、Contract、Integration、E2E、真实 PostgreSQL 恢复、ruff、strict mypy、密钥卫生和完整 pytest 阶段门禁，不自动进入 Phase 03。
+- **实现边界**：已实现 AgentState/Event v1、最小 LangGraph、模型/Tool 端口与 LangChain Adapter、Tool allowlist、错误/重试/超时/取消、官方 PostgreSQL Checkpointer 的租户作用域、run/resume 和 Agent Trace；未实现知识库、RAG、KnowledgeBaseTool、真实模型、HITL、记忆、多 Agent 或业务预算。
+- **决策**：ADR-017 冻结官方异步 PostgreSQL Checkpointer、租户/版本作用域、确定性测试模型和 Checkpoint 表所有权；O-002、O-006、O-007 保持 Deferred。
+- **计划偏差**：未创建 `budgets.py`，技术限额由 `RuntimeLimits` 承担；官方 Checkpointer 通过自身 `setup()` 管理内部表，不创建项目 Alembic 业务迁移；持久恢复由真实 PostgreSQL 验证，内存 Saver 只用于快速测试。
+- **新增风险**：R-025 监控官方 Checkpointer schema 和恢复语义随依赖升级漂移。
+- **下一门禁**：根据 Phase 02 的最小授权快照、Tool 和 Checkpoint 契约复审并确认 Phase 03 计划；Phase 03 必须建立统一 `AuthorizationContext`、`PermissionChecker` 和知识库领域接口，不得直接扩展 Agent 临时类型为知识模型。
