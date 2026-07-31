@@ -27,7 +27,7 @@ class WorkerSettings(FrozenSettingsModel):
     poll_interval_seconds: float = Field(default=1.0, gt=0, le=60)
     heartbeat_interval_seconds: float = Field(default=10.0, gt=0, le=300)
     service_name: str = "ragflow-agent-ingestion-worker"
-    max_tries: int = Field(default=3, ge=1, le=20)
+    max_tries: int = Field(default=6, ge=1, le=20)
     job_timeout_seconds: int = Field(default=300, ge=1, le=86_400)
 
 
@@ -151,6 +151,32 @@ class RetrievalTraceSettings(FrozenSettingsModel):
         return self
 
 
+class LifecycleSettings(FrozenSettingsModel):
+    """Bounded Phase 07 version, retry, retention, and batch policy."""
+
+    max_attempts: int = Field(default=6, ge=1, le=20)
+    concurrency_attempts: int = Field(default=3, ge=1, le=10)
+    retry_base_seconds: float = Field(default=1, gt=0, le=60)
+    retry_max_seconds: float = Field(default=300, gt=0, le=3_600)
+    operation_timeout_seconds: int = Field(default=3_600, ge=1, le=86_400)
+    history_retention_days: int = Field(default=30, ge=1, le=3_650)
+    soft_delete_retention_days: int = Field(default=30, ge=1, le=3_650)
+    previous_index_retention_days: int = Field(default=7, ge=1, le=365)
+    purge_completion_hours: int = Field(default=24, ge=1, le=168)
+    outbox_batch_size: int = Field(default=100, ge=1, le=10_000)
+    reconcile_batch_size: int = Field(default=100, ge=1, le=10_000)
+    batch_size: int = Field(default=100, ge=1, le=10_000)
+    batch_concurrency: int = Field(default=2, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def retry_profile_is_ordered(self) -> Self:
+        if self.concurrency_attempts > self.max_attempts:
+            raise ValueError("concurrency attempts cannot exceed lifecycle max attempts")
+        if self.retry_base_seconds > self.retry_max_seconds:
+            raise ValueError("retry base cannot exceed retry maximum")
+        return self
+
+
 class IngestionSettings(FrozenSettingsModel):
     """Bounded upload, parser, OCR, chunk, and index profile."""
 
@@ -220,6 +246,7 @@ class AppSettings(BaseSettings):
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     retrieval_trace: RetrievalTraceSettings = Field(default_factory=RetrievalTraceSettings)
+    lifecycle: LifecycleSettings = Field(default_factory=LifecycleSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     def redacted_dict(self) -> dict[str, object]:

@@ -441,7 +441,7 @@ RAGFlow `api/db/db_models.py::{Knowledgebase,Document,Task}` 是 Peewee 产品�
 - Phase 04 必须实现这些 Ports，而不能另建一套 DTO、权限 if/else 或 tenant-free Repository。
 - `AuthorizationContext`、状态机、Chunk ID 和 Retrieval schema 的破坏性变更必须升级 schema/ADR，并提供迁移或兼容读。
 - 在 ADR-018 作出时，O-002/O-006/O-007 仍阻止 Phase 04 执行；这些事项随后由 ADR-019 关闭。若未来首次复制 RAGFlow 源码，仍必须重新审查 O-004 边界。
-- 应用数据库、对象存储、搜索和外部 Trace 不是同一事务；可靠 outbox、幂等和补偿仍按 Phase 07 完成，见 R-027。
+- 应用数据库、对象存储、搜索和外部 Trace 不是同一事务；可靠 Outbox、幂等和补偿已在 Phase 07 按 ADR-022 实现，仍需按 R-027 持续监控。
 
 **References**
 
@@ -570,6 +570,44 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
 
 [`phase-06-online-retrieval.md`](./phases/phase-06-online-retrieval.md)
 
+### ADR-022：Phase 07 文档生命周期与跨存储一致性基线
+
+- **Status**：Accepted and implemented
+- **Date**：2026-07-31
+
+**Context**
+
+PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFlow 冻结基线的原地重解析、关系先删后 best-effort 清理、consumer-local pending 和异常后 ACK 不能直接满足本项目的版本连续性、租户隔离和可恢复性目标。
+
+**Decision**
+
+- PostgreSQL 是生命周期、活动版本、期望状态、操作、Outbox 和批次的唯一权威；MinIO 保存对象，Elasticsearch 是可重建投影，Redis/ARQ 只传递任务。
+- 不使用 2PC；采用事务 Outbox、不可变 DocumentVersion、幂等任务、持久步骤、CAS revision/fencing、有限重试、补偿和周期对账。
+- 新版本全部完成并验证后才切换 `current_version_id`；历史版本默认保留 30 天。回滚只允许健康且未物理清理的版本。
+- 默认总尝试 6 次、并发冲突 3 次、指数退避和全抖动、退避上限 300 秒；未知/代码错误不自动重试，耗尽进入持久 dead-letter。
+- 全量重建使用稳定读写别名、generation 物理索引、staging 验证和 Elasticsearch 原子 alias 切换；上一健康索引默认保留 7 天。
+- 删除先在 PostgreSQL 置 `delete_pending` 并立即清空活动版本；默认保留 30 天，期满后 24 小时清理目标由维护任务保障。外部清理失败不得重新暴露文档。
+- 普通批次为单 tenant/单知识库、单文档故障隔离；全量重建只有全部验证通过才切 alias。批次状态从子操作持久状态重算。
+- Elasticsearch 候选在返回前必须重新通过 PostgreSQL 的 active/current-version/tenant/权限验证；权威读取错误传播并失败关闭。
+- Alembic 管理业务生命周期表；LangGraph `AsyncPostgresSaver.setup()` 只管理 Checkpoint 内部表，两者职责和升级验证分离。
+- Phase 07 继续不复制、抽取或改写 RAGFlow 源码；首次复制前必须重新许可证审查。
+
+**Consequences**
+
+- 更新、重解析、回滚、软删除/恢复/回收、Outbox、取消、死信、generation alias、对账和批次形成统一闭环。
+- API 与独立 Worker 共享领域/应用服务；没有新增微服务或内部 HTTP。
+- 自动跨全部 tenant 的生产调度、告警后端、长时间混沌和容量治理仍属于 Phase 10，不得由当前接口冒充。
+
+**Verification**
+
+- 迁移 `20260731_0004` 执行 `0003 -> 0004 -> 0003 -> 0004` 往返。
+- 确定性测试覆盖状态、CAS、取消、重试上限、dead-letter、Outbox 去重、批次重算、删除和对账。
+- 隔离真实 PostgreSQL/Redis/MinIO/Elasticsearch 验证更新、投递、发布、唯一活动版本、generation alias、删除不可见和物理回收。
+
+**References**
+
+[生命周期专项文档](./09-document-lifecycle.md)；[Phase 07 执行记录](./phases/phase-07-document-lifecycle.md)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
@@ -603,11 +641,11 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
 
 ### O-004：RAGFlow 复用代码物理隔离
 
-- **Status**：Resolved through Phase 06
-- **Resolution**：ADR-019、ADR-020
+- **Status**：Resolved through Phase 07
+- **Resolution**：ADR-019、ADR-020、ADR-021、ADR-022
 - **Decision deadline**：首次抽取代码前
 - **Question**：内部 Adapter 包、独立 Python 包或独立 Worker？
-- **Decision**：Phase 04、Phase 05、Phase 06 均不复制、抽取或改写 RAGFlow 源码；不存在这三个阶段的复用代码物理隔离问题。
+- **Decision**：Phase 04、Phase 05、Phase 06、Phase 07 均不复制、抽取或改写 RAGFlow 源码；不存在这些阶段的复用代码物理隔离问题。
 - **Current handling**：只保留固定 commit 源码依据和独立实现 provenance；后续首次复制前必须重新打开许可证审查并形成 ADR。
 - **Required evidence**：依赖大小、模型资源、进程稳定性、许可证和部署影响。
 
@@ -695,10 +733,10 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
 | R-002 | 本地 RAGFlow 无 Git 元数据导致错误归因 | 高 | 高 | 本地代码与固定链接不同 | 本地只辅助；结论固定到完整 commit | Phase 00 | Mitigated |
 | R-003 | Parser/OCR 依赖模型、原生库、GPU 和资源文件 | 高 | 高 | 安装失败、内存过高、平台不兼容 | 可选依赖、隔离实验、容器 Profile、资源限制 | Phase 05 | Open |
 | R-004 | 抽取代码残留 settings/Peewee/LLMBundle/Redis 全局依赖 | 高 | 高 | Adapter 导入上游 API/Service | import 边界、源码登记、契约测试 | Phase 04/05/06/09 | Open |
-| R-005 | PostgreSQL、对象存储、搜索索引不一致 | 中 | 严重 | 孤儿对象、孤儿 Chunk、错误 current version | DocumentVersion、候选索引、补偿、幂等 | Phase 07 | Open |
+| R-005 | PostgreSQL、对象存储、搜索索引不一致 | 中 | 严重 | 孤儿对象、孤儿 Chunk、错误 current version | ADR-022；DocumentVersion、候选索引、Outbox、补偿和对账 | Phase 07/10 | Monitoring |
 | R-006 | 搜索后端分数和过滤语义不一致 | 高 | 高 | 相同数据不同排序/过滤结果 | O-002、SearchPort 契约、RRF、原始排名/分数 Trace、真实 ES 固定评测 | Phase 04/06/10 | Monitoring |
-| R-007 | Embedding 变化使旧索引不可用 | 中 | 高 | 模型/维度更新 | 记录模型和维度；新 index_version；重建切换 | Phase 07 | Open |
-| R-008 | Citation 指向错误版本、页码或删除内容 | 中 | 严重 | quote 不存在、引用旧版或越权文档 | document_version_id、验证器、删除可见性 | Phase 04/06/07 | Open |
+| R-007 | Embedding 变化使旧索引不可用 | 中 | 高 | 模型/维度更新 | 记录模型和维度；generation staging/验证/alias 切换；旧索引保留 | Phase 07/10 | Monitoring |
+| R-008 | Citation 指向错误版本、页码或删除内容 | 中 | 严重 | quote 不存在、引用旧版或越权文档 | document_version_id；返回前 PostgreSQL active/current-version 验证；删除立即不可见 | Phase 04/06/07/10 | Monitoring |
 | R-009 | Agent 循环失控、成本过高或不可恢复 | 高 | 高 | 循环增长、重复 Tool、Checkpoint 失败 | 上限、预算、超时、Checkpoint、取消、Trace | Phase 02/08 | Open |
 | R-010 | 权限过滤遗漏导致数据泄露 | 中 | 严重 | 越权检索或 Citation | ADR-012/021；Repository/Search 强制 tenant/ACL/状态/范围；所有降级负向测试 | Phase 03/06/08/10 | Monitoring |
 | R-011 | GraphRAG/RAPTOR 增加复杂度但无质量收益 | 高 | 高 | 成本上升、指标不升 | 默认关闭；Phase 10 对照评测 | Phase 09/10 | Open |
@@ -708,21 +746,23 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
 | R-015 | 测试数据不能代表复杂企业文档 | 高 | 高 | 黄金样本过于简单，线上质量差 | 多格式复杂样本、轨道交通脱敏集、错误样本 | Phase 05/10 | Open |
 | R-016 | LLM/Embedding/Reranker 供应商波动 | 高 | 中 | 限流、价格、模型下线、响应变化 | 模型注册、契约测试、回退、版本锁定 | Phase 04/10 | Open |
 | R-017 | Trace 记录敏感原文 | 中 | 严重 | 日志或 Trace 泄露文档内容 | 数据最小化、查询摘要、tenant/角色读取、30 天 TTL、真实 PG 清理测试 | Phase 01/06/10 | Monitoring |
-| R-018 | 任务取消与重试竞态产生重复索引 | 中 | 高 | 已取消任务继续写入 | 状态比较、幂等 key、候选索引和最终检查 | Phase 07 | Open |
+| R-018 | 任务取消与重试竞态产生重复索引 | 中 | 高 | 已取消任务继续写入 | 协作取消边界、CAS/fencing、幂等 key、候选索引和最终检查 | Phase 07/10 | Monitoring |
 | R-019 | 模块化单体退化为 API/Worker 两套重复实现 | 中 | 高 | 重复 DTO、内部 HTTP、行为漂移 | ADR-011；共享领域/应用层；导入边界与契约测试 | Phase 01 持续 | Open |
 | R-020 | 队列消息 tenant 与数据库资源 tenant 不一致 | 中 | 严重 | 跨租户任务执行或索引污染 | tenant_id + job_id 加载、双重校验、安全审计、拒绝执行 | Phase 03/04/07 | Open |
 | R-021 | 把搜索 Chunk 误建模为 RAGFlow 关系表或照搬缺 tenant 的 Task/Document | 中 | 高 | 领域模型与索引字段耦合、Worker 漏做租户过滤 | 采用 `ChunkRecord`；任务信封显式 tenant；数据库二次校验；参见源码证据 RF-D03/D05/D07 | Phase 03/04/07 | Open |
-| R-022 | 文档关系行先删除而对象、索引或派生数据清理失败 | 中 | 高 | `remove_document` 后续 best-effort cleanup 留下孤儿数据 | 删除先撤销可见性；补偿日志；幂等清理；reconciliation；保留审计墓碑 | Phase 07/10 | Open |
+| R-022 | 文档关系行先删除而对象、索引或派生数据清理失败 | 中 | 高 | 外部 cleanup 留下孤儿数据 | PostgreSQL tombstone 先撤销可见性；幂等清理；reconciler；保留最小审计墓碑 | Phase 07/10 | Monitoring |
 | R-023 | 预生成的后续阶段计划与上一阶段实际产物漂移 | 高 | 高 | 计划引用的接口、文件或决策已变化 | ADR-013；每阶段入口重新审查；未审查不得执行 | Phase 01–10 | Open |
 | R-024 | 时序 RAG 范围和后端未定义导致 Phase 09 失控 | 高 | 高 | 同时引入新存储、算法和数据模型且无基线 | ADR-014；O-011；默认关闭；独立数据集和实验门禁 | Phase 09/10 | Open |
 | R-025 | 官方 PostgreSQL Checkpointer 升级导致内部 schema 或恢复语义漂移 | 中 | 高 | 依赖升级后 setup、恢复、list/delete 或并发测试失败 | 锁定依赖；不手改上游表；真实 PostgreSQL 迁移/恢复回归；升级前审查 release notes | Phase 02 持续/Phase 10 | Monitoring |
 | R-026 | Agent 最小授权快照与知识 AuthorizationContext 映射漂移 | 中 | 高 | Tool Adapter 错把 `user_id` 当 tenant、恢复后跳过权限重验或字段改名破坏 Checkpoint | AgentState v1 不破坏；显式 `user_id → actor_id` Adapter；tenant/thread/run 与 PermissionChecker 双重验证；跨租户 Tool 契约测试 | Phase 08 | Open |
-| R-027 | 数据库提交与对象存储、搜索、Queue、Trace 非原子导致部分成功 | 高 | 高 | 写入已提交但事件/索引/Trace 失败，重试产生重复或状态漂移 | Phase 03 只定义端口；Phase 04 命令使用幂等键；Phase 07 落地 outbox、候选索引、补偿、残留扫描和故障注入 | Phase 04/07 | Open |
+| R-027 | 数据库提交与对象存储、搜索、Queue、Trace 非原子导致部分成功 | 高 | 高 | 写入已提交但事件/索引/Trace 失败，重试产生重复或状态漂移 | ADR-022；Outbox、候选索引、CAS、补偿、残留扫描和故障注入 | Phase 04/07/10 | Monitoring |
 | R-028 | ARQ maintenance-only 导致未来 Python/Redis 兼容或安全修复不足 | 中 | 高 | 新 Python/Redis 无法运行、关键缺陷长期无修复 | 锁定 0.28；只用最小接口；QueuePort 隔离；真实 Redis 回归；必要时替换 Adapter | Phase 04/10 | Monitoring |
 | R-029 | Elasticsearch Client/Server 版本或 KNN 语义漂移 | 中 | 高 | mapping、查询参数、分数或过滤在升级后变化 | 锁定 8.19 系列；真实 BM25/KNN/混合/tenant 契约测试；DSL 限于 Adapter | Phase 04/06/10 | Monitoring |
 | R-030 | Parser 格式库、PDFium、Tesseract 或语言数据跨平台漂移 | 中 | 高 | 同一文档输出结构变化、运行时缺失、语言包不可用或坐标漂移 | 锁定 Python 依赖；外部运行时能力检测；生成式黄金；Linux CI 真实 OCR；资源/错误契约；升级前基线比较 | Phase 05 持续/Phase 10 | Monitoring |
 | R-031 | 查询改写/翻译/关键词扩展引入噪声或 Prompt 注入 | 中 | 高 | 召回下降、恶意历史改变查询范围、变体爆炸 | 结构化 Provider、变体上限/去重、可关闭开关、失败回 canonical、硬过滤不随变体变化 | Phase 06/08/10 | Monitoring |
 | R-032 | Reranker 模型、端点或分数语义漂移 | 高 | 高 | 排名突变、超时、身份集合变化、GPU 不可用 | 内部 Port、超时、候选身份校验、RRF 回退、Fake 契约；真实模型回归后置 | Phase 06/10 | Monitoring |
+| R-033 | 生命周期维护任务没有跨 tenant 生产调度与告警闭环 | 中 | 高 | 到期 Outbox、delete_pending 或 stale operation 积压 | Worker 暴露 tenant-scoped 调度函数；reconciler bounded/dry-run；Phase 10 接入调度、指标和告警 | Phase 07/10 | Open |
+| R-034 | 长时间并发、Worker kill 或网络分区暴露单机故障注入未覆盖的竞态 | 中 | 严重 | fencing 冲突增长、alias/DB 长期不收敛、DLQ 积压 | CAS/fencing、实际状态对账、隔离真实后端测试；Phase 10 增加长时间混沌和容量门禁 | Phase 07/10 | Open |
 
 ## 5. 风险处理规则
 
@@ -734,8 +774,8 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-021。
-- Resolved：O-001 → ADR-016；O-002/O-006 → ADR-019；O-007 → ADR-019/020/021；O-003 → ADR-011；O-004（Phase 04–06 不抽取）→ ADR-019/020/021；O-005 → ADR-012；O-008 → ADR-021；O-012 → ADR-016。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-022。
+- Resolved：O-001 → ADR-016；O-002/O-006 → ADR-019；O-007 → ADR-019/020/021；O-003 → ADR-011；O-004（Phase 04–07 不抽取）→ ADR-019/020/021/022；O-005 → ADR-012；O-008 → ADR-021；O-012 → ADR-016。
 - Deferred：O-009、O-010、O-011。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
 - Superseded：ADR-006 → ADR-014。
@@ -852,3 +892,15 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
   R-006、R-010、R-017 进入持续监控，未因单阶段测试而关闭。
 - **下一门禁**：Phase 07 具备计划复审入口；必须冻结版本激活/回滚、重试分类与
   次数、索引切换、软删除/物理回收期限和跨存储补偿后，才可批准执行。
+
+## 14. Phase 07 出口审查记录
+
+### 2026-07-31 / P07-T11
+
+- **结论**：P07-T01 至 P07-T11 已完成并通过本地阶段验收；不自动进入 Phase 08。
+- **准入决策**：ADR-022 冻结 PostgreSQL 权威状态、事务 Outbox/幂等步骤/补偿对账、不可变版本及 CAS/fencing、6 次总尝试/3 次并发冲突、generation alias、30 天版本与软删除、7 天旧索引保留和 tenant/KB 批量隔离。
+- **实现边界**：已实现更新/重解析、候选版本发布、回滚、删除/恢复/物理回收、generation staging/验证/alias、重试/取消/dead-letter/进度、Outbox、bounded reconciler、批次状态和 PostgreSQL 最终候选校验；没有实现跨 tenant 自动调度、生产告警、长时间混沌、复杂 RBAC 或 Phase 08 Agent Tool。
+- **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `221 passed, 1 skipped`，唯一 skip 为本机没有 Tesseract；真实生命周期 E2E `1 passed`，前序真实后端回归 `11 passed`；Alembic `0003 -> 0004 -> 0003 -> 0004`、ruff、strict mypy、锁文件、bootstrap、Compose 和密钥门禁通过。
+- **决策与合规**：RAGFlow 直接复用和改造复用仍为零；`document_api`、`DocumentService`、`TaskService`、Redis pending/ACK 和 `_prune_deleted_chunks` 仅作行为/反例证据。
+- **计划偏差**：Outbox 立即投递由 API best-effort 触发，Worker 同时暴露 tenant-scoped dispatch/reconcile 函数；生产级跨 tenant 周期调度和告警后置 Phase 10。真实模型仍未验证。
+- **下一门禁**：Phase 08 的代码依赖已满足，但详细计划仍为预规划草案；必须按 Phase 02 Agent Runtime、Phase 06 查询协议和 Phase 07 权威状态重新复审 Tool、预算、HITL、记忆、SQL/API 安全范围后才可执行。

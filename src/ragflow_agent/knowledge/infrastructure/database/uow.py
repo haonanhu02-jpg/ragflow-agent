@@ -14,6 +14,9 @@ from ragflow_agent.knowledge.infrastructure.database.repositories import (
     SqlAlchemyIngestionJobRepository,
     SqlAlchemyIngestionTaskRepository,
     SqlAlchemyKnowledgeBaseRepository,
+    SqlAlchemyLifecycleBatchRepository,
+    SqlAlchemyLifecycleOperationRepository,
+    SqlAlchemyLifecycleOutboxRepository,
 )
 
 
@@ -33,6 +36,9 @@ class SqlAlchemyKnowledgeUnitOfWork:
         self.document_versions = SqlAlchemyDocumentVersionRepository(self._session)
         self.ingestion_jobs = SqlAlchemyIngestionJobRepository(self._session)
         self.ingestion_tasks = SqlAlchemyIngestionTaskRepository(self._session)
+        self.lifecycle_operations = SqlAlchemyLifecycleOperationRepository(self._session)
+        self.lifecycle_outbox = SqlAlchemyLifecycleOutboxRepository(self._session)
+        self.lifecycle_batches = SqlAlchemyLifecycleBatchRepository(self._session)
         return self
 
     async def __aexit__(

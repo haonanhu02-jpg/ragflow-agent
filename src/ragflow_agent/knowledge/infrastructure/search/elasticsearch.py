@@ -6,7 +6,7 @@ import asyncio
 from time import perf_counter
 from typing import Any, cast
 
-from elasticsearch import AsyncElasticsearch, BadRequestError
+from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
 
 from ragflow_agent.config import SearchSettings
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
@@ -14,6 +14,10 @@ from ragflow_agent.knowledge.domain.chunk import BoundingBox, CoordinateSpace
 from ragflow_agent.knowledge.domain.errors import (
     KnowledgeAuthorizationError,
     KnowledgeConflictError,
+)
+from ragflow_agent.knowledge.domain.lifecycle import (
+    IndexGeneration,
+    IndexGenerationValidation,
 )
 from ragflow_agent.knowledge.domain.retrieval import (
     Citation,
@@ -58,6 +62,9 @@ _PHASE06_SECURITY_PROPERTIES: dict[str, dict[str, Any]] = {
     "document_enabled": {"type": "boolean"},
     "document_deleted": {"type": "boolean"},
 }
+_PHASE07_LIFECYCLE_PROPERTIES: dict[str, dict[str, Any]] = {
+    "lifecycle_fencing_token": {"type": "long"},
+}
 
 
 class ElasticsearchSearchAdapter:
@@ -91,7 +98,11 @@ class ElasticsearchSearchAdapter:
             await self._validate_index_mapping()
             await self._client.indices.put_mapping(
                 index=self._index_name,
-                properties={**_PHASE05_METADATA_PROPERTIES, **_PHASE06_SECURITY_PROPERTIES},
+                properties={
+                    **_PHASE05_METADATA_PROPERTIES,
+                    **_PHASE06_SECURITY_PROPERTIES,
+                    **_PHASE07_LIFECYCLE_PROPERTIES,
+                },
             )
             return
         try:
@@ -113,6 +124,7 @@ class ElasticsearchSearchAdapter:
                         "created_at": {"type": "date"},
                         "active": {"type": "boolean"},
                         **_PHASE06_SECURITY_PROPERTIES,
+                        **_PHASE07_LIFECYCLE_PROPERTIES,
                         "heading_path": {"type": "keyword"},
                         "page_start": {"type": "integer"},
                         "page_end": {"type": "integer"},
@@ -220,6 +232,8 @@ class ElasticsearchSearchAdapter:
             {"term": {"tenant_id": version.tenant_id}},
             {"term": {"knowledge_base_id": version.knowledge_base_id}},
         ]
+        if version.document_id is not None:
+            base_filter.append({"term": {"document_id": version.document_id}})
         await self._client.update_by_query(
             index=self._index_name,
             query={"bool": {"filter": base_filter}},
@@ -246,6 +260,370 @@ class ElasticsearchSearchAdapter:
                 "index version contains no records to activate",
                 error_code="index_activation_empty",
             )
+
+    async def validate_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> int:
+        response = await self._client.count(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "filter": [
+                        {"term": {"tenant_id": context.tenant_id}},
+                        {"term": {"knowledge_base_id": knowledge_base_id}},
+                        {"term": {"document_id": document_id}},
+                        {"term": {"document_version_id": document_version_id}},
+                        {"term": {"document_deleted": False}},
+                    ]
+                }
+            },
+        )
+        return int(response.get("count", 0))
+
+    async def promote_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+        fencing_token: int,
+    ) -> None:
+        response = await self._client.update_by_query(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "filter": [
+                        {"term": {"tenant_id": context.tenant_id}},
+                        {"term": {"knowledge_base_id": knowledge_base_id}},
+                        {"term": {"document_id": document_id}},
+                        {"term": {"document_version_id": document_version_id}},
+                    ]
+                }
+            },
+            script={
+                "lang": "painless",
+                "source": (
+                    "if (ctx._source.lifecycle_fencing_token == null || "
+                    "ctx._source.lifecycle_fencing_token <= params.token) { "
+                    "ctx._source.active = true; ctx._source.document_deleted = false; "
+                    "ctx._source.document_enabled = true; "
+                    "ctx._source.lifecycle_fencing_token = params.token; } else { ctx.op='noop'; }"
+                ),
+                "params": {"token": fencing_token},
+            },
+            refresh=True,
+            conflicts="proceed",
+        )
+        if int(response.get("updated", 0)) == 0 and int(response.get("noops", 0)) == 0:
+            raise KnowledgeConflictError(
+                "document version has no projection to promote",
+                error_code="index_activation_empty",
+            )
+
+    async def retire_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> None:
+        await self._set_document_version_active(
+            context,
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            document_version_id=document_version_id,
+            active=False,
+        )
+
+    async def delete_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> None:
+        await self._client.delete_by_query(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "filter": [
+                        {"term": {"tenant_id": context.tenant_id}},
+                        {"term": {"knowledge_base_id": knowledge_base_id}},
+                        {"term": {"document_id": document_id}},
+                        {"term": {"document_version_id": document_version_id}},
+                    ]
+                }
+            },
+            refresh=True,
+            conflicts="proceed",
+        )
+
+    async def list_projection_versions(
+        self,
+        context: AuthorizationContext,
+        *,
+        limit: int = 1000,
+    ) -> tuple[tuple[str, str, str], ...]:
+        response = await self._client.search(
+            index=self._index_name,
+            query={"term": {"tenant_id": context.tenant_id}},
+            size=limit,
+            source_includes=[
+                "knowledge_base_id",
+                "document_id",
+                "document_version_id",
+            ],
+        )
+        hits = cast(list[dict[str, Any]], response["hits"]["hits"])
+        return tuple(
+            dict.fromkeys(
+                (
+                    str(hit["_source"]["knowledge_base_id"]),
+                    str(hit["_source"]["document_id"]),
+                    str(hit["_source"]["document_version_id"]),
+                )
+                for hit in hits
+            )
+        )
+
+    async def create_staging_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+    ) -> None:
+        self._require_generation_scope(context, generation)
+        if await self._client.indices.exists(index=generation.physical_index):
+            return
+        await self._client.indices.create(
+            index=generation.physical_index,
+            mappings={"dynamic": "strict", "properties": self._mapping_properties()},
+        )
+
+    async def write_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+        records: tuple[IndexRecord, ...],
+    ) -> None:
+        self._require_generation_scope(context, generation)
+        operations: list[dict[str, Any]] = []
+        for record in records:
+            if (
+                record.tenant_id != context.tenant_id
+                or record.knowledge_base_id != generation.knowledge_base_id
+            ):
+                raise KnowledgeAuthorizationError(reason_code="tenant_mismatch")
+            operations.extend(
+                [
+                    {
+                        "index": {
+                            "_index": generation.physical_index,
+                            "_id": self._document_key(record),
+                        }
+                    },
+                    self._source(
+                        record,
+                        active=record.document_enabled and not record.document_deleted,
+                    ),
+                ]
+            )
+        if operations:
+            response = await self._client.bulk(operations=operations, refresh="wait_for")
+            if bool(response.get("errors")):
+                raise KnowledgeConflictError(
+                    "staging generation bulk upsert was partially rejected",
+                    error_code="search_bulk_partial_failure",
+                )
+
+    async def validate_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+    ) -> IndexGenerationValidation:
+        self._require_generation_scope(context, generation)
+        mapping = await self._client.indices.get_mapping(index=generation.physical_index)
+        properties = mapping[generation.physical_index]["mappings"].get("properties", {})
+        response = await self._client.search(
+            index=generation.physical_index,
+            query={"match_all": {}},
+            size=1,
+            source_excludes=["embedding", "content"],
+            track_total_hits=True,
+        )
+        total = int(response["hits"]["total"]["value"])
+        sample = response["hits"]["hits"]
+        tenant_valid = all(hit["_source"].get("tenant_id") == context.tenant_id for hit in sample)
+        kb_valid = all(
+            hit["_source"].get("knowledge_base_id") == generation.knowledge_base_id
+            for hit in sample
+        )
+        lifecycle_valid = all(
+            field in properties for field in ("active", "document_deleted", "document_version_id")
+        )
+        checksum = f"{generation.mapping_version}:{total}:{len(properties)}"
+        return IndexGenerationValidation(
+            physical_index=generation.physical_index,
+            mapping_valid="embedding" in properties,
+            chunk_count=total,
+            tenant_scope_valid=tenant_valid,
+            knowledge_base_scope_valid=kb_valid,
+            lifecycle_fields_valid=lifecycle_valid,
+            sample_query_valid=(not sample or (tenant_valid and kb_valid)),
+            checksum=checksum,
+        )
+
+    async def switch_alias(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+        *,
+        expected_current: str | None,
+    ) -> str | None:
+        self._require_generation_scope(context, generation)
+        current = await self.resolve_alias(context, alias=generation.read_alias)
+        if current != expected_current:
+            raise KnowledgeConflictError(
+                "index alias changed before publication",
+                error_code="index_alias_conflict",
+                details={"expected": expected_current, "actual": current},
+            )
+        actions: list[dict[str, Any]] = []
+        if current is not None:
+            actions.extend(
+                [
+                    {"remove": {"index": current, "alias": generation.read_alias}},
+                    {"remove": {"index": current, "alias": generation.write_alias}},
+                ]
+            )
+        actions.extend(
+            [
+                {"add": {"index": generation.physical_index, "alias": generation.read_alias}},
+                {"add": {"index": generation.physical_index, "alias": generation.write_alias}},
+            ]
+        )
+        await self._client.indices.update_aliases(actions=actions)
+        actual = await self.resolve_alias(context, alias=generation.read_alias)
+        if actual != generation.physical_index:
+            raise KnowledgeConflictError(
+                "index alias publication result is unknown",
+                error_code="index_alias_result_unknown",
+                details={"actual": actual},
+            )
+        return current
+
+    async def resolve_alias(
+        self,
+        context: AuthorizationContext,
+        *,
+        alias: str,
+    ) -> str | None:
+        if not alias.startswith(f"{self._index_name}-"):
+            raise KnowledgeAuthorizationError(reason_code="tenant_mismatch")
+        try:
+            response = await self._client.indices.get_alias(name=alias)
+        except NotFoundError:
+            return None
+        indices = sorted(str(index) for index in response)
+        if len(indices) > 1:
+            raise KnowledgeConflictError(
+                "read alias points to multiple physical indexes",
+                error_code="index_alias_ambiguous",
+            )
+        return indices[0] if indices else None
+
+    async def delete_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+    ) -> None:
+        self._require_generation_scope(context, generation)
+        current = await self.resolve_alias(context, alias=generation.read_alias)
+        if current == generation.physical_index:
+            raise KnowledgeConflictError(
+                "active index generation cannot be deleted",
+                error_code="index_generation_active",
+            )
+        await self._client.indices.delete(index=generation.physical_index, ignore_unavailable=True)
+
+    async def _set_document_version_active(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+        active: bool,
+    ) -> None:
+        await self._client.update_by_query(
+            index=self._index_name,
+            query={
+                "bool": {
+                    "filter": [
+                        {"term": {"tenant_id": context.tenant_id}},
+                        {"term": {"knowledge_base_id": knowledge_base_id}},
+                        {"term": {"document_id": document_id}},
+                        {"term": {"document_version_id": document_version_id}},
+                    ]
+                }
+            },
+            script={"source": "ctx._source.active = params.active", "params": {"active": active}},
+            refresh=True,
+            conflicts="proceed",
+        )
+
+    def _mapping_properties(self) -> dict[str, Any]:
+        return {
+            "index_version_id": {"type": "keyword"},
+            "tenant_id": {"type": "keyword"},
+            "knowledge_base_id": {"type": "keyword"},
+            "owner_id": {"type": "keyword"},
+            "visibility": {"type": "keyword"},
+            "document_id": {"type": "keyword"},
+            "document_version_id": {"type": "keyword"},
+            "chunk_id": {"type": "keyword"},
+            "content": {"type": "text"},
+            "media_type": {"type": "keyword"},
+            "created_at": {"type": "date"},
+            "active": {"type": "boolean"},
+            **_PHASE06_SECURITY_PROPERTIES,
+            **_PHASE07_LIFECYCLE_PROPERTIES,
+            "heading_path": {"type": "keyword"},
+            "page_start": {"type": "integer"},
+            "page_end": {"type": "integer"},
+            "language": {"type": "keyword"},
+            **_PHASE05_METADATA_PROPERTIES,
+            "embedding": {
+                "type": "dense_vector",
+                "dims": self._dimensions,
+                "index": True,
+                "similarity": "cosine",
+            },
+        }
+
+    def _require_generation_scope(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+    ) -> None:
+        self._require_tenant(context, generation.tenant_id)
+        prefix = f"{self._index_name}-"
+        if not all(
+            value.startswith(prefix)
+            for value in (
+                generation.physical_index,
+                generation.read_alias,
+                generation.write_alias,
+            )
+        ):
+            raise KnowledgeAuthorizationError(reason_code="tenant_mismatch")
 
     async def retrieve(
         self,
@@ -579,6 +957,7 @@ class ElasticsearchSearchAdapter:
             "allowed_roles": list(record.allowed_roles),
             "document_enabled": record.document_enabled,
             "document_deleted": record.document_deleted,
+            "lifecycle_fencing_token": 0,
             "heading_path": list(record.metadata.heading_path),
             "page_start": record.metadata.page_start,
             "page_end": record.metadata.page_end,

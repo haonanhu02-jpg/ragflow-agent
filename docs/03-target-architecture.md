@@ -9,11 +9,11 @@ architecture_status: partially_implemented
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md) · [文档生命周期](./09-document-lifecycle.md)
 
 ## 1. 架构状态
 
-- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约，Phase 04 已实现 PostgreSQL/S3/Redis/Elasticsearch 最小 ingestion 与固定 RAG 垂直切片。
+- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约，Phase 04 已实现 PostgreSQL/S3/Redis/Elasticsearch 最小 ingestion 与固定 RAG 垂直切片，Phase 05/06/07 已分别完成 Parser/Chunk、在线检索和文档生命周期。
 - **[决策]** 目标项目独立运行，不以 RAGFlow API 或 RAGFlow 服务为运行时依赖。
 - **[决策]** Agent 使用 LangChain + LangGraph。
 - **[决策]** 第一版是模块化单体：FastAPI 与独立 Ingestion Worker 同仓库、共享领域模型和基础设施端口、通过任务队列连接，不拆微服务。
@@ -305,7 +305,7 @@ DocumentVersion
   status
 ```
 
-**[事实]** Phase 03 已实现以上核心字段和状态转换；Phase 04 已落地 PostgreSQL 持久化与最小 ingestion 编排。完整更新、删除、重解析、候选索引激活/回退、补偿和残留清理仍属于 Phase 07，不能把最小持久化描述成生命周期已完成。
+**[事实]** Phase 03 已实现以上核心字段和状态转换；Phase 04 已落地 PostgreSQL 持久化与最小 ingestion 编排；Phase 07 又增加 document/version revision、index version、激活/退休/回收时间、`delete_pending` 和生命周期操作/Outbox/批次实体。更新、删除、重解析、候选索引激活/回退、补偿和残留清理的 Phase 07 范围已经实现，生产调度与长时混沌边界见 R-033/R-034。
 
 ### 6.2 ParsedDocument 与 Chunk
 
@@ -354,7 +354,8 @@ Phase 05 已把数据面扩展为
 `IngestionPipeline → ParserRegistry → BinaryParserPort → ChunkerRegistry → General/ScenarioChunker → EmbeddingPort → ElasticsearchSearchAdapter`。
 TXT、Markdown、HTML、DOCX、PPTX、XLSX、PDF、图片均通过相同 Worker
 链路；图片和扫描 PDF 只经内部 `OcrEnginePort` 调用外部 Tesseract。下图中的
-`DocumentLifecycleService` 和完整候选索引补偿仍是 Phase 07 目标，不得误写为现状。
+生命周期服务、候选索引验证/发布和补偿现已由 Phase 07 独立实现，具体边界见
+[`docs/09-document-lifecycle.md`](./09-document-lifecycle.md)。
 
 ```mermaid
 sequenceDiagram
@@ -397,7 +398,7 @@ sequenceDiagram
 6. Worker 处理结束前持久化终态或可重试状态；只有符合任务协议的路径才 ACK。
 7. 消息 tenant 与数据库 Job tenant 不一致：拒绝执行、记录安全事件，不自动改写 tenant。
 
-Phase 04 已实现规则 1、2、5、6、7 的最小形态；规则 3、4 的跨存储补偿、旧版本保持和残留清理仍属于 Phase 07。
+Phase 04 已实现规则 1、2、5、6、7 的最小形态；Phase 07 已实现规则 3、4 的候选清理、CAS 激活、旧版本保持、Outbox 和 reconciliation，并加强全部七条规则的生命周期操作审计。
 
 ## 8. 在线链路设计
 

@@ -10,7 +10,7 @@ from typing import Protocol, Self
 
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.chunk import ChunkRecord, ParsedDocument
-from ragflow_agent.knowledge.domain.document import Document, DocumentVersion
+from ragflow_agent.knowledge.domain.document import Document, DocumentStatus, DocumentVersion
 from ragflow_agent.knowledge.domain.errors import (
     KnowledgeAuthorizationError,
     KnowledgeConflictError,
@@ -22,6 +22,15 @@ from ragflow_agent.knowledge.domain.ingestion import (
     IngestionTask,
 )
 from ragflow_agent.knowledge.domain.knowledge_base import KnowledgeBase
+from ragflow_agent.knowledge.domain.lifecycle import (
+    IndexGeneration,
+    IndexGenerationValidation,
+    LifecycleBatch,
+    LifecycleOperation,
+    LifecycleOperationStatus,
+    LifecycleOutboxEvent,
+    OutboxStatus,
+)
 from ragflow_agent.knowledge.domain.retrieval import (
     IndexRecord,
     IndexVersion,
@@ -96,6 +105,104 @@ class MemoryDocumentVersionRepository(MemoryTenantRepository[DocumentVersion]):
             if version.tenant_id == tenant_id and version.document_id == document_id
         )
 
+    async def list_for_tenant(
+        self, *, tenant_id: str, limit: int = 1000
+    ) -> tuple[DocumentVersion, ...]:
+        return tuple(
+            version for version in self._values.values() if version.tenant_id == tenant_id
+        )[:limit]
+
+
+class MemoryDocumentRepository(MemoryTenantRepository[Document]):
+    async def save_if_revision(
+        self, *, tenant_id: str, entity: Document, expected_revision: int
+    ) -> None:
+        current = await self.get(tenant_id=tenant_id, resource_id=entity.id)
+        if current is None or current.revision != expected_revision:
+            raise KnowledgeConflictError(
+                "document revision changed", error_code="document_revision_conflict"
+            )
+        await self.save(tenant_id=tenant_id, entity=entity)
+
+    async def list_by_status(
+        self,
+        *,
+        tenant_id: str,
+        statuses: tuple[DocumentStatus, ...],
+        limit: int = 100,
+    ) -> tuple[Document, ...]:
+        return tuple(
+            item
+            for item in self._values.values()
+            if item.tenant_id == tenant_id and item.status in statuses
+        )[:limit]
+
+
+class MemoryLifecycleOperationRepository(MemoryTenantRepository[LifecycleOperation]):
+    async def get_by_idempotency_key(
+        self, *, tenant_id: str, idempotency_key: str
+    ) -> LifecycleOperation | None:
+        return next(
+            (
+                item
+                for item in self._values.values()
+                if item.tenant_id == tenant_id and item.idempotency_key == idempotency_key
+            ),
+            None,
+        )
+
+    async def list_for_document(
+        self, *, tenant_id: str, document_id: str
+    ) -> tuple[LifecycleOperation, ...]:
+        return tuple(
+            item
+            for item in self._values.values()
+            if item.tenant_id == tenant_id and item.document_id == document_id
+        )
+
+    async def list_by_status(
+        self,
+        *,
+        tenant_id: str,
+        statuses: tuple[LifecycleOperationStatus, ...],
+        updated_before: datetime | None = None,
+        limit: int = 100,
+    ) -> tuple[LifecycleOperation, ...]:
+        return tuple(
+            item
+            for item in self._values.values()
+            if item.tenant_id == tenant_id
+            and item.status in statuses
+            and (updated_before is None or item.updated_at <= updated_before)
+        )[:limit]
+
+
+class MemoryLifecycleOutboxRepository(MemoryTenantRepository[LifecycleOutboxEvent]):
+    async def list_due(
+        self, *, tenant_id: str, now: datetime, limit: int
+    ) -> tuple[LifecycleOutboxEvent, ...]:
+        return tuple(
+            item
+            for item in self._values.values()
+            if item.tenant_id == tenant_id
+            and item.status is OutboxStatus.PENDING
+            and item.available_at <= now
+        )[:limit]
+
+
+class MemoryLifecycleBatchRepository(MemoryTenantRepository[LifecycleBatch]):
+    async def get_by_idempotency_key(
+        self, *, tenant_id: str, idempotency_key: str
+    ) -> LifecycleBatch | None:
+        return next(
+            (
+                item
+                for item in self._values.values()
+                if item.tenant_id == tenant_id and item.idempotency_key == idempotency_key
+            ),
+            None,
+        )
+
 
 class MemoryIngestionTaskRepository(MemoryTenantRepository[IngestionTask]):
     """Memory IngestionTask repository with scoped job listing."""
@@ -122,6 +229,9 @@ class MemoryKnowledgeStore:
         self.document_versions: dict[str, DocumentVersion] = {}
         self.ingestion_jobs: dict[str, IngestionJob] = {}
         self.ingestion_tasks: dict[str, IngestionTask] = {}
+        self.lifecycle_operations: dict[str, LifecycleOperation] = {}
+        self.lifecycle_outbox: dict[str, LifecycleOutboxEvent] = {}
+        self.lifecycle_batches: dict[str, LifecycleBatch] = {}
 
 
 class MemoryKnowledgeUnitOfWork:
@@ -132,21 +242,29 @@ class MemoryKnowledgeUnitOfWork:
         self._entered = False
         self._committed = False
         self.knowledge_bases = MemoryTenantRepository[KnowledgeBase]({})
-        self.documents = MemoryTenantRepository[Document]({})
+        self.documents = MemoryDocumentRepository({})
         self.document_versions = MemoryDocumentVersionRepository({})
         self.ingestion_jobs = MemoryTenantRepository[IngestionJob]({})
         self.ingestion_tasks = MemoryIngestionTaskRepository({})
+        self.lifecycle_operations = MemoryLifecycleOperationRepository({})
+        self.lifecycle_outbox = MemoryLifecycleOutboxRepository({})
+        self.lifecycle_batches = MemoryLifecycleBatchRepository({})
 
     async def __aenter__(self) -> Self:
         self._entered = True
         self._committed = False
         self.knowledge_bases = MemoryTenantRepository(dict(self._store.knowledge_bases))
-        self.documents = MemoryTenantRepository(dict(self._store.documents))
+        self.documents = MemoryDocumentRepository(dict(self._store.documents))
         self.document_versions = MemoryDocumentVersionRepository(
             dict(self._store.document_versions)
         )
         self.ingestion_jobs = MemoryTenantRepository(dict(self._store.ingestion_jobs))
         self.ingestion_tasks = MemoryIngestionTaskRepository(dict(self._store.ingestion_tasks))
+        self.lifecycle_operations = MemoryLifecycleOperationRepository(
+            dict(self._store.lifecycle_operations)
+        )
+        self.lifecycle_outbox = MemoryLifecycleOutboxRepository(dict(self._store.lifecycle_outbox))
+        self.lifecycle_batches = MemoryLifecycleBatchRepository(dict(self._store.lifecycle_batches))
         return self
 
     async def __aexit__(
@@ -167,6 +285,9 @@ class MemoryKnowledgeUnitOfWork:
         self._store.document_versions = dict(self.document_versions._values)
         self._store.ingestion_jobs = dict(self.ingestion_jobs._values)
         self._store.ingestion_tasks = dict(self.ingestion_tasks._values)
+        self._store.lifecycle_operations = dict(self.lifecycle_operations._values)
+        self._store.lifecycle_outbox = dict(self.lifecycle_outbox._values)
+        self._store.lifecycle_batches = dict(self.lifecycle_batches._values)
         self._committed = True
 
     async def rollback(self) -> None:
@@ -257,6 +378,20 @@ class MemoryObjectStorage:
         _require_same_tenant(context, stored_object.tenant_id)
         self.objects.pop((stored_object.tenant_id, stored_object.object_key), None)
 
+    async def exists(self, context: AuthorizationContext, stored_object: StoredObject) -> bool:
+        _require_same_tenant(context, stored_object.tenant_id)
+        return (stored_object.tenant_id, stored_object.object_key) in self.objects
+
+    async def list_prefix(
+        self, context: AuthorizationContext, *, tenant_id: str, prefix: str
+    ) -> tuple[str, ...]:
+        _require_same_tenant(context, tenant_id)
+        return tuple(
+            key
+            for (scope, key), (_stored, _content) in self.objects.items()
+            if scope == tenant_id and key.startswith(prefix)
+        )
+
 
 class FixtureParser:
     """Return one prevalidated parser fixture after scope validation."""
@@ -334,6 +469,9 @@ class MemorySearchIndex:
     def __init__(self) -> None:
         self.records: dict[tuple[str, str, str], IndexRecord] = {}
         self.active_versions: dict[tuple[str, str], str] = {}
+        self.active_document_versions: dict[tuple[str, str, str], str] = {}
+        self.generations: dict[str, tuple[IndexGeneration, tuple[IndexRecord, ...]]] = {}
+        self.aliases: dict[str, str] = {}
 
     async def upsert(
         self,
@@ -374,6 +512,168 @@ class MemorySearchIndex:
     ) -> None:
         _require_same_tenant(context, version.tenant_id)
         self.active_versions[(version.tenant_id, version.knowledge_base_id)] = version.id
+
+    async def validate_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> int:
+        return sum(
+            record.tenant_id == context.tenant_id
+            and record.knowledge_base_id == knowledge_base_id
+            and record.document_id == document_id
+            and record.document_version_id == document_version_id
+            for record in self.records.values()
+        )
+
+    async def promote_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+        fencing_token: int,
+    ) -> None:
+        del fencing_token
+        if (
+            await self.validate_document_version(
+                context,
+                knowledge_base_id=knowledge_base_id,
+                document_id=document_id,
+                document_version_id=document_version_id,
+            )
+            < 1
+        ):
+            raise KnowledgeConflictError(
+                "index version contains no records", error_code="index_activation_empty"
+            )
+        self.active_document_versions[(context.tenant_id, knowledge_base_id, document_id)] = (
+            document_version_id
+        )
+
+    async def retire_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> None:
+        key = (context.tenant_id, knowledge_base_id, document_id)
+        if self.active_document_versions.get(key) == document_version_id:
+            self.active_document_versions.pop(key)
+
+    async def delete_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> None:
+        keys = [
+            key
+            for key, record in self.records.items()
+            if record.tenant_id == context.tenant_id
+            and record.knowledge_base_id == knowledge_base_id
+            and record.document_id == document_id
+            and record.document_version_id == document_version_id
+        ]
+        for key in keys:
+            del self.records[key]
+        await self.retire_document_version(
+            context,
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            document_version_id=document_version_id,
+        )
+
+    async def list_projection_versions(
+        self,
+        context: AuthorizationContext,
+        *,
+        limit: int = 1000,
+    ) -> tuple[tuple[str, str, str], ...]:
+        return tuple(
+            dict.fromkeys(
+                (
+                    record.knowledge_base_id,
+                    record.document_id,
+                    record.document_version_id,
+                )
+                for record in self.records.values()
+                if record.tenant_id == context.tenant_id
+            )
+        )[:limit]
+
+    async def create_staging_generation(
+        self, context: AuthorizationContext, generation: IndexGeneration
+    ) -> None:
+        _require_same_tenant(context, generation.tenant_id)
+        self.generations.setdefault(generation.physical_index, (generation, ()))
+
+    async def write_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+        records: tuple[IndexRecord, ...],
+    ) -> None:
+        _require_same_tenant(context, generation.tenant_id)
+        self.generations[generation.physical_index] = (generation, records)
+
+    async def validate_generation(
+        self, context: AuthorizationContext, generation: IndexGeneration
+    ) -> IndexGenerationValidation:
+        _require_same_tenant(context, generation.tenant_id)
+        records = self.generations.get(generation.physical_index, (generation, ()))[1]
+        scoped = all(
+            item.tenant_id == generation.tenant_id
+            and item.knowledge_base_id == generation.knowledge_base_id
+            for item in records
+        )
+        return IndexGenerationValidation(
+            physical_index=generation.physical_index,
+            mapping_valid=True,
+            chunk_count=len(records),
+            tenant_scope_valid=scoped,
+            knowledge_base_scope_valid=scoped,
+            lifecycle_fields_valid=True,
+            sample_query_valid=True,
+            checksum=f"records:{len(records)}",
+        )
+
+    async def switch_alias(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+        *,
+        expected_current: str | None,
+    ) -> str | None:
+        _require_same_tenant(context, generation.tenant_id)
+        current = self.aliases.get(generation.read_alias)
+        if current != expected_current:
+            raise KnowledgeConflictError("alias changed", error_code="index_alias_conflict")
+        self.aliases[generation.read_alias] = generation.physical_index
+        return current
+
+    async def resolve_alias(self, context: AuthorizationContext, *, alias: str) -> str | None:
+        del context
+        return self.aliases.get(alias)
+
+    async def delete_generation(
+        self, context: AuthorizationContext, generation: IndexGeneration
+    ) -> None:
+        _require_same_tenant(context, generation.tenant_id)
+        if self.aliases.get(generation.read_alias) == generation.physical_index:
+            raise KnowledgeConflictError(
+                "active generation cannot be deleted",
+                error_code="index_generation_active",
+            )
+        self.generations.pop(generation.physical_index, None)
 
 
 class FixtureRetriever:

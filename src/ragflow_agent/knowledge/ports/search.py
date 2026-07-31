@@ -4,6 +4,10 @@ from typing import Protocol, runtime_checkable
 
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.base import KnowledgeModel
+from ragflow_agent.knowledge.domain.lifecycle import (
+    IndexGeneration,
+    IndexGenerationValidation,
+)
 from ragflow_agent.knowledge.domain.retrieval import (
     IndexRecord,
     IndexVersion,
@@ -36,6 +40,95 @@ class SearchIndexPort(Protocol):
         self,
         context: AuthorizationContext,
         version: IndexVersion,
+    ) -> None: ...
+
+
+@runtime_checkable
+class LifecycleSearchPort(Protocol):
+    """Document projection and physical-index publication lifecycle."""
+
+    async def validate_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> int: ...
+
+    async def promote_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+        fencing_token: int,
+    ) -> None: ...
+
+    async def retire_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> None: ...
+
+    async def delete_document_version(
+        self,
+        context: AuthorizationContext,
+        *,
+        knowledge_base_id: str,
+        document_id: str,
+        document_version_id: str,
+    ) -> None: ...
+
+    async def list_projection_versions(
+        self,
+        context: AuthorizationContext,
+        *,
+        limit: int = 1000,
+    ) -> tuple[tuple[str, str, str], ...]: ...
+
+    async def create_staging_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+    ) -> None: ...
+
+    async def write_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+        records: tuple[IndexRecord, ...],
+    ) -> None: ...
+
+    async def validate_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+    ) -> IndexGenerationValidation: ...
+
+    async def switch_alias(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
+        *,
+        expected_current: str | None,
+    ) -> str | None: ...
+
+    async def resolve_alias(
+        self,
+        context: AuthorizationContext,
+        *,
+        alias: str,
+    ) -> str | None: ...
+
+    async def delete_generation(
+        self,
+        context: AuthorizationContext,
+        generation: IndexGeneration,
     ) -> None: ...
 
 

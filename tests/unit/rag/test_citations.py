@@ -8,6 +8,7 @@ from ragflow_agent.knowledge.application.fixed_rag import FixedRagRequest, Fixed
 from ragflow_agent.knowledge.application.knowledge_service import KnowledgeQueryService
 from ragflow_agent.knowledge.application.permission_service import DefaultPermissionChecker
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
+from ragflow_agent.knowledge.domain.document import Document
 from ragflow_agent.knowledge.domain.knowledge_base import KnowledgeBase
 from ragflow_agent.knowledge.domain.retrieval import (
     Citation,
@@ -89,6 +90,17 @@ async def test_selected_citation_and_source_version_are_returned_unchanged() -> 
         owner_id="owner-a",
         name="Maintenance",
         visibility=Visibility.PRIVATE,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    store.documents["doc-a"] = Document(
+        id="doc-a",
+        tenant_id="tenant-a",
+        knowledge_base_id="kb-a",
+        owner_id="owner-a",
+        name="manual.md",
+        visibility=Visibility.PRIVATE,
+        current_version_id="version-a",
         created_at=NOW,
         updated_at=NOW,
     )

@@ -10,10 +10,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from ragflow_agent.api.security import require_trusted_identity
 from ragflow_agent.knowledge.application.fixed_rag import FixedRagRequest
 from ragflow_agent.knowledge.application.knowledge_service import CreateKnowledgeBaseCommand
+from ragflow_agent.knowledge.application.lifecycle.update import (
+    ReparseDocumentCommand,
+    UpdateDocumentCommand,
+)
 from ragflow_agent.knowledge.application.upload import UploadDocumentCommand
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
 from ragflow_agent.knowledge.domain.ingestion import IngestionJob
 from ragflow_agent.knowledge.domain.knowledge_base import KnowledgeBase
+from ragflow_agent.knowledge.domain.lifecycle import (
+    LifecycleBatch,
+    LifecycleOperation,
+    LifecycleOperationKind,
+)
 from ragflow_agent.knowledge.domain.retrieval import MetadataFilter, MetadataFilterGroup
 from ragflow_agent.knowledge.runtime import MinimumRagRuntime
 from ragflow_agent.observability import current_trace_context, new_correlation_id
@@ -48,6 +57,21 @@ class FixedRagBody(ApiModel):
     target_languages: tuple[str, ...] = Field(default=(), max_length=4)
     filters: tuple[MetadataFilter, ...] = ()
     filter_expression: MetadataFilterGroup | None = None
+
+
+class LifecycleReasonBody(ApiModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class RollbackBody(LifecycleReasonBody):
+    target_version_id: str = Field(min_length=1, max_length=128)
+
+
+class BatchBody(ApiModel):
+    knowledge_base_id: str = Field(min_length=1, max_length=128)
+    kind: LifecycleOperationKind
+    operation_ids: tuple[str, ...] = Field(min_length=1, max_length=1000)
+    concurrency: int | None = Field(default=None, ge=1, le=100)
 
 
 def _runtime(request: Request) -> MinimumRagRuntime:
@@ -122,6 +146,138 @@ def build_knowledge_router() -> APIRouter:
     @router.get("/ingestion-jobs/{job_id}", response_model=IngestionJob)
     async def get_ingestion_job(request: Request, job_id: str) -> IngestionJob:
         return await _runtime(request).upload_service.get_job(_context(request), job_id)
+
+    @router.put(
+        "/documents/{document_id}/content",
+        response_model=LifecycleOperation,
+        status_code=202,
+    )
+    async def update_document(
+        request: Request,
+        document_id: str,
+        file: Annotated[UploadFile, File()],
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+        reason: Annotated[str, Header(alias="X-Lifecycle-Reason")],
+    ) -> LifecycleOperation:
+        content = await file.read(request.app.state.settings.ingestion.max_upload_bytes + 1)
+        submitted = await _runtime(request).document_updates.update(
+            UpdateDocumentCommand(
+                context=_context(request),
+                document_id=document_id,
+                file_name=file.filename or "source",
+                media_type=file.content_type or "application/octet-stream",
+                content=content,
+                idempotency_key=idempotency_key,
+                reason=reason,
+            )
+        )
+        await _runtime(request).lifecycle_outbox.dispatch_due(_context(request))
+        return submitted.operation
+
+    @router.post(
+        "/documents/{document_id}/reparse",
+        response_model=LifecycleOperation,
+        status_code=202,
+    )
+    async def reparse_document(
+        request: Request,
+        document_id: str,
+        body: LifecycleReasonBody,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> LifecycleOperation:
+        submitted = await _runtime(request).document_updates.reparse(
+            ReparseDocumentCommand(
+                context=_context(request),
+                document_id=document_id,
+                idempotency_key=idempotency_key,
+                reason=body.reason,
+            )
+        )
+        await _runtime(request).lifecycle_outbox.dispatch_due(_context(request))
+        return submitted.operation
+
+    @router.delete(
+        "/documents/{document_id}",
+        response_model=LifecycleOperation,
+        status_code=202,
+    )
+    async def delete_document(
+        request: Request,
+        document_id: str,
+        body: LifecycleReasonBody,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> LifecycleOperation:
+        return await _runtime(request).document_deletions.request_delete(
+            _context(request),
+            document_id=document_id,
+            idempotency_key=idempotency_key,
+            reason=body.reason,
+        )
+
+    @router.post(
+        "/documents/{document_id}/restore",
+        response_model=LifecycleOperation,
+    )
+    async def restore_document(
+        request: Request,
+        document_id: str,
+        body: LifecycleReasonBody,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> LifecycleOperation:
+        return await _runtime(request).document_deletions.restore(
+            _context(request),
+            document_id=document_id,
+            idempotency_key=idempotency_key,
+            reason=body.reason,
+        )
+
+    @router.post(
+        "/documents/{document_id}/rollback",
+        response_model=LifecycleOperation,
+    )
+    async def rollback_document(
+        request: Request,
+        document_id: str,
+        body: RollbackBody,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> LifecycleOperation:
+        return await _runtime(request).version_publisher.rollback(
+            _context(request),
+            document_id=document_id,
+            target_version_id=body.target_version_id,
+            idempotency_key=idempotency_key,
+            reason=body.reason,
+        )
+
+    @router.get("/lifecycle-operations/{operation_id}", response_model=LifecycleOperation)
+    async def get_lifecycle_operation(request: Request, operation_id: str) -> LifecycleOperation:
+        return await _runtime(request).lifecycle_control.get(_context(request), operation_id)
+
+    @router.post(
+        "/lifecycle-operations/{operation_id}/cancel",
+        response_model=LifecycleOperation,
+    )
+    async def cancel_lifecycle_operation(request: Request, operation_id: str) -> LifecycleOperation:
+        return await _runtime(request).lifecycle_control.cancel(_context(request), operation_id)
+
+    @router.post("/lifecycle-batches", response_model=LifecycleBatch, status_code=202)
+    async def create_lifecycle_batch(
+        request: Request,
+        body: BatchBody,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> LifecycleBatch:
+        return await _runtime(request).lifecycle_batches.create(
+            _context(request),
+            knowledge_base_id=body.knowledge_base_id,
+            kind=body.kind,
+            operation_ids=body.operation_ids,
+            idempotency_key=idempotency_key,
+            concurrency=body.concurrency,
+        )
+
+    @router.get("/lifecycle-batches/{batch_id}", response_model=LifecycleBatch)
+    async def get_lifecycle_batch(request: Request, batch_id: str) -> LifecycleBatch:
+        return await _runtime(request).lifecycle_batches.refresh(_context(request), batch_id)
 
     @router.post("/rag/query")
     async def fixed_rag(request: Request, body: FixedRagBody) -> dict[str, object]:

@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, cast
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ragflow_agent.knowledge.domain.document import Document, DocumentVersion
+from ragflow_agent.knowledge.domain.document import Document, DocumentStatus, DocumentVersion
 from ragflow_agent.knowledge.domain.errors import (
     KnowledgeAuthorizationError,
     KnowledgeConflictError,
@@ -17,12 +18,22 @@ from ragflow_agent.knowledge.domain.errors import (
 )
 from ragflow_agent.knowledge.domain.ingestion import IngestionJob, IngestionTask
 from ragflow_agent.knowledge.domain.knowledge_base import KnowledgeBase
+from ragflow_agent.knowledge.domain.lifecycle import (
+    LifecycleBatch,
+    LifecycleOperation,
+    LifecycleOperationStatus,
+    LifecycleOutboxEvent,
+    OutboxStatus,
+)
 from ragflow_agent.knowledge.infrastructure.database.models import (
     DocumentRow,
     DocumentVersionRow,
     IngestionJobRow,
     IngestionTaskRow,
     KnowledgeBaseRow,
+    LifecycleBatchRow,
+    LifecycleOperationRow,
+    LifecycleOutboxRow,
 )
 
 
@@ -103,7 +114,55 @@ class SqlAlchemyDocumentRepository(SqlAlchemyTenantRepository[Document]):
         return {
             **super()._row_values(entity),
             "knowledge_base_id": entity.knowledge_base_id,
+            "current_version_id": entity.current_version_id,
+            "status": entity.status.value,
+            "revision": entity.revision,
         }
+
+    async def save_if_revision(
+        self,
+        *,
+        tenant_id: str,
+        entity: Document,
+        expected_revision: int,
+    ) -> None:
+        self._require_tenant(tenant_id, entity)
+        result = await self._session.execute(
+            update(DocumentRow)
+            .where(
+                DocumentRow.tenant_id == tenant_id,
+                DocumentRow.id == entity.id,
+                DocumentRow.revision == expected_revision,
+            )
+            .values(**self._row_values(entity))
+        )
+        if cast(Any, result).rowcount != 1:
+            raise KnowledgeConflictError(
+                "document revision changed",
+                error_code="document_revision_conflict",
+                details={"expected_revision": expected_revision},
+            )
+        await self._session.flush()
+
+    async def list_by_status(
+        self,
+        *,
+        tenant_id: str,
+        statuses: tuple[DocumentStatus, ...],
+        limit: int = 100,
+    ) -> tuple[Document, ...]:
+        rows = (
+            await self._session.scalars(
+                select(DocumentRow)
+                .where(
+                    DocumentRow.tenant_id == tenant_id,
+                    DocumentRow.status.in_(tuple(item.value for item in statuses)),
+                )
+                .order_by(DocumentRow.id)
+                .limit(limit)
+            )
+        ).all()
+        return tuple(Document.model_validate(row.payload) for row in rows)
 
 
 class SqlAlchemyDocumentVersionRepository(SqlAlchemyTenantRepository[DocumentVersion]):
@@ -134,6 +193,19 @@ class SqlAlchemyDocumentVersionRepository(SqlAlchemyTenantRepository[DocumentVer
                     DocumentVersionRow.document_id == document_id,
                 )
                 .order_by(DocumentVersionRow.id)
+            )
+        ).all()
+        return tuple(DocumentVersion.model_validate(row.payload) for row in rows)
+
+    async def list_for_tenant(
+        self, *, tenant_id: str, limit: int = 1000
+    ) -> tuple[DocumentVersion, ...]:
+        rows = (
+            await self._session.scalars(
+                select(DocumentVersionRow)
+                .where(DocumentVersionRow.tenant_id == tenant_id)
+                .order_by(DocumentVersionRow.id)
+                .limit(limit)
             )
         ).all()
         return tuple(DocumentVersion.model_validate(row.payload) for row in rows)
@@ -187,3 +259,127 @@ class SqlAlchemyIngestionTaskRepository(SqlAlchemyTenantRepository[IngestionTask
             )
         ).all()
         return tuple(IngestionTask.model_validate(row.payload) for row in rows)
+
+
+class SqlAlchemyLifecycleOperationRepository(SqlAlchemyTenantRepository[LifecycleOperation]):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session, row_type=LifecycleOperationRow, entity_type=LifecycleOperation)
+        self._session = session
+
+    def _row_values(self, entity: LifecycleOperation) -> dict[str, Any]:
+        return {
+            **super()._row_values(entity),
+            "knowledge_base_id": entity.knowledge_base_id,
+            "document_id": entity.document_id,
+            "version_id": entity.version_id,
+            "kind": entity.kind.value,
+            "status": entity.status.value,
+            "idempotency_key": entity.idempotency_key,
+            "batch_id": entity.batch_id,
+            "updated_at": entity.updated_at,
+        }
+
+    async def get_by_idempotency_key(
+        self, *, tenant_id: str, idempotency_key: str
+    ) -> LifecycleOperation | None:
+        row = await self._session.scalar(
+            select(LifecycleOperationRow).where(
+                LifecycleOperationRow.tenant_id == tenant_id,
+                LifecycleOperationRow.idempotency_key == idempotency_key,
+            )
+        )
+        return None if row is None else LifecycleOperation.model_validate(row.payload)
+
+    async def list_for_document(
+        self, *, tenant_id: str, document_id: str
+    ) -> tuple[LifecycleOperation, ...]:
+        rows = (
+            await self._session.scalars(
+                select(LifecycleOperationRow)
+                .where(
+                    LifecycleOperationRow.tenant_id == tenant_id,
+                    LifecycleOperationRow.document_id == document_id,
+                )
+                .order_by(LifecycleOperationRow.updated_at)
+            )
+        ).all()
+        return tuple(LifecycleOperation.model_validate(row.payload) for row in rows)
+
+    async def list_by_status(
+        self,
+        *,
+        tenant_id: str,
+        statuses: tuple[LifecycleOperationStatus, ...],
+        updated_before: datetime | None = None,
+        limit: int = 100,
+    ) -> tuple[LifecycleOperation, ...]:
+        statement = select(LifecycleOperationRow).where(
+            LifecycleOperationRow.tenant_id == tenant_id,
+            LifecycleOperationRow.status.in_(tuple(status.value for status in statuses)),
+        )
+        if updated_before is not None:
+            statement = statement.where(LifecycleOperationRow.updated_at <= updated_before)
+        rows = (
+            await self._session.scalars(
+                statement.order_by(LifecycleOperationRow.updated_at).limit(limit)
+            )
+        ).all()
+        return tuple(LifecycleOperation.model_validate(row.payload) for row in rows)
+
+
+class SqlAlchemyLifecycleOutboxRepository(SqlAlchemyTenantRepository[LifecycleOutboxEvent]):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session, row_type=LifecycleOutboxRow, entity_type=LifecycleOutboxEvent)
+        self._session = session
+
+    def _row_values(self, entity: LifecycleOutboxEvent) -> dict[str, Any]:
+        return {
+            **super()._row_values(entity),
+            "operation_id": entity.operation_id,
+            "aggregate_id": entity.aggregate_id,
+            "status": entity.status.value,
+            "idempotency_key": entity.idempotency_key,
+            "available_at": entity.available_at,
+        }
+
+    async def list_due(
+        self, *, tenant_id: str, now: datetime, limit: int
+    ) -> tuple[LifecycleOutboxEvent, ...]:
+        rows = (
+            await self._session.scalars(
+                select(LifecycleOutboxRow)
+                .where(
+                    LifecycleOutboxRow.tenant_id == tenant_id,
+                    LifecycleOutboxRow.status == OutboxStatus.PENDING.value,
+                    LifecycleOutboxRow.available_at <= now,
+                )
+                .order_by(LifecycleOutboxRow.available_at)
+                .limit(limit)
+            )
+        ).all()
+        return tuple(LifecycleOutboxEvent.model_validate(row.payload) for row in rows)
+
+
+class SqlAlchemyLifecycleBatchRepository(SqlAlchemyTenantRepository[LifecycleBatch]):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session, row_type=LifecycleBatchRow, entity_type=LifecycleBatch)
+        self._session = session
+
+    def _row_values(self, entity: LifecycleBatch) -> dict[str, Any]:
+        return {
+            **super()._row_values(entity),
+            "knowledge_base_id": entity.knowledge_base_id,
+            "status": entity.status.value,
+            "idempotency_key": entity.idempotency_key,
+        }
+
+    async def get_by_idempotency_key(
+        self, *, tenant_id: str, idempotency_key: str
+    ) -> LifecycleBatch | None:
+        row = await self._session.scalar(
+            select(LifecycleBatchRow).where(
+                LifecycleBatchRow.tenant_id == tenant_id,
+                LifecycleBatchRow.idempotency_key == idempotency_key,
+            )
+        )
+        return None if row is None else LifecycleBatch.model_validate(row.payload)

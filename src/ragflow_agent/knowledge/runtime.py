@@ -21,6 +21,15 @@ from ragflow_agent.knowledge.application.knowledge_service import (
     KnowledgeQueryService,
     KnowledgeService,
 )
+from ragflow_agent.knowledge.application.lifecycle import (
+    DocumentDeletionService,
+    DocumentUpdateService,
+    DocumentVersionPublisher,
+    IndexRebuildService,
+    LifecycleBatchService,
+    LifecycleControlService,
+    LifecycleReconciler,
+)
 from ragflow_agent.knowledge.application.parser_registry import ParserRegistry
 from ragflow_agent.knowledge.application.permission_service import DefaultPermissionChecker
 from ragflow_agent.knowledge.application.query import (
@@ -53,6 +62,8 @@ from ragflow_agent.knowledge.infrastructure.search import ElasticsearchSearchAda
 from ragflow_agent.knowledge.infrastructure.trace import LoggingKnowledgeTrace
 from ragflow_agent.shared.ports.identity import Uuid4Generator
 from ragflow_agent.shared.ports.time import SystemClock
+from ragflow_agent.worker.outbox import LifecycleOutboxDispatcher
+from ragflow_agent.worker.retry import RetryPolicy
 
 
 @dataclass(slots=True)
@@ -71,6 +82,14 @@ class MinimumRagRuntime:
     retrieval_trace_access: RetrievalTraceAccessService
     retrieval_trace_maintenance: RetrievalTraceMaintenanceService
     reranker: object
+    document_updates: DocumentUpdateService
+    document_deletions: DocumentDeletionService
+    version_publisher: DocumentVersionPublisher
+    index_rebuild: IndexRebuildService
+    lifecycle_reconciler: LifecycleReconciler
+    lifecycle_batches: LifecycleBatchService
+    lifecycle_outbox: LifecycleOutboxDispatcher
+    lifecycle_control: LifecycleControlService
 
     async def open(self, *, open_queue: bool = True) -> None:
         await self.storage.ensure_bucket()
@@ -201,6 +220,31 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
         clock=clock,
         max_upload_bytes=settings.ingestion.max_upload_bytes,
     )
+    version_publisher = DocumentVersionPublisher(
+        unit_of_work_factory=unit_of_work_factory,
+        search=search,
+        clock=clock,
+        id_generator=id_generator,
+        permission_checker=permission_checker,
+        history_retention_days=settings.lifecycle.history_retention_days,
+    )
+    document_updates = DocumentUpdateService(
+        unit_of_work_factory=unit_of_work_factory,
+        storage=storage,
+        permission_checker=permission_checker,
+        id_generator=id_generator,
+        clock=clock,
+        max_upload_bytes=settings.ingestion.max_upload_bytes,
+    )
+    document_deletions = DocumentDeletionService(
+        unit_of_work_factory=unit_of_work_factory,
+        search=search,
+        storage=storage,
+        permission_checker=permission_checker,
+        id_generator=id_generator,
+        clock=clock,
+        retention_days=settings.lifecycle.soft_delete_retention_days,
+    )
     ingestion_pipeline = IngestionPipeline(
         unit_of_work_factory=unit_of_work_factory,
         parser=parser,
@@ -215,6 +259,7 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
             embedding_model_id=settings.models.embedding_model,
         ),
         max_attempts=settings.worker.max_tries,
+        lifecycle_activation=version_publisher,
     )
     fixed_rag_service = FixedRagService(
         query_service=query_service,
@@ -227,6 +272,36 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
         detailed_roles=settings.retrieval_trace.detailed_roles,
     )
     retrieval_trace_maintenance = RetrievalTraceMaintenanceService(trace_store)
+    lifecycle_reconciler = LifecycleReconciler(
+        unit_of_work_factory=unit_of_work_factory,
+        search=search,
+        storage=storage,
+        clock=clock,
+        limit=settings.lifecycle.reconcile_batch_size,
+    )
+    lifecycle_batches = LifecycleBatchService(
+        unit_of_work_factory=unit_of_work_factory,
+        id_generator=id_generator,
+        clock=clock,
+        max_concurrency=settings.lifecycle.batch_concurrency,
+    )
+    lifecycle_outbox = LifecycleOutboxDispatcher(
+        unit_of_work_factory=unit_of_work_factory,
+        queue=queue,
+        clock=clock,
+        document_purger=document_deletions,
+        retry_policy=RetryPolicy(
+            max_attempts=settings.lifecycle.max_attempts,
+            concurrency_attempts=settings.lifecycle.concurrency_attempts,
+            base_seconds=settings.lifecycle.retry_base_seconds,
+            max_seconds=settings.lifecycle.retry_max_seconds,
+        ),
+    )
+    lifecycle_control = LifecycleControlService(
+        unit_of_work_factory=unit_of_work_factory,
+        permission_checker=permission_checker,
+        clock=clock,
+    )
     return MinimumRagRuntime(
         engine=engine,
         storage=storage,
@@ -240,4 +315,12 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
         retrieval_trace_access=retrieval_trace_access,
         retrieval_trace_maintenance=retrieval_trace_maintenance,
         reranker=reranker,
+        document_updates=document_updates,
+        document_deletions=document_deletions,
+        version_publisher=version_publisher,
+        index_rebuild=IndexRebuildService(search),
+        lifecycle_reconciler=lifecycle_reconciler,
+        lifecycle_batches=lifecycle_batches,
+        lifecycle_outbox=lifecycle_outbox,
+        lifecycle_control=lifecycle_control,
     )

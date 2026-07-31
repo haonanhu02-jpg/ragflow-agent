@@ -1,11 +1,11 @@
 ---
 document_id: PHASE-07-DOCUMENT-LIFECYCLE
-document_role: Phase 07 预规划详细计划
-status: draft
+document_role: Phase 07 已执行详细计划
+status: completed
 phase: Phase 07
 phase_name: 文档生命周期
-plan_status: 预规划草案
-execution_status: 未执行
+plan_status: 已确认
+execution_status: 已完成
 last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
@@ -14,11 +14,10 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 ## 0. 状态与导航
 
-- **计划状态**：预规划草案。
-- **执行状态**：未执行。
-- Phase 05/06 已完成，代码前置产物存在；本计划仍须按真实 index version、
-  文档状态/可见性、Redis/ARQ、PostgreSQL Trace 和 Citation 语义重审并冻结，
-  因此当前只进入计划复审门禁，尚未批准或执行 P07-T01。
+- **计划状态**：已确认。
+- **执行状态**：已完成；P07-T01 至 P07-T11 均已通过任务验证与阶段验收。
+- Phase 05/06 前置产物已经复核；生命周期策略由 ADR-022 冻结，实际实现与证据见
+  [文档生命周期设计与运行证据](../09-document-lifecycle.md)。
 - 导航：[阶段索引](./README.md) · [Phase 06](./phase-06-online-retrieval.md) · [Phase 08](./phase-08-agentic-rag.md) · [Phase 10](./phase-10-evaluation-and-production.md)
 
 ## 1. 目标、必要性与 Phase 00 依据
@@ -30,9 +29,9 @@ Phase 00 证明 RAGFlow 重解析采用原地状态/先删后建；删除先移�
 ## 2. 前置、输入、范围与排除
 
 - **前置阶段**：Phase 05、Phase 06。
-- **进入条件**：Parser/Chunk/Index/Citation/在线检索字段稳定且任务后端可运行的
-  代码条件已满足；仍需在 P07-T01 前确认版本激活/回滚、重试分类与次数、索引
-  切换、软删除/物理回收期限、跨存储补偿和批量隔离规则，并完成本计划复审。
+- **进入条件**：已满足。Parser/Chunk/Index/Citation/在线检索字段和任务后端经
+  Phase 05/06 验收；版本激活/回滚、重试分类与次数、索引切换、软删除/物理
+  回收期限、跨存储补偿和批量隔离规则已由 P07-T01 与 ADR-022 冻结。
 - **输入**：DocumentVersion/IngestionJob 状态、Search/Object/Queue Adapter、Trace、评测和故障注入环境。
 
 **范围**：更新/重解析/删除/重建、Embedding/Parser 版本迁移、候选索引激活、进度、可靠消息、dead-letter、取消、幂等、批量、补偿、回收/墓碑/reconciliation。
@@ -75,23 +74,23 @@ docs/09-document-lifecycle.md
 
 | 任务 | 名称 | 状态 | 前置 |
 |---|---|---|---|
-| P07-T01 | 复审生命周期状态与一致性模型 | 未开始 | Phase 05、06 |
-| P07-T02 | 实现更新与重新解析 | 未开始 | P07-T01 |
-| P07-T03 | 实现候选索引、重建与原子激活 | 未开始 | P07-T01、P07-T02 |
-| P07-T04 | 实现删除、墓碑与残留清理 | 未开始 | P07-T01 |
-| P07-T05 | 实现可靠重试、ACK 与死信 | 未开始 | P07-T01 |
-| P07-T06 | 实现任务进度与取消 | 未开始 | P07-T02、P07-T05 |
-| P07-T07 | 实现幂等与并发控制 | 未开始 | P07-T02 至 P07-T06 |
-| P07-T08 | 实现补偿与 Reconciliation | 未开始 | P07-T03、P07-T04、P07-T07 |
-| P07-T09 | 实现批量任务 | 未开始 | P07-T06 至 P07-T08 |
-| P07-T10 | 建立故障注入和恢复验证 | 未开始 | P07-T02 至 P07-T09 |
-| P07-T11 | 执行生命周期阶段验收 | 未开始 | P07-T01 至 P07-T10 |
+| P07-T01 | 复审生命周期状态与一致性模型 | 已完成 | Phase 05、06 |
+| P07-T02 | 实现更新与重新解析 | 已完成 | P07-T01 |
+| P07-T03 | 实现候选索引、重建与原子激活 | 已完成 | P07-T01、P07-T02 |
+| P07-T04 | 实现删除、墓碑与残留清理 | 已完成 | P07-T01 |
+| P07-T05 | 实现可靠重试、ACK 与死信 | 已完成 | P07-T01 |
+| P07-T06 | 实现任务进度与取消 | 已完成 | P07-T02、P07-T05 |
+| P07-T07 | 实现幂等与并发控制 | 已完成 | P07-T02 至 P07-T06 |
+| P07-T08 | 实现补偿与 Reconciliation | 已完成 | P07-T03、P07-T04、P07-T07 |
+| P07-T09 | 实现批量任务 | 已完成 | P07-T06 至 P07-T08 |
+| P07-T10 | 建立故障注入和恢复验证 | 已完成 | P07-T02 至 P07-T09 |
+| P07-T11 | 执行生命周期阶段验收 | 已完成 | P07-T01 至 P07-T10 |
 
 ## 7. 具体任务
 
 ### P07-T01：复审生命周期状态与一致性模型
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：冻结版本发布、删除可见性、任务状态、索引激活和补偿协议。
 - **为什么需要**：实际 Adapter 和 Phase 06 Citation 可能改变预案。
 - **输入**：Phase 05/06 验收、风险 R-005/R-018/R-022。
@@ -105,13 +104,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/unit/knowledge/test_lifecycle_state.py -q`
 - **验收标准**：每个跨存储步骤有失败/补偿/幂等定义。
 - **风险和回滚方法**：规则不完整即不进入实现。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：ADR-022 冻结 PostgreSQL 权威状态、Outbox、CAS 激活、候选索引、删除保留期、重试分类和批量隔离；领域状态、端口、配置与 `20260731_0004` 迁移已落地。
+- **实际验证结果**：`uv run pytest tests/unit/knowledge/test_lifecycle_state.py -q` 通过（3 passed）。
+- **计划偏差**：明确不采用 2PC；所有跨存储步骤使用状态机、幂等操作、补偿和对账。
 
 ### P07-T02：实现更新与重新解析
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：创建新 DocumentVersion 并在后台重跑 pipeline，旧版保持可用。
 - **为什么需要**：配置/内容变化不能破坏当前查询。
 - **输入**：P07-T01、ingestion pipeline。
@@ -125,13 +124,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/integration/lifecycle/test_update_reparse.py -q`
 - **验收标准**：失败不影响 current version；所有作业可追踪。
 - **风险和回滚方法**：保留旧对象/索引直到发布成功。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：实现 `DocumentUpdateService`、`DocumentReparseService`、不可变 `DocumentVersion`、事务 Outbox 与 Ingestion 发布集成；候选版本失败不改变当前版本。
+- **实际验证结果**：`uv run pytest tests/integration/lifecycle/test_update_reparse.py -q` 通过。
+- **计划偏差**：重解析复用原对象；内容更新先写对象再提交数据库，失败产生的安全孤儿由 reconciliation 发现和清理。
 
 ### P07-T03：实现候选索引、重建与原子激活
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：完整构建/验证新 index_version 后原子切换并可回滚。
 - **为什么需要**：Embedding/Parser/Chunk 变更需要安全重建。
 - **输入**：P07-T01、P07-T02、Search Adapter。
@@ -145,13 +144,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/integration/lifecycle/test_index_publish.py -q`
 - **验收标准**：切换前验证完整；旧版始终可回退。
 - **风险和回滚方法**：激活失败保持旧 manifest。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：实现候选验证、Elasticsearch generation/alias 切换、PostgreSQL CAS 激活、旧版本退休、未知切换结果对账和显式回滚。
+- **实际验证结果**：`uv run pytest tests/integration/lifecycle/test_index_publish.py -q` 通过；隔离四后端 E2E 的真实 alias 切换通过。
+- **计划偏差**：同时保留按 document version 的逻辑投影与 Elasticsearch 物理 generation alias，以兼容现有最小索引和重建路径。
 
 ### P07-T04：实现删除、墓碑与残留清理
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：先撤销可见性，再幂等回收关系、对象、索引、派生工件和缓存。
 - **为什么需要**：防止删除部分失败造成泄露/孤儿。
 - **输入**：P07-T01、对象/Search/Repository。
@@ -165,13 +164,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/fault/lifecycle/test_delete_cleanup.py -q`
 - **验收标准**：删除后立即不可检索；残留可自动/人工修复。
 - **风险和回滚方法**：物理删除前保留墓碑；误删恢复策略明确。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：实现立即 tombstone、授权恢复、恢复时取消旧 cleanup Outbox、到期 Outbox 驱动的幂等物理回收；在线查询在候选返回后再次以 PostgreSQL 权威状态 fail-closed 过滤。
+- **实际验证结果**：`uv run pytest tests/fault/lifecycle/test_delete_cleanup.py -q` 通过。
+- **计划偏差**：自动化测试使用可控时钟推进 31 天验证延迟物理清理；运行默认保留期为 30 天且可配置。
 
 ### P07-T05：实现可靠重试、ACK 与死信
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：区分瞬时/永久/取消错误并保证 ACK 安全。
 - **为什么需要**：避免任务丢失或无限重试。
 - **输入**：P07-T01、Queue Adapter。
@@ -185,13 +184,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/fault/worker/test_delivery_semantics.py -q`
 - **验收标准**：安全持久化前不 ACK；最终失败可查询。
 - **风险和回滚方法**：重试风暴用上限/退避/熔断。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：实现显式 transient/permanent/cancelled 分类、指数退避与 jitter、最大尝试次数、Outbox 状态和可查询 dead-letter 记录；未知代码错误默认永久失败。
+- **实际验证结果**：`uv run pytest tests/fault/worker/test_delivery_semantics.py -q` 通过。
+- **计划偏差**：ARQ 不暴露独立 ACK lease API；可靠边界由 ARQ 持久任务与 PostgreSQL Outbox 组合提供，跨租户生产调度/告警仍登记为 R-033。
 
 ### P07-T06：实现任务进度与取消
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：提供单调/阶段化进度、取消请求、取消确认和审计。
 - **为什么需要**：长 Parser/Embedding/重建需要用户控制。
 - **输入**：P07-T02、P07-T05。
@@ -205,13 +204,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/integration/lifecycle/test_progress_cancel.py -q`
 - **验收标准**：取消后不激活新版本；状态可解释。
 - **风险和回滚方法**：不可中断外部调用后再次检查终态。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：生命周期操作提供单调阶段进度、查询/取消 API；Ingestion 在阶段边界和发布前协作检查取消，并持久化取消终态。
+- **实际验证结果**：`uv run pytest tests/integration/lifecycle/test_progress_cancel.py -q` 通过。
+- **计划偏差**：取消是协作式取消，不对正在执行的第三方调用做不安全硬终止。
 
 ### P07-T07：实现幂等与并发控制
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：处理重复请求/消息、并发更新/删除/重建和 Worker 抢占。
 - **为什么需要**：至少一次投递会重复。
 - **输入**：P07-T02 至 P07-T06。
@@ -225,13 +224,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/fault/lifecycle/test_idempotency_concurrency.py -q`
 - **验收标准**：无重复 Chunk/激活；冲突可重试/审计。
 - **风险和回滚方法**：锁不是唯一保障，数据库状态比较兜底。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：命令指纹、稳定操作/Outbox/索引 generation 标识、唯一约束、版本激活 CAS 与 Elasticsearch fencing 共同阻止幂等键碰撞、重复发布和陈旧写入；历史结果返回前重验操作者与权限。
+- **实际验证结果**：`uv run pytest tests/fault/lifecycle/test_idempotency_concurrency.py -q` 通过。
+- **计划偏差**：未引入分布式锁；数据库 CAS 是最终并发兜底。
 
 ### P07-T08：实现补偿与 Reconciliation
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：发现并修复数据库、对象和索引不一致。
 - **为什么需要**：跨系统没有原子事务。
 - **输入**：P07-T03、P07-T04、P07-T07。
@@ -245,13 +244,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/fault/lifecycle/test_reconcile.py -q`
 - **验收标准**：修复幂等、tenant-scoped、可审计。
 - **风险和回滚方法**：默认 dry-run；破坏性修复需显式批准。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：实现 tenant-scoped、有界、默认 dry-run 的对账，识别 stale operation/outbox、索引漂移、孤儿对象/投影和到期墓碑；只自动修复可证明安全的孤儿。
+- **实际验证结果**：`uv run pytest tests/fault/lifecycle/test_reconcile.py -q` 通过。
+- **计划偏差**：不确定或破坏性差异只报告不自动修复，生产级跨租户定时调度和告警留 R-033。
 
 ### P07-T09：实现批量任务
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：支持 tenant-scoped 批量重解析、重建和删除及限流。
 - **为什么需要**：模型/Parser 升级会影响大量文档。
 - **输入**：P07-T06 至 P07-T08。
@@ -265,13 +264,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/integration/lifecycle/test_batch.py -q`
 - **验收标准**：子任务可独立重试；汇总准确；背压有效。
 - **风险和回滚方法**：默认低并发；支持暂停/取消。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：实现 tenant/knowledge-base 作用域批次、子操作汇总、部分失败/取消状态和默认并发上限 3；提供创建和查询 API。
+- **实际验证结果**：`uv run pytest tests/integration/lifecycle/test_batch.py -q` 通过。
+- **计划偏差**：当前批次聚合既有生命周期操作；批次 API 不直接为文档选择集创建新的子命令，编排式批量创建留后续增强。
 
 ### P07-T10：建立故障注入和恢复验证
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：证明每个关键阶段的崩溃、超时和部分失败可恢复。
 - **为什么需要**：可靠性不能只靠正常路径。
 - **输入**：P07-T02 至 P07-T09。
@@ -285,13 +284,13 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/fault/lifecycle -q`
 - **验收标准**：旧版可用、无越权/重复、残留可修。
 - **风险和回滚方法**：隔离测试环境，禁止生产数据。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：建立删除部分失败、重复/并发、投递语义、对账修复及真实 PostgreSQL/Redis/MinIO/Elasticsearch 生命周期链路验证。
+- **实际验证结果**：Phase 07 聚焦套件 `17 passed`；隔离四后端生命周期 E2E `1 passed`，既有真实后端回归 `11 passed`。
+- **计划偏差**：验证覆盖确定性故障点和短时恢复，未进行长时间 Worker kill/网络分区混沌测试，登记为 R-034。
 
 ### P07-T11：执行生命周期阶段验收
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：完成 CAP-24/25/26 和 CAP-38 可靠化验收。
 - **为什么需要**：Phase 10 生产门禁的硬依赖。
 - **输入**：P07-T01 至 P07-T10。
@@ -305,9 +304,9 @@ docs/09-document-lifecycle.md
 - **验证命令**：`uv run pytest tests/**/lifecycle tests/fault/worker -q`
 - **验收标准**：更新/删除/重建/取消/重试/幂等/批量全部通过。
 - **风险和回滚方法**：严重一致性缺陷阻止阶段完成。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：CAP-24、CAP-25、CAP-26 和 CAP-38 的 Phase 07 范围已实现；迁移、API/Worker、文档、能力矩阵和风险记录同步完成。
+- **实际验证结果**：隔离四后端全套 `221 passed, 1 skipped`；无外部服务套件 `206 passed, 16 skipped`；Ruff、严格 mypy、锁文件、包导入、API/Worker bootstrap、Alembic 升降级和敏感信息检查均通过。GitHub Actions 结果在推送后补录。
+- **计划偏差**：本机唯一跳过项为未安装 Tesseract 的既有 OCR 运行时测试，与生命周期无关；真实长期调度和混沌验证未冒充完成。
 
 ## 8. 验收、DoD、风险与后续
 
@@ -323,9 +322,9 @@ docs/09-document-lifecycle.md
 
 阶段结束更新总纲、矩阵、架构、路线图、标准、风险、阶段索引和本文件。Phase 10 才能完成生产化；Phase 08 算法上不硬依赖本阶段，但任何生产发布必须依赖。
 
-## 9. 实际执行结果预留
+## 9. 实际执行结果
 
-- 实际消息/索引/回收策略：待执行。
-- 实际故障注入/恢复指标：待执行。
-- 计划偏差/新增 ADR：待执行。
-- 阶段出口结论：待执行。
+- **实际消息/索引/回收策略**：PostgreSQL 是权威状态；事务 Outbox 驱动 ARQ 投递；候选 generation 验证后切 Elasticsearch alias，再以数据库 CAS 发布当前版本；删除先 tombstone，默认 30 天后幂等回收。
+- **实际故障注入/恢复证据**：聚焦生命周期/Worker 套件 17 项通过，真实 PostgreSQL/Redis/MinIO/Elasticsearch 生命周期 E2E 通过；完整隔离后端套件 221 项通过、1 项仅因本机无 Tesseract 跳过。
+- **计划偏差/新增 ADR**：新增 ADR-022；不采用 2PC/分布式锁/RAGFlow 源码，生产调度告警与长时混沌分别登记 R-033、R-034。
+- **阶段出口结论**：Phase 07 的代码、测试和文档验收完成；可以进入 Phase 08 计划复审，不自动执行 Phase 08。

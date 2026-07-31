@@ -16,6 +16,7 @@ class DocumentStatus(StrEnum):
     """Logical document lifecycle visible to application services."""
 
     ACTIVE = "active"
+    DELETE_PENDING = "delete_pending"
     DELETED = "deleted"
 
 
@@ -47,7 +48,9 @@ _VERSION_TRANSITIONS: dict[DocumentVersionStatus, frozenset[DocumentVersionStatu
     DocumentVersionStatus.FAILED: frozenset(
         {DocumentVersionStatus.INGESTING, DocumentVersionStatus.DELETED}
     ),
-    DocumentVersionStatus.SUPERSEDED: frozenset({DocumentVersionStatus.DELETED}),
+    DocumentVersionStatus.SUPERSEDED: frozenset(
+        {DocumentVersionStatus.READY, DocumentVersionStatus.DELETED}
+    ),
     DocumentVersionStatus.DELETED: frozenset(),
 }
 
@@ -63,12 +66,17 @@ class Document(KnowledgeModel):
     visibility: Visibility = Visibility.PRIVATE
     status: DocumentStatus = DocumentStatus.ACTIVE
     current_version_id: str | None = None
+    revision: int = Field(default=0, ge=0)
+    deleted_at: datetime | None = None
+    purge_after: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
-    @field_validator("created_at", "updated_at")
+    @field_validator("created_at", "updated_at", "deleted_at", "purge_after")
     @classmethod
-    def timestamps_are_timezone_aware(cls, value: datetime) -> datetime:
+    def timestamps_are_timezone_aware(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return value
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("document timestamps must be timezone-aware")
         return value
@@ -77,8 +85,14 @@ class Document(KnowledgeModel):
     def validate_document(self) -> Document:
         if self.updated_at < self.created_at:
             raise ValueError("updated_at cannot precede created_at")
-        if self.status is DocumentStatus.DELETED and self.current_version_id is not None:
-            raise ValueError("deleted documents cannot expose a current version")
+        if self.status is not DocumentStatus.ACTIVE and self.current_version_id is not None:
+            raise ValueError("non-active documents cannot expose a current version")
+        if self.status is DocumentStatus.ACTIVE and self.deleted_at is not None:
+            raise ValueError("active documents cannot carry deleted_at")
+        if self.status is not DocumentStatus.ACTIVE and self.deleted_at is None:
+            raise ValueError("deleted or delete-pending documents require deleted_at")
+        if self.purge_after is not None and self.deleted_at is None:
+            raise ValueError("purge_after requires deleted_at")
         return self
 
     @property
@@ -104,12 +118,25 @@ class DocumentVersion(KnowledgeModel):
     content_hash_algorithm: NonEmptyStr = "sha256"
     size_bytes: int = Field(ge=0)
     status: DocumentVersionStatus = DocumentVersionStatus.REGISTERED
+    revision: int = Field(default=0, ge=0)
+    index_version_id: str | None = None
+    activated_at: datetime | None = None
+    retired_at: datetime | None = None
+    purge_after: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
-    @field_validator("created_at", "updated_at")
+    @field_validator(
+        "created_at",
+        "updated_at",
+        "activated_at",
+        "retired_at",
+        "purge_after",
+    )
     @classmethod
-    def timestamps_are_timezone_aware(cls, value: datetime) -> datetime:
+    def timestamps_are_timezone_aware(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return value
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("document-version timestamps must be timezone-aware")
         return value
@@ -145,6 +172,7 @@ def transition_document_version(
         {
             **version.model_dump(),
             "status": target,
+            "revision": version.revision + 1,
             "updated_at": changed_at,
         }
     )
@@ -155,6 +183,7 @@ def activate_document_version(
     version: DocumentVersion,
     *,
     changed_at: datetime,
+    expected_revision: int | None = None,
 ) -> Document:
     """Set a ready, same-document version as the logical document's current version."""
     if changed_at < document.updated_at:
@@ -182,15 +211,22 @@ def activate_document_version(
             "only a ready document version can be activated",
             error_code="document_version_not_ready",
         )
-    if document.status is DocumentStatus.DELETED:
+    if document.status is not DocumentStatus.ACTIVE:
         raise KnowledgeConflictError(
             "deleted documents cannot activate versions",
             error_code="document_deleted",
+        )
+    if expected_revision is not None and document.revision != expected_revision:
+        raise KnowledgeConflictError(
+            "document revision changed before activation",
+            error_code="document_revision_conflict",
+            details={"expected": expected_revision, "actual": document.revision},
         )
     return Document.model_validate(
         {
             **document.model_dump(),
             "current_version_id": version.id,
+            "revision": document.revision + 1,
             "updated_at": changed_at,
         }
     )

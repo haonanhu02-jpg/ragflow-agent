@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from arq import Retry, create_pool
@@ -11,6 +12,7 @@ from arq.worker import Worker
 
 from ragflow_agent.config import AppSettings
 from ragflow_agent.knowledge.application.ingestion import RetryableIngestionError
+from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.ingestion import IngestionEnvelope
 from ragflow_agent.knowledge.infrastructure.queue import arq_deserialize, arq_serialize
 from ragflow_agent.knowledge.runtime import MinimumRagRuntime, build_minimum_rag_runtime
@@ -31,6 +33,39 @@ async def process_ingestion(context: dict[Any, Any], envelope_json: str) -> str:
     except RetryableIngestionError as error:
         raise Retry(defer=min(2**delivery_attempt, 30)) from error
     return job.id
+
+
+async def dispatch_lifecycle_outbox(
+    context: dict[Any, Any], tenant_id: str, request_id: str
+) -> int:
+    """Dispatch one tenant's due outbox rows; duplicate jobs remain harmless."""
+    runtime = context.get("minimum_rag_runtime")
+    if not isinstance(runtime, MinimumRagRuntime):
+        raise RuntimeError("ARQ worker runtime is not initialized")
+    return await runtime.lifecycle_outbox.dispatch_due(
+        AuthorizationContext(
+            tenant_id=tenant_id,
+            actor_id="lifecycle-worker",
+            request_id=request_id,
+        )
+    )
+
+
+async def reconcile_lifecycle(context: dict[Any, Any], tenant_id: str, request_id: str) -> int:
+    """Run a bounded dry-run reconciliation for a declared tenant scope."""
+    runtime = context.get("minimum_rag_runtime")
+    if not isinstance(runtime, MinimumRagRuntime):
+        raise RuntimeError("ARQ worker runtime is not initialized")
+    report = await runtime.lifecycle_reconciler.run(
+        AuthorizationContext(
+            tenant_id=tenant_id,
+            actor_id="lifecycle-worker",
+            request_id=request_id,
+        ),
+        stale_before=datetime.now(UTC) - timedelta(hours=1),
+        dry_run=True,
+    )
+    return len(report.findings)
 
 
 async def run_arq_ingestion_worker(
@@ -56,7 +91,11 @@ async def run_arq_ingestion_worker(
         await runtime.close()
 
     worker = Worker(
-        functions=[cast(WorkerCoroutine, process_ingestion)],
+        functions=[
+            cast(WorkerCoroutine, process_ingestion),
+            cast(WorkerCoroutine, dispatch_lifecycle_outbox),
+            cast(WorkerCoroutine, reconcile_lifecycle),
+        ],
         queue_name=settings.queue.queue_name,
         redis_pool=redis_pool,
         burst=burst,

@@ -406,6 +406,8 @@ class IndexVersion(KnowledgeModel):
     id: NonEmptyStr
     tenant_id: NonEmptyStr
     knowledge_base_id: NonEmptyStr
+    document_id: str | None = None
+    generation: int | None = Field(default=None, ge=1)
     embedding: EmbeddingMetadata
     status: IndexVersionStatus
     created_at: datetime

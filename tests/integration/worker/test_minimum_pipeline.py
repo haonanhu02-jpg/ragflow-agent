@@ -38,7 +38,7 @@ NOW = datetime(2026, 7, 30, tzinfo=UTC)
 class FailingParser:
     async def parse(self, request: ParseRequest) -> ParsedDocument:
         del request
-        raise RuntimeError("fixture parser unavailable")
+        raise TimeoutError("fixture parser unavailable")
 
 
 @pytest.mark.asyncio
@@ -111,7 +111,7 @@ async def test_retryable_failure_then_terminal_failure_is_persisted() -> None:
     assert parse_task.status is IngestionStatus.FAILED
     assert parse_task.error is not None and parse_task.error.retryable
 
-    with pytest.raises(RuntimeError, match="fixture parser unavailable"):
+    with pytest.raises(TimeoutError, match="fixture parser unavailable"):
         await pipeline.handle(queue.envelopes[0], delivery_attempt=2)
 
     assert store.ingestion_jobs[submitted.job.id].status is IngestionStatus.FAILED

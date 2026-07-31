@@ -2,9 +2,9 @@
 document_id: DEVELOPMENT-ROADMAP
 document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
-document_version: "0.6.0"
+document_version: "0.7.0"
 last_updated_at: "2026-07-31"
-current_phase: Phase 06 completed; Phase 07 review gate
+current_phase: Phase 07 completed; Phase 08 review gate
 roadmap_range: Phase 00-10
 ---
 
@@ -25,9 +25,9 @@ roadmap_range: Phase 00-10
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00 至 Phase 06 已完成；Phase 07 至 Phase 10 未执行。Phase 06 在 Phase 04/05 基线上完成查询变体、递归 Filter AST、真实 Elasticsearch 双路召回、RRF、Provider 隔离 Reranker、有限安全降级和 PostgreSQL Retrieval Trace；DeepSeek/BGE-M3/BGE Reranker 的真实外部服务调用仍未作为 CI 或阶段出口前提。
+- **[事实]** Phase 00 至 Phase 07 已完成；Phase 08 至 Phase 10 未执行。Phase 07 在 Phase 05/06 基线上完成不可变版本、候选索引/alias、CAS 激活、删除/恢复/回收、Outbox、重试/死信、取消、批量和 reconciliation；真实 DeepSeek/BGE-M3/BGE Reranker、生产跨租户调度告警和长时混沌仍不是已完成能力。
 
-Phase 00 至 Phase 06 已按详细计划执行并通过验收；Phase 07 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 07 已按详细计划执行并通过验收；Phase 08 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
 
 ### 0.2 本次路线图校正
 
@@ -99,7 +99,7 @@ flowchart LR
 | Phase 04 | 最小RAG闭环 | Phase 03 | `CAP-01`/`CAP-04`基础；`CAP-08`、`CAP-09`、`CAP-10`、`CAP-11`最小 RRF、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-38`基础 | 已确认 | 已完成 |
 | Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 已确认 | 已完成 |
 | Phase 06 | 在线检索 | Phase 04、Phase 05 | `CAP-11` 至 `CAP-22` | 已确认 | 已完成 |
-| Phase 07 | 文档生命周期 | Phase 05、Phase 06 | `CAP-24`、`CAP-25`、`CAP-26`、`CAP-38`可靠化 | 预规划草案 | 未执行 |
+| Phase 07 | 文档生命周期 | Phase 05、Phase 06 | `CAP-24`、`CAP-25`、`CAP-26`、`CAP-38`可靠化 | 已确认 | 已完成 |
 | Phase 08 | Agentic RAG | Phase 02、Phase 06 | `CAP-28`、`CAP-29` Agentic 扩展、`CAP-31`完整、`CAP-32`；SQL/API Tool 与记忆 | 预规划草案 | 未执行 |
 | Phase 09 | 高级RAG | Phase 05、Phase 06、Phase 08 | `CAP-05`、`CAP-06`、`CAP-07`高级部分、`CAP-33`、`CAP-34`、`CAP-35`、`CAP-43` | 预规划草案 | 未执行 |
 | Phase 10 | 评测与生产化 | Phase 07、Phase 08、Phase 09 | `CAP-39`、`CAP-40`完整、`CAP-42`；安全与权限生产门禁 | 预规划草案 | 未执行 |
@@ -505,9 +505,9 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 
 - **验收标准**：新版本失败不影响旧版；重复消息无重复 Chunk；删除部分失败可恢复；取消后无非法写入；Embedding 重建可切换/回滚；ACK 只在安全持久化后发生。
 - **下一阶段进入条件**：不是 Phase 08 的算法硬门槛；但 Phase 10 生产门禁要求本阶段完成。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 06 实际结果复审。
+- **当前状态**：已完成；P07-T01 至 P07-T11、真实四后端生命周期 E2E、迁移往返和阶段门禁通过。
 - **已知风险**：跨存储竞态；孤儿对象/索引；取消与写入竞争；死信积压；版本回收过早破坏引用。
-- **待确认技术决策**：最终任务/消息实现细节；重试分类与次数；索引别名/激活机制；软删除和物理回收时限。
+- **已确认技术决策**：ADR-022 已冻结 PostgreSQL 权威状态、Outbox/幂等/CAS/fencing、6 次总尝试、generation alias、30 天版本与软删除、7 天旧索引保留、24 小时回收目标及批量隔离。生产跨 tenant 调度/告警仍在 R-033，属于 Phase 10。
 
 ## 11. Phase 08：Agentic RAG
 
@@ -689,9 +689,10 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 04：已确认并完成；P04-T01 至 P04-T12、真实后端与阶段验收通过。
 - Phase 05：已确认并完成；P05-T01 至 P05-T12、八格式/九策略、真实后端和 CI 阶段验收通过。
 - Phase 06：已确认并完成；P06-T01 至 P06-T12、真实 Elasticsearch/PostgreSQL、评测和阶段验收通过。
-- Phase 07 至 Phase 10：详细计划为“预规划草案/未执行”。
-- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、离线 ingestion、八格式 Parser、九种 Chunk Method、完整在线双路检索/RRF/Reranker 回退/安全降级、固定 RAG 和持久 Retrieval Trace；生命周期、Agentic RAG、高级 RAG 和生产化尚未实现。
-- 下一步是依据 Phase 06 的 index version、文档状态、Trace 和可见性规则复审 Phase 07；不得自动执行。
+- Phase 07：已确认并完成；P07-T01 至 P07-T11、真实四后端、迁移和故障门禁通过。
+- Phase 08 至 Phase 10：详细计划为“预规划草案/未执行”。
+- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、离线 ingestion、八格式 Parser、九种 Chunk Method、完整在线双路检索/RRF/Reranker 回退/安全降级、固定 RAG、持久 Retrieval Trace，以及不可变版本、Outbox、CAS 发布、删除/恢复/回收、索引 generation、对账和批次生命周期；Agentic RAG、高级 RAG 和生产化尚未实现。
+- 下一步是依据 Phase 02、Phase 06 和 Phase 07 的实际契约复审 Phase 08；不得自动执行。
 
 ### 15.2 Phase 00 一致性债务处理
 

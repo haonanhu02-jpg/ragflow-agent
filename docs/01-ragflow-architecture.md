@@ -10,7 +10,7 @@ scope: RAGFlow Python
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md)
+[项目总纲](./00-project-master.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [目标项目生命周期](./09-document-lifecycle.md)
 
 ## 1. 目的与证据边界
 
@@ -318,7 +318,11 @@ DOCX、Excel 和 PPT Parser 的依赖较轻，但仍会产生 RAGFlow 特有的�
 - `handle_task` 对成功、取消和异常处理后均执行 `redis_msg.ack()`；异常后的 ACK 不会触发 Redis pending 重试。
 - `requeue_msg` 辅助函数存在，但主 Worker 调用链未形成统一死信、退避和失败分类。
 
-目标任务端口必须明确 lease/claim、retryable/permanent/cancelled、ACK、backoff、dead-letter、shutdown 和 stale-job reconciliation；ADR-019 已选择 Redis/ARQ 作为 Phase 04 最小实现，完整可靠性语义仍由 Phase 07 验收。
+目标任务端口必须明确 lease/claim、retryable/permanent/cancelled、ACK、backoff、dead-letter、shutdown 和 stale-job reconciliation。ADR-019 选择 Redis/ARQ，ADR-022 进一步冻结 PostgreSQL Outbox、显式错误分类、有限退避/死信、协作取消和 tenant-scoped reconciliation；这些语义已完成 Phase 07 验收。ARQ 不提供独立 ACK lease API，跨租户生产调度/告警与长时混沌仍分别登记为 R-033/R-034。
+
+### 5.5 目标项目 Phase 07 实施结论
+
+RAGFlow 上述链路只作为问题与职责证据；目标项目没有复制或改写上游源码。目标实现以 PostgreSQL 为权威状态，使用不可变 `DocumentVersion`、候选 Elasticsearch generation/alias、数据库 CAS 激活、事务 Outbox、tombstone + 保留期回收和有界 reconciliation。实际模块、迁移、API/Worker 接线与验证证据见[文档生命周期设计](./09-document-lifecycle.md)和 ADR-022。
 
 ## 6. 在线检索与回答完整链路
 

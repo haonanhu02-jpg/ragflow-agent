@@ -62,3 +62,17 @@ class ObjectStoragePort(Protocol):
         context: AuthorizationContext,
         stored_object: StoredObject,
     ) -> None: ...
+
+    async def exists(
+        self,
+        context: AuthorizationContext,
+        stored_object: StoredObject,
+    ) -> bool: ...
+
+    async def list_prefix(
+        self,
+        context: AuthorizationContext,
+        *,
+        tenant_id: str,
+        prefix: str,
+    ) -> tuple[str, ...]: ...

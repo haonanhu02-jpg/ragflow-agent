@@ -18,7 +18,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 - 上游固定 commit：`cd846cc9d4e32a19e684c59a1f302601027ef976`。
 - 分析范围：Python。
 - 当前批准直接复制的源文件：无。
-- 当前项目状态：Phase 04 已完成最小 RAG，但 RAGFlow 直接复用和改造复用代码仍为零；现有实现均为独立代码。
+- 当前项目状态：Phase 04 至 Phase 07 已完成最小 RAG、Parser/Chunk、在线检索和文档生命周期；RAGFlow 直接复用和改造复用代码仍为零，现有实现均为独立代码。
 - 能力分类以[能力矩阵](./02-ragflow-capability-matrix.md)为准。
 - 每个候选的源码符号和调用关系以[源码证据地图](./research/ragflow-source-map.md)为证据入口；仅有同名文件不构成可复用结论。
 
@@ -231,12 +231,21 @@ tests:
 - **证据**：[Phase 06 执行记录](./phases/phase-06-online-retrieval.md)、
   [Phase 06 评测](./research/phase-06-retrieval-evaluation.md)、ADR-021。
 
+### 6.5 Phase 07 实际复用审计
+
+- **直接复用/改造复用**：均为 0 个 RAGFlow 文件、类或函数。
+- **参考后自研**：只把 `document_api.update_document/parse_documents/delete_documents`、`DocumentService.run/remove_document/delete_chunk_images/clear_chunk_num_when_rerun`、`TaskService.cancel_all_task_of/has_canceled`、Redis pending/requeue、`task_executor.handle_task` 和 `Dealer._prune_deleted_chunks` 作为职责、失败顺序和反例证据。
+- **独立实现**：版本、Outbox、候选索引/alias、CAS 激活、删除/恢复/回收、重试/死信、进度/取消、批量和 reconciliation 均位于本项目 `knowledge`/`worker` 模块。
+- **许可证结果**：Phase 07 未形成 RAGFlow 派生源码；O-004 继续按“首次复制/修改前重开审查”闭环，ADR-022 记录本阶段边界。
+- **证据**：[Phase 07 执行记录](./phases/phase-07-document-lifecycle.md)、[生命周期设计](./09-document-lifecycle.md)、ADR-022。
+
 ## 7. 与能力和阶段的关系
 
 - Phase 00：完成源码、依赖和许可证登记，不做抽取实验，不合入业务实现。
 - Phase 04：已完成；只参考最小 RAG 闭环所需的 Parser/Chunk/检索行为，未引入 RAGFlow 源码。
 - Phase 05：已完成；研究 DeepDOC、OCR、多格式和场景化 Chunk Method，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
 - Phase 06：已完成；研究 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
+- Phase 07：已完成；研究更新/重解析/删除/任务取消与 ACK 缺口，版本、一致性和可靠任务能力全部独立实现。
 - Phase 08：只参考 Agent Retrieval Tool 和 Agentic RAG，不引入 Canvas。
 - Phase 09：处理 GraphRAG、RAPTOR 和多模态。
 

@@ -9,6 +9,9 @@ from ragflow_agent.knowledge.ports.repositories import (
     IngestionJobRepository,
     IngestionTaskRepository,
     KnowledgeBaseRepository,
+    LifecycleBatchRepository,
+    LifecycleOperationRepository,
+    LifecycleOutboxRepository,
 )
 
 
@@ -30,6 +33,15 @@ class KnowledgeUnitOfWork(Protocol):
 
     @property
     def ingestion_tasks(self) -> IngestionTaskRepository: ...
+
+    @property
+    def lifecycle_operations(self) -> LifecycleOperationRepository: ...
+
+    @property
+    def lifecycle_outbox(self) -> LifecycleOutboxRepository: ...
+
+    @property
+    def lifecycle_batches(self) -> LifecycleBatchRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

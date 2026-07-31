@@ -9,6 +9,7 @@ from pydantic import Field, field_validator, model_validator
 
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
 from ragflow_agent.knowledge.domain.errors import KnowledgeConflictError
+from ragflow_agent.knowledge.domain.lifecycle import FailureClass
 
 INGESTION_SCHEMA_VERSION = 1
 
@@ -61,6 +62,7 @@ class IngestionError(KnowledgeModel):
     code: NonEmptyStr
     message: NonEmptyStr
     retryable: bool
+    classification: FailureClass = FailureClass.UNKNOWN
 
 
 class IngestionJob(KnowledgeModel):
@@ -75,6 +77,7 @@ class IngestionJob(KnowledgeModel):
     requested_by: NonEmptyStr
     idempotency_key: NonEmptyStr
     trace_id: NonEmptyStr
+    operation_id: str | None = None
     status: IngestionStatus = IngestionStatus.PENDING
     progress: float = Field(default=0, ge=0, le=1)
     error: IngestionError | None = None

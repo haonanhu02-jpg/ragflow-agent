@@ -368,6 +368,16 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 9. Worker 必须比较消息 tenant 与数据库 Job tenant；不一致时拒绝、审计且不执行。
 10. API 和 Worker 对任务 envelope 使用同一版本化 Schema 和契约测试。
 
+Phase 07 补充强制规则：
+
+11. PostgreSQL 是文档、版本和生命周期操作的权威状态；消息或搜索结果不得反向覆盖该状态。
+12. 数据库业务状态与待投递事件必须在同一事务写入 Outbox；跨 PostgreSQL、对象存储和搜索引擎禁止伪装成原子事务。
+13. 新版本只在候选索引验证通过、alias 切换成功且文档 revision CAS 成功后成为 current；陈旧 fencing token 必须拒绝。
+14. 删除先撤销可见性并留下墓碑，再按保留期幂等回收；查询返回前必须再次验证权威文档/版本状态。
+15. retry 默认只接受显式 transient/concurrency 错误；未知代码错误不得自动无限重试，最终失败必须进入可查询 dead-letter 状态。
+16. reconciliation 默认 tenant-scoped、有限批量且 dry-run；只有可证明安全的孤儿允许自动修复。
+17. 项目业务表由 Alembic 管理；LangGraph Checkpoint 内部表仍只由官方 `AsyncPostgresSaver.setup()` 管理，两者不得混用迁移所有权。
+
 ## 16. 日志、指标与 Trace
 
 每条结构化日志至少包含可用字段：

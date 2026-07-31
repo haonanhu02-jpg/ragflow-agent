@@ -146,6 +146,46 @@ class S3ObjectStorage:
             Key=stored_object.object_key,
         )
 
+    async def exists(
+        self,
+        context: AuthorizationContext,
+        stored_object: StoredObject,
+    ) -> bool:
+        self._require_tenant(context, stored_object.tenant_id)
+        try:
+            await asyncio.to_thread(
+                self._client.head_object,
+                Bucket=self._bucket,
+                Key=stored_object.object_key,
+            )
+        except ClientError as error:
+            code = str(error.response.get("Error", {}).get("Code", ""))
+            if code in {"404", "NoSuchKey", "NotFound"}:
+                return False
+            raise
+        return True
+
+    async def list_prefix(
+        self,
+        context: AuthorizationContext,
+        *,
+        tenant_id: str,
+        prefix: str,
+    ) -> tuple[str, ...]:
+        self._require_tenant(context, tenant_id)
+        tenant_prefix = f"tenants/{tenant_id}/"
+        if not prefix.startswith(tenant_prefix):
+            raise KnowledgeAuthorizationError(reason_code="tenant_mismatch")
+
+        def list_keys() -> tuple[str, ...]:
+            paginator = self._client.get_paginator("list_objects_v2")
+            keys: list[str] = []
+            for page in paginator.paginate(Bucket=self._bucket, Prefix=prefix):
+                keys.extend(str(item["Key"]) for item in page.get("Contents", ()))
+            return tuple(sorted(keys))
+
+        return await asyncio.to_thread(list_keys)
+
     @staticmethod
     def _require_tenant(context: AuthorizationContext, tenant_id: str) -> None:
         if context.tenant_id != tenant_id:

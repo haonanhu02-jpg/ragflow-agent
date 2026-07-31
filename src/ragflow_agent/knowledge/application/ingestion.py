@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.document import (
@@ -26,12 +27,18 @@ from ragflow_agent.knowledge.domain.ingestion import (
     retry_ingestion_task,
     transition_ingestion,
 )
+from ragflow_agent.knowledge.domain.lifecycle import (
+    LifecycleError,
+    require_not_cancelled,
+    update_progress,
+)
 from ragflow_agent.knowledge.domain.retrieval import (
     EmbeddingMetadata,
     IndexRecord,
     IndexVersion,
     IndexVersionStatus,
 )
+from ragflow_agent.knowledge.domain.retry import RetryPolicy, classify_failure, may_retry
 from ragflow_agent.knowledge.ports.chunking import ChunkerPort, ChunkingRequest
 from ragflow_agent.knowledge.ports.embedding import EmbeddingInput, EmbeddingPort, EmbeddingRequest
 from ragflow_agent.knowledge.ports.parsing import ParseRequest, ParserPort
@@ -42,6 +49,16 @@ from ragflow_agent.shared.ports.time import Clock
 
 class RetryableIngestionError(RuntimeError):
     """Tell the transport that persisted stage state allows another delivery."""
+
+
+class LifecycleActivationPort(Protocol):
+    async def complete_ingestion(
+        self,
+        context: AuthorizationContext,
+        *,
+        operation_id: str,
+        index_version_id: str,
+    ) -> object: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +85,7 @@ class IngestionPipeline:
         clock: Clock,
         profile: IngestionProfile,
         max_attempts: int,
+        lifecycle_activation: LifecycleActivationPort | None = None,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._parser = parser
@@ -77,6 +95,8 @@ class IngestionPipeline:
         self._clock = clock
         self._profile = profile
         self._max_attempts = max_attempts
+        self._lifecycle_activation = lifecycle_activation
+        self._retry_policy = RetryPolicy(max_attempts=max_attempts)
 
     async def handle(
         self,
@@ -109,6 +129,8 @@ class IngestionPipeline:
                 )
                 await self._save_version(version)
 
+            await self._require_lifecycle_active(job)
+
             parse_task = self._task(tasks, IngestionStage.PARSE)
             parse_task = await self._start_task(parse_task)
             parsed = await self._parser.parse(
@@ -125,6 +147,7 @@ class IngestionPipeline:
             await self._succeed_task(parse_task)
             job = await self._progress(job, 0.25)
 
+            await self._require_lifecycle_active(job)
             chunk_task = await self._start_task(self._task(tasks, IngestionStage.CHUNK))
             chunks = await self._chunker.chunk(
                 context,
@@ -144,6 +167,7 @@ class IngestionPipeline:
             await self._succeed_task(chunk_task)
             job = await self._progress(job, 0.5)
 
+            await self._require_lifecycle_active(job)
             embed_task = await self._start_task(self._task(tasks, IngestionStage.EMBED))
             embedded = await self._embedding.embed(
                 context,
@@ -165,11 +189,13 @@ class IngestionPipeline:
             await self._succeed_task(embed_task)
             job = await self._progress(job, 0.75)
 
+            await self._require_lifecycle_active(job)
             index_task = await self._start_task(self._task(tasks, IngestionStage.INDEX))
             index_version = IndexVersion(
                 id=f"idx_{job.document_version_id}",
                 tenant_id=job.tenant_id,
                 knowledge_base_id=job.knowledge_base_id,
+                document_id=job.document_id,
                 embedding=EmbeddingMetadata(
                     model_id=embedded.model_id,
                     dimensions=embedded.dimensions,
@@ -197,7 +223,6 @@ class IngestionPipeline:
                 for chunk in chunks
             )
             await self._search.upsert(context, index_version, records)
-            await self._search.activate(context, index_version)
             await self._succeed_task(index_task)
 
             version = transition_document_version(
@@ -205,11 +230,27 @@ class IngestionPipeline:
                 DocumentVersionStatus.READY,
                 changed_at=self._clock.now(),
             )
-            document = activate_document_version(
-                document,
-                version,
-                changed_at=self._clock.now(),
-            )
+            version = version.model_copy(update={"index_version_id": index_version.id})
+            if job.operation_id is not None:
+                if self._lifecycle_activation is None:
+                    raise KnowledgeConflictError(
+                        "lifecycle publisher is not configured",
+                        error_code="lifecycle_publisher_missing",
+                    )
+                await self._save_version(version)
+                await self._require_lifecycle_active(job)
+                await self._lifecycle_activation.complete_ingestion(
+                    context,
+                    operation_id=job.operation_id,
+                    index_version_id=index_version.id,
+                )
+            else:
+                await self._search.activate(context, index_version)
+                document = activate_document_version(
+                    document,
+                    version,
+                    changed_at=self._clock.now(),
+                )
             job = transition_ingestion(
                 job,
                 IngestionStatus.SUCCEEDED,
@@ -217,14 +258,16 @@ class IngestionPipeline:
                 changed_at=self._clock.now(),
             )
             async with self._unit_of_work_factory() as unit_of_work:
-                await unit_of_work.document_versions.save(
-                    tenant_id=job.tenant_id,
-                    entity=version,
-                )
-                await unit_of_work.documents.save(
-                    tenant_id=job.tenant_id,
-                    entity=document,
-                )
+                if job.operation_id is None:
+                    await unit_of_work.document_versions.save(
+                        tenant_id=job.tenant_id,
+                        entity=version,
+                    )
+                if job.operation_id is None:
+                    await unit_of_work.documents.save(
+                        tenant_id=job.tenant_id,
+                        entity=document,
+                    )
                 await unit_of_work.ingestion_jobs.save(
                     tenant_id=job.tenant_id,
                     entity=job,
@@ -238,7 +281,8 @@ class IngestionPipeline:
                 delivery_attempt=delivery_attempt,
                 error=error,
             )
-            if delivery_attempt < self._max_attempts:
+            decision = classify_failure(error)
+            if may_retry(decision, attempt=delivery_attempt, policy=self._retry_policy):
                 raise RetryableIngestionError(str(error)) from error
             raise
 
@@ -325,7 +369,29 @@ class IngestionPipeline:
     async def _progress(self, job: IngestionJob, progress: float) -> IngestionJob:
         updated = job.model_copy(update={"progress": progress, "updated_at": self._clock.now()})
         await self._save_job(updated)
+        if job.operation_id is not None:
+            async with self._unit_of_work_factory() as unit_of_work:
+                operation = await unit_of_work.lifecycle_operations.get(
+                    tenant_id=job.tenant_id, resource_id=job.operation_id
+                )
+                if operation is not None:
+                    await unit_of_work.lifecycle_operations.save(
+                        tenant_id=job.tenant_id,
+                        entity=update_progress(operation, progress, changed_at=self._clock.now()),
+                    )
+                    await unit_of_work.commit()
         return updated
+
+    async def _require_lifecycle_active(self, job: IngestionJob) -> None:
+        if job.operation_id is None:
+            return
+        async with self._unit_of_work_factory() as unit_of_work:
+            operation = await unit_of_work.lifecycle_operations.get(
+                tenant_id=job.tenant_id, resource_id=job.operation_id
+            )
+        if operation is None:
+            raise KnowledgeNotFoundError("lifecycle_operation", job.operation_id)
+        require_not_cancelled(operation)
 
     async def _record_failure(
         self,
@@ -340,11 +406,17 @@ class IngestionPipeline:
             (task for task in tasks if task.status is IngestionStatus.RUNNING),
             None,
         )
-        retryable = delivery_attempt < self._max_attempts
+        decision = classify_failure(error)
+        retryable = may_retry(
+            decision,
+            attempt=delivery_attempt,
+            policy=self._retry_policy,
+        )
         failure = IngestionError(
             code=getattr(error, "error_code", "ingestion_stage_failed"),
             message=str(error) or type(error).__name__,
             retryable=retryable,
+            classification=decision.classification,
         )
         if running is not None:
             failed_task = transition_ingestion(
@@ -380,6 +452,35 @@ class IngestionPipeline:
                         entity=failed_version,
                     )
                     await unit_of_work.commit()
+            if job.operation_id is not None:
+                async with self._unit_of_work_factory() as unit_of_work:
+                    operation = await unit_of_work.lifecycle_operations.get(
+                        tenant_id=envelope.tenant_id,
+                        resource_id=job.operation_id,
+                    )
+                    if operation is not None:
+                        lifecycle_error = LifecycleError(
+                            classification=decision.classification,
+                            code=failure.code,
+                            message=failure.message,
+                            retryable=False,
+                        )
+                        target_status = (
+                            "cancelled" if failure.code == "lifecycle_cancelled" else "dead_letter"
+                        )
+                        failed_operation = operation.model_copy(
+                            update={
+                                "status": target_status,
+                                "attempts": delivery_attempt,
+                                "error": None if target_status == "cancelled" else lifecycle_error,
+                                "updated_at": self._clock.now(),
+                            }
+                        )
+                        await unit_of_work.lifecycle_operations.save(
+                            tenant_id=envelope.tenant_id,
+                            entity=failed_operation,
+                        )
+                        await unit_of_work.commit()
 
     async def _tasks(self, tenant_id: str, job_id: str) -> tuple[IngestionTask, ...]:
         async with self._unit_of_work_factory() as unit_of_work:

@@ -10,14 +10,18 @@ from ragflow_agent.knowledge.domain.authorization import (
     Visibility,
 )
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
-from ragflow_agent.knowledge.domain.document import Document, DocumentVersion
+from ragflow_agent.knowledge.domain.document import Document, DocumentStatus, DocumentVersion
 from ragflow_agent.knowledge.domain.errors import (
     KnowledgeAuthorizationError,
     KnowledgeConflictError,
     KnowledgeNotFoundError,
 )
 from ragflow_agent.knowledge.domain.knowledge_base import KnowledgeBase
-from ragflow_agent.knowledge.domain.retrieval import RetrievalQuery, RetrievalResult
+from ragflow_agent.knowledge.domain.retrieval import (
+    RetrievalEmptyReason,
+    RetrievalQuery,
+    RetrievalResult,
+)
 from ragflow_agent.knowledge.ports.permission import PermissionChecker
 from ragflow_agent.knowledge.ports.search import RetrieverPort
 from ragflow_agent.knowledge.ports.trace import (
@@ -276,4 +280,31 @@ class KnowledgeQueryService:
                 error_code="retrieval_authorization_trace_missing",
                 trace_id=context.request_id,
             )
-        return result
+        if not result.candidates:
+            return result
+        authoritative = []
+        async with self._unit_of_work_factory() as unit_of_work:
+            for candidate in result.candidates:
+                document = await unit_of_work.documents.get(
+                    tenant_id=context.tenant_id,
+                    resource_id=candidate.document_id,
+                )
+                if (
+                    document is None
+                    or document.status is not DocumentStatus.ACTIVE
+                    or document.current_version_id != candidate.document_version_id
+                    or document.knowledge_base_id != candidate.knowledge_base_id
+                ):
+                    continue
+                self._permission_checker.require(
+                    context,
+                    document.authorization,
+                    PermissionAction.READ,
+                )
+                authoritative.append(candidate)
+        return result.model_copy(
+            update={
+                "candidates": tuple(authoritative),
+                "empty_reason": None if authoritative else RetrievalEmptyReason.NO_EVIDENCE,
+            }
+        )
