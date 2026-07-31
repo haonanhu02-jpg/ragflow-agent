@@ -10,7 +10,7 @@ scope: RAGFlow Python
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [目标项目生命周期](./09-document-lifecycle.md)
+[项目总纲](./00-project-master.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [目标项目生命周期](./09-document-lifecycle.md) · [目标项目Agentic RAG](./10-agentic-rag.md)
 
 ## 1. 目的与证据边界
 
@@ -536,5 +536,12 @@ Knowledgebase 存在 `permission=me|team`，API 和 Service 具有 Tenant/User �
   内容最小化、tenant 隔离、TTL 可清理 Trace；该能力不得反向表述为 RAGFlow 已具备。
 - 实际代码和验证见[Phase 06 执行记录](./phases/phase-06-online-retrieval.md)与
   [Phase 06 评测](./research/phase-06-retrieval-evaluation.md)。
+
+### 10.2 Phase 08 采用结果（目标项目事实，不是 RAGFlow 上游事实）
+
+- 目标项目没有复制、抽取或改写 RAGFlow Agent/Canvas 源码，只把 Retrieval Tool、Agentic 图和人工输入作为能力与行为依据。
+- 目标项目在已有 LangGraph Runtime 和 `KnowledgeQueryService` 上独立实现直接 RAG、KB Tool、Evidence、Tool Registry、SQL/API 安全、HITL、Memory、Budget 与 Trace。
+- RAGFlow 冻结基线的 Agentic 图未配置 Checkpointer，也不提供本项目的服务端 Tool Policy、长期记忆治理和多维预算；这些差异仍须保持，不得反向写成 RAGFlow 上游事实。
+- 实际代码、调用链和验证见[Phase 08 执行记录](./phases/phase-08-agentic-rag.md)与[Agentic RAG运行时](./10-agentic-rag.md)。
 
 详细采用分类见[代码复用策略](./04-code-reuse-strategy.md)，目标落点见[目标架构](./03-target-architecture.md)。

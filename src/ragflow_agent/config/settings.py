@@ -177,6 +177,57 @@ class LifecycleSettings(FrozenSettingsModel):
         return self
 
 
+class AgenticRagSettings(FrozenSettingsModel):
+    """Server-enforced Phase 08 Agentic RAG policy profile."""
+
+    max_agent_iterations: int = Field(default=8, ge=1, le=64)
+    max_model_calls: int = Field(default=6, ge=1, le=64)
+    max_retrieval_rounds: int = Field(default=3, ge=1, le=8)
+    max_tool_attempts: int = Field(default=10, ge=1, le=100)
+    max_total_tokens: int = Field(default=50_000, ge=1, le=2_000_000)
+    max_generated_tokens: int = Field(default=8_000, ge=1, le=200_000)
+    finalization_token_reserve: int = Field(default=1_500, ge=0, le=100_000)
+    max_active_runtime_seconds: float = Field(default=120, gt=0, le=3_600)
+    model_timeout_seconds: float = Field(default=45, gt=0, le=600)
+    tool_timeout_seconds: float = Field(default=15, gt=0, le=300)
+    max_known_cost_usd: float = Field(default=0.50, ge=0, le=1_000)
+    model_input_cost_per_million_tokens_usd: float | None = Field(
+        default=None, ge=0, le=100_000
+    )
+    model_output_cost_per_million_tokens_usd: float | None = Field(
+        default=None, ge=0, le=100_000
+    )
+    approval_ttl_minutes: int = Field(default=30, ge=1, le=1_440)
+    memory_ttl_days: int = Field(default=90, ge=1, le=365)
+    memory_cleanup_hours: int = Field(default=24, ge=1, le=168)
+    sql_max_rows: int = Field(default=200, ge=1, le=10_000)
+    sql_timeout_seconds: float = Field(default=5, gt=0, le=120)
+    api_connect_timeout_seconds: float = Field(default=5, gt=0, le=60)
+    api_read_timeout_seconds: float = Field(default=15, gt=0, le=300)
+    api_max_response_bytes: int = Field(default=1_000_000, ge=1, le=20_000_000)
+    evidence_min_score: float = Field(default=0.0, ge=0)
+    sql_database_url: SecretStr | None = None
+
+    @field_validator("sql_database_url", mode="before")
+    @classmethod
+    def blank_sql_database_url_is_unconfigured(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @model_validator(mode="after")
+    def budget_and_retention_are_consistent(self) -> Self:
+        if self.finalization_token_reserve > self.max_total_tokens:
+            raise ValueError("finalization token reserve cannot exceed total token budget")
+        if self.memory_cleanup_hours > 24:
+            raise ValueError("memory cleanup must complete within 24 hours")
+        if (self.model_input_cost_per_million_tokens_usd is None) != (
+            self.model_output_cost_per_million_tokens_usd is None
+        ):
+            raise ValueError("model input and output rates must be configured together")
+        return self
+
+
 class IngestionSettings(FrozenSettingsModel):
     """Bounded upload, parser, OCR, chunk, and index profile."""
 
@@ -247,6 +298,7 @@ class AppSettings(BaseSettings):
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     retrieval_trace: RetrievalTraceSettings = Field(default_factory=RetrievalTraceSettings)
     lifecycle: LifecycleSettings = Field(default_factory=LifecycleSettings)
+    agentic_rag: AgenticRagSettings = Field(default_factory=AgenticRagSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     def redacted_dict(self) -> dict[str, object]:

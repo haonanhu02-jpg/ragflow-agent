@@ -37,6 +37,7 @@ dependencies = [
     "python-pptx>=1.0,<2",
     "redis>=5.2,<6",
     "sqlalchemy[asyncio]>=2.0.41,<3",
+    "sqlglot>=27,<30",
     "uvicorn>=0.35,<1",
 ]
 

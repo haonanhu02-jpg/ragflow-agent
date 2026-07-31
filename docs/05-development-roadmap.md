@@ -2,9 +2,9 @@
 document_id: DEVELOPMENT-ROADMAP
 document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
-document_version: "0.7.0"
+document_version: "0.8.0"
 last_updated_at: "2026-07-31"
-current_phase: Phase 07 completed; Phase 08 review gate
+current_phase: Phase 08 completed; Phase 09 review gate
 roadmap_range: Phase 00-10
 ---
 
@@ -12,7 +12,7 @@ roadmap_range: Phase 00-10
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [阶段状态索引](./phases/README.md) · [Phase 00](./phases/phase-00-research-and-baseline.md) · [Phase 01](./phases/phase-01-project-skeleton.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [Agentic RAG](./10-agentic-rag.md) · [阶段状态索引](./phases/README.md)
 
 ## 0. 当前事实与证据边界
 
@@ -25,9 +25,9 @@ roadmap_range: Phase 00-10
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00 至 Phase 07 已完成；Phase 08 至 Phase 10 未执行。Phase 07 在 Phase 05/06 基线上完成不可变版本、候选索引/alias、CAS 激活、删除/恢复/回收、Outbox、重试/死信、取消、批量和 reconciliation；真实 DeepSeek/BGE-M3/BGE Reranker、生产跨租户调度告警和长时混沌仍不是已完成能力。
+- **[事实]** Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 未执行。Phase 08 在 Phase 02/06 基线上完成直接 RAG/Tool RAG、规划/有限多轮检索、Evidence Policy、SQL/API Tool、持久化 HITL、长期记忆治理、预算和 Agent Trace；真实 DeepSeek/BGE-M3/BGE Reranker、生产 SQL/API/高风险写操作仍不是已验证能力。
 
-Phase 00 至 Phase 07 已按详细计划执行并通过验收；Phase 08 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 08 已按详细计划执行并通过验收；Phase 09 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
 
 ### 0.2 本次路线图校正
 
@@ -100,7 +100,7 @@ flowchart LR
 | Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 已确认 | 已完成 |
 | Phase 06 | 在线检索 | Phase 04、Phase 05 | `CAP-11` 至 `CAP-22` | 已确认 | 已完成 |
 | Phase 07 | 文档生命周期 | Phase 05、Phase 06 | `CAP-24`、`CAP-25`、`CAP-26`、`CAP-38`可靠化 | 已确认 | 已完成 |
-| Phase 08 | Agentic RAG | Phase 02、Phase 06 | `CAP-28`、`CAP-29` Agentic 扩展、`CAP-31`完整、`CAP-32`；SQL/API Tool 与记忆 | 预规划草案 | 未执行 |
+| Phase 08 | Agentic RAG | Phase 02、Phase 06 | `CAP-28`、`CAP-29` Agentic 扩展、`CAP-31`完整；`CAP-32`完成启用评估并暂缓；SQL/API Tool 与记忆 | 已确认 | 已完成 |
 | Phase 09 | 高级RAG | Phase 05、Phase 06、Phase 08 | `CAP-05`、`CAP-06`、`CAP-07`高级部分、`CAP-33`、`CAP-34`、`CAP-35`、`CAP-43` | 预规划草案 | 未执行 |
 | Phase 10 | 评测与生产化 | Phase 07、Phase 08、Phase 09 | `CAP-39`、`CAP-40`完整、`CAP-42`；安全与权限生产门禁 | 预规划草案 | 未执行 |
 
@@ -523,7 +523,7 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 
 ### 工作范围与明确排除
 
-- **主要范围**：正式 `KnowledgeBaseTool`；Agent 直接检索接口；查询规划与分解；多次检索；证据/结果检查；Tool 选择；受控 SQL Tool；allowlisted API Tool；完整 HITL；短期/长期记忆；循环次数、Token、时间和费用预算；结构化错误；可选 supervisor/worker 多 Agent；恢复与 Trace。
+- **主要范围**：正式 `KnowledgeBaseTool`；Agent 直接检索接口；查询规划与分解；多次检索；证据/结果检查；Tool 选择；受控 SQL Tool；allowlisted API Tool；完整 HITL；短期/长期记忆；循环次数、Token、时间和费用预算；结构化错误；supervisor/worker 多 Agent 启用评估；恢复与 Trace。
 - **不包含**：复制 Canvas；Agent 直接访问搜索后端；默认启用多 Agent；GraphRAG/RAPTOR 构建；让固定 RAG 强制经过 Agent。
 
 ### 主要交付物
@@ -552,10 +552,10 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 ### 验收、后续与状态
 
 - **验收标准**：Tool 与固定 RAG 在同配置下候选可对比；Agent 不能绕过权限或查询服务；规划/分解、多检索、结果检查、SQL/API、HITL、记忆、循环/预算/终止/恢复均有测试；多 Agent 仅在评测证明必要时启用。
-- **下一阶段进入条件**：高级检索接口和 Agent Tool 稳定；Phase 09 详细计划已确认。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 02 和 Phase 06 实际结果复审。
-- **已知风险**：循环失控；Prompt 注入导致 Tool 越权；多 Agent 复杂度无收益；Checkpoint 恢复权限漂移；成本不可控。
-- **待确认技术决策**：多 Agent 首批场景；Tool 审批策略；证据充分性阈值；预算和最大循环；短期/长期记忆后端与保留策略；首批 SQL/API Tool 白名单。
+- **下一阶段进入条件**：代码依赖已满足；Phase 09 执行前仍须复审正式计划，并解决 O-009、O-011、数据集/资源和索引兼容门禁。
+- **当前状态**：已完成；P08-T01 至 P08-T13 均通过。确定性评测 28/28，完整隔离四后端测试 286 passed/1 个既有 Tesseract 条件 skip。
+- **已知风险**：真实模型效果与费用未验证；生产 SQL/API catalog、账号和网络隔离未接入；外部副作用的崩溃窗口仍要求 Tool 自身提供幂等合同；多 Agent 暂缓。
+- **技术决策结果**：ADR-023 的八项策略均已实现；P08-T12 证明首批场景无需多 Agent，CAP-32 默认关闭并暂缓，只有出现可量化的单 Agent 缺口才重评。
 
 ## 12. Phase 09：高级RAG
 
@@ -690,9 +690,10 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 05：已确认并完成；P05-T01 至 P05-T12、八格式/九策略、真实后端和 CI 阶段验收通过。
 - Phase 06：已确认并完成；P06-T01 至 P06-T12、真实 Elasticsearch/PostgreSQL、评测和阶段验收通过。
 - Phase 07：已确认并完成；P07-T01 至 P07-T11、真实四后端、迁移和故障门禁通过。
-- Phase 08 至 Phase 10：详细计划为“预规划草案/未执行”。
-- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、离线 ingestion、八格式 Parser、九种 Chunk Method、完整在线双路检索/RRF/Reranker 回退/安全降级、固定 RAG、持久 Retrieval Trace，以及不可变版本、Outbox、CAS 发布、删除/恢复/回收、索引 generation、对账和批次生命周期；Agentic RAG、高级 RAG 和生产化尚未实现。
-- 下一步是依据 Phase 02、Phase 06 和 Phase 07 的实际契约复审 Phase 08；不得自动执行。
+- Phase 08：已确认并完成；P08-T01 至 P08-T13、两条 RAG 路径、Tool/SQL/API/HITL/Memory/Budget、持久恢复和 28 场景评测门禁通过；多 Agent 暂缓。
+- Phase 09 至 Phase 10：详细计划为“预规划草案/未执行”。
+- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、离线 ingestion、八格式 Parser、九种 Chunk Method、完整在线检索与固定 RAG、版本化生命周期，以及 Agentic RAG 的直接/Tool 双路径、Evidence、受控 Tool、HITL、长期记忆、预算和 Trace；高级 RAG、真实模型效果验证和生产化尚未实现。
+- 下一步是依据 Phase 05、Phase 06 和 Phase 08 的实际契约复审 Phase 09 并解决 O-009/O-011；不得自动执行。
 
 ### 15.2 Phase 00 一致性债务处理
 

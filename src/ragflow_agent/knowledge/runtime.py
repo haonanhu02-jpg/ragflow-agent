@@ -118,7 +118,11 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
     storage = S3ObjectStorage(settings.object_store)
     queue = ArqIngestionQueue(settings.queue)
     embedding = build_embedding_adapter(settings.models)
-    chat_provider = build_chat_provider(settings.models)
+    chat_provider = build_chat_provider(
+        settings.models,
+        timeout_seconds=settings.agentic_rag.model_timeout_seconds,
+        max_completion_tokens=settings.agentic_rag.max_generated_tokens,
+    )
     reranker = build_reranker(settings.models)
     search = ElasticsearchSearchAdapter(
         settings.search,

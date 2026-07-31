@@ -9,7 +9,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [Agentic RAG](./10-agentic-rag.md)
 
 ## 1. 复用目标与约束
 
@@ -74,7 +74,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 | `common/metadata_utils.py` | `apply_meta_data_filter`、`_run_metadata_filter` | LLM 生成、文档 metadata、RAGFlow 条件结构 | 高 | Apache-2.0 | 参考重写 | 建立严格 Filter AST 和 allowlist；禁止直接执行模型输出 | `src/ragflow_agent/retrieval/filters.py` |
 | `agent/tools/retrieval.py` | `RetrievalParam`、`Retrieval._retrieve_kb` | Canvas、KnowledgebaseService、DocMetadataService、LLMBundle、settings、MemoryService、Prompt | 极高 | Apache-2.0 | 参考重写 | 保留 Tool 参数和共享 Retriever 思路；用 LangChain Tool 调 KnowledgeQueryService | `src/ragflow_agent/agent/tools/knowledge_base.py` |
 | `agent/canvas.py` | `Graph`、`Canvas.run`、`Canvas._run_impl` | Component system、FileService、LLMBundle、TaskService、Redis、TTS、Langfuse | 极高 | 若复制仍须 Apache-2.0；当前不复制 | 参考重写 | 只提取事件、取消和引用需求；用 LangGraph 重建 | `src/ragflow_agent/agent/graph/` |
-| `rag/advanced_rag/agentic_rag_graph.py` | `AgenticState`、`build_agentic_graph`、`run_agentic_rag` | LangGraph、RAGTools、harness、Prompt、Token queue | 高 | Apache-2.0 | 参考重写 | 参考问题规范化、路由、预检索、规划和证据充分性；增加 Checkpoint/HITL | `src/ragflow_agent/agent/graph/agentic_rag.py` |
+| `rag/advanced_rag/agentic_rag_graph.py` | `AgenticState`、`build_agentic_graph`、`run_agentic_rag` | LangGraph、RAGTools、harness、Prompt、Token queue | 高 | Apache-2.0 | 参考重写 | 参考问题规范化、路由、预检索、规划和证据充分性；增加 Checkpoint/HITL | `src/ragflow_agent/agent/graphs/agentic_rag.py` |
 | `rag/advanced_rag/agentic_rag.py` | `RAGTools` | Dialog/KB/model Service、Dealer、Web/structured retrieval、Prompt | 极高 | Apache-2.0 | 参考重写 | 将每项能力变为应用服务或 LangChain Tool；不保留 Service 导入 | `src/ragflow_agent/agent/tools/` |
 | `rag/graphrag/general/index.py`、`rag/graphrag/checkpoints.py`、`rag/graphrag/phase_markers.py` | `run_graphrag_for_kb`、`generate_subgraph`、`merge_subgraph`、`resolve_entities`、`extract_community`、checkpoint/marker 函数 | DocumentService、TaskService、settings、DocStore、Redis lock/checkpoint、NetworkX、LLM、Embedding | 极高 | Apache-2.0；graspologic/networkx/模型单独审计 | 改造复用 | 保留算法阶段和恢复语义；替换 Service、lock、checkpoint、DocStore 和字段，并绑定 DocumentVersion | `src/ragflow_agent/advanced_rag/graphrag/` |
 | `rag/graphrag/search.py` | `KGSearch` | Dealer、settings、DocStore、Prompt、pandas | 极高 | Apache-2.0 | 改造复用 | 从 Dealer 继承改为 AdvancedRetrieverPort 实现 | `src/ragflow_agent/advanced_rag/graphrag/retriever.py` |
@@ -239,6 +239,14 @@ tests:
 - **许可证结果**：Phase 07 未形成 RAGFlow 派生源码；O-004 继续按“首次复制/修改前重开审查”闭环，ADR-022 记录本阶段边界。
 - **证据**：[Phase 07 执行记录](./phases/phase-07-document-lifecycle.md)、[生命周期设计](./09-document-lifecycle.md)、ADR-022。
 
+### 6.6 Phase 08 实际复用审计
+
+- **直接复用/改造复用**：均为 0 个 RAGFlow 文件、类或函数；没有创建 Phase 08 `ragflow_adapters`。
+- **参考后自研**：只把 `Retrieval._retrieve_kb`、`RAGTools`、`AgenticState/build_agentic_graph` 和 Canvas user-input 行为作为 Tool 能力、节点与人工输入用例证据。
+- **独立实现**：直接 RAG/KB Tool 共享 Gateway、LangGraph Agentic 图、Tool Registry、SQL/API 安全、HITL、Memory、Evidence、Budget、Agent Trace 和评测均位于本项目 `agent` 模块。
+- **许可证结果**：Phase 08 未形成 RAGFlow 派生源码；首次复制或修改上游源码前仍须重开 O-004，登记精确来源、许可证、NOTICE 和隔离方案。
+- **证据**：[Phase 08 执行记录](./phases/phase-08-agentic-rag.md)、[Agentic RAG运行时](./10-agentic-rag.md)、ADR-023。
+
 ## 7. 与能力和阶段的关系
 
 - Phase 00：完成源码、依赖和许可证登记，不做抽取实验，不合入业务实现。
@@ -246,7 +254,7 @@ tests:
 - Phase 05：已完成；研究 DeepDOC、OCR、多格式和场景化 Chunk Method，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
 - Phase 06：已完成；研究 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
 - Phase 07：已完成；研究更新/重解析/删除/任务取消与 ACK 缺口，版本、一致性和可靠任务能力全部独立实现。
-- Phase 08：只参考 Agent Retrieval Tool 和 Agentic RAG，不引入 Canvas。
+- Phase 08：已完成；只参考 Agent Retrieval Tool、Agentic RAG 和 Canvas 人工输入用例，未引入 Canvas 或任何 RAGFlow 源码。
 - Phase 09：处理 GraphRAG、RAPTOR 和多模态。
 
 阶段依赖和验收门禁见[开发路线图](./05-development-roadmap.md)。

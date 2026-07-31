@@ -9,11 +9,11 @@ architecture_status: partially_implemented
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md) · [文档生命周期](./09-document-lifecycle.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md) · [文档生命周期](./09-document-lifecycle.md) · [Agentic RAG](./10-agentic-rag.md)
 
 ## 1. 架构状态
 
-- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约，Phase 04 已实现 PostgreSQL/S3/Redis/Elasticsearch 最小 ingestion 与固定 RAG 垂直切片，Phase 05/06/07 已分别完成 Parser/Chunk、在线检索和文档生命周期。
+- **[事实]** Phase 01 已实现工程骨架，Phase 02 已实现 LangGraph Agent Runtime，Phase 03 已实现知识领域/Ports/权限/统一查询契约，Phase 04 已实现 PostgreSQL/S3/Redis/Elasticsearch 最小 ingestion 与固定 RAG 垂直切片，Phase 05/06/07 已分别完成 Parser/Chunk、在线检索和文档生命周期，Phase 08 已完成受治理 Agentic RAG。
 - **[决策]** 目标项目独立运行，不以 RAGFlow API 或 RAGFlow 服务为运行时依赖。
 - **[决策]** Agent 使用 LangChain + LangGraph。
 - **[决策]** 第一版是模块化单体：FastAPI 与独立 Ingestion Worker 同仓库、共享领域模型和基础设施端口、通过任务队列连接，不拆微服务。
@@ -148,7 +148,7 @@ flowchart TB
 - LangChain Tool
 - LangChain Chat Model 和结构化输出
 
-**[事实]** Phase 02 已在 `src/ragflow_agent/agent/` 实现上述基础边界：AgentState/Event v1、最小 StateGraph、模型/Tool 端口与 LangChain Adapter、PostgreSQL Checkpointer、Trace 和错误治理。`AgentRunService` 的 FastAPI 业务入口、知识库 Tool 和完整授权服务仍属后续规划。
+**[事实]** Phase 02 已在 `src/ragflow_agent/agent/` 建立 AgentState/Event v1、最小 StateGraph、模型/Tool 端口、PostgreSQL Checkpointer、Trace 和错误治理；Phase 08 已在同一运行时增加 Agentic API、KnowledgeBaseTool、直接 RAG Gateway、Tool Registry、SQL/API 安全、HITL、Memory、Evidence 和 Budget，没有建立平行 Agent 或检索核心。
 
 核心边界：
 
@@ -437,7 +437,7 @@ RetrievalResult → ToolMessage → LangGraph → 继续检索/其他 Tool/HITL/
 
 ## 9. Agent 链路设计
 
-Phase 02 当前已实现 `normalize_input → decide → execute_tool → observe → decide/finish` 的确定性基础图，以及 run/resume、技术上限和 Agent Trace。下列状态/节点清单是完整目标；`plan`、检索 Trace/Citation、HITL、记忆、业务预算、多 Agent 和知识库 Tool 尚未实现。
+Phase 02 的基础图在 Phase 08 被扩展为正式 Agentic RAG 图：简单问题直接进入固定 RAG，复杂问题执行结构化计划和受控 Tool；检索 Trace/Citation、HITL、长期记忆、证据判断与业务预算均已实现。多 Agent 仍默认关闭且暂缓，没有被描述成已实现能力。
 
 建议基础状态：
 
@@ -470,7 +470,7 @@ error
 9. `validate_answer`
 10. `finish`
 
-其中 `normalize_input`、模型决策、`execute_tool`、`observe` 和 `finish` 已有 Phase 02 最小实现；Planner、知识检索路由、`request_human`、答案证据校验和多 Agent 仍是规划。Phase 08 再完成 HITL、预算、记忆、Agentic RAG 和多 Agent。
+实际 Phase 08 图将路由、直接 RAG、Tool 执行、审批中断、证据评价和终止保持在 `src/ragflow_agent/agent/graphs/agentic_rag.py`；Planner、Policy、Memory、Budget 与 HITL 是独立 application service。运行状态和接口细节见[`10-agentic-rag.md`](./10-agentic-rag.md)。多 Agent 只有在后续基线证明单 Agent 无法满足且存在可量化收益时才重新评审。
 
 ## 10. 高级 RAG 接入
 

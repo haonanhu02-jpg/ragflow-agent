@@ -1,6 +1,7 @@
 """Typed application configuration."""
 
 from ragflow_agent.config.settings import (
+    AgenticRagSettings,
     ApiSettings,
     AppSettings,
     DatabaseSettings,
@@ -16,6 +17,7 @@ from ragflow_agent.config.settings import (
 )
 
 __all__ = [
+    "AgenticRagSettings",
     "ApiSettings",
     "AppSettings",
     "DatabaseSettings",

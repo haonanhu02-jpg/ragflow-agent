@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from ragflow_agent.api.middleware import TraceContextMiddleware
+from ragflow_agent.api.routes.agentic import build_agentic_router
 from ragflow_agent.api.routes.health import build_health_router
 from ragflow_agent.api.routes.knowledge import build_knowledge_router
 from ragflow_agent.api.security import DevelopmentIdentityMiddleware
@@ -22,6 +23,7 @@ from ragflow_agent.observability import current_trace_context
 from ragflow_agent.shared import AppError
 
 if TYPE_CHECKING:
+    from ragflow_agent.agent.runtime import AgenticRuntimeBundle
     from ragflow_agent.knowledge.runtime import MinimumRagRuntime
 
 type ReadinessProbe = Callable[[AsyncEngine], Awaitable[bool]]
@@ -42,6 +44,8 @@ def create_app(
     *,
     readiness_probe: ReadinessProbe = database_readiness_probe,
     minimum_rag_runtime: MinimumRagRuntime | None = None,
+    enable_agentic_runtime: bool = False,
+    agentic_runtime_bundle: AgenticRuntimeBundle | None = None,
 ) -> FastAPI:
     """Create an application without import-time resources or side effects."""
 
@@ -54,16 +58,22 @@ def create_app(
         )
         app.state.database_engine = engine
         app.state.settings = settings
-        if minimum_rag_runtime is not None:
-            app.state.minimum_rag_runtime = minimum_rag_runtime
-            await minimum_rag_runtime.open()
-        try:
-            yield
-        finally:
+        async with AsyncExitStack() as stack:
             if minimum_rag_runtime is not None:
-                await minimum_rag_runtime.close()
+                app.state.minimum_rag_runtime = minimum_rag_runtime
+                await minimum_rag_runtime.open()
+                stack.push_async_callback(minimum_rag_runtime.close)
+                if agentic_runtime_bundle is not None:
+                    app.state.agentic_runtime_bundle = agentic_runtime_bundle
+                elif enable_agentic_runtime:
+                    from ragflow_agent.agent.runtime import open_agentic_runtime
+
+                    app.state.agentic_runtime_bundle = await stack.enter_async_context(
+                        open_agentic_runtime(settings, minimum_rag_runtime)
+                    )
             else:
-                await engine.dispose()
+                stack.push_async_callback(engine.dispose)
+            yield
 
     app = FastAPI(
         title="ragflow-agent",
@@ -81,6 +91,8 @@ def create_app(
     app.include_router(build_health_router(readiness_probe))
     if minimum_rag_runtime is not None:
         app.include_router(build_knowledge_router())
+        if enable_agentic_runtime or agentic_runtime_bundle is not None:
+            app.include_router(build_agentic_router())
 
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, error: AppError) -> JSONResponse:

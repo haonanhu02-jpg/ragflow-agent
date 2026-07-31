@@ -7,15 +7,21 @@ from typing import Any, cast
 
 from arq import Retry, create_pool
 from arq.connections import RedisSettings
+from arq.cron import cron
 from arq.typing import StartupShutdown, WorkerCoroutine
 from arq.worker import Worker
 
+from ragflow_agent.agent.application.memory import LongTermMemoryService
+from ragflow_agent.agent.infrastructure.database import SqlAlchemyMemoryRepository
 from ragflow_agent.config import AppSettings
+from ragflow_agent.infrastructure.database import create_session_factory
 from ragflow_agent.knowledge.application.ingestion import RetryableIngestionError
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.ingestion import IngestionEnvelope
 from ragflow_agent.knowledge.infrastructure.queue import arq_deserialize, arq_serialize
 from ragflow_agent.knowledge.runtime import MinimumRagRuntime, build_minimum_rag_runtime
+from ragflow_agent.shared.ports.identity import Uuid4Generator
+from ragflow_agent.shared.ports.time import SystemClock
 
 
 async def process_ingestion(context: dict[Any, Any], envelope_json: str) -> str:
@@ -68,6 +74,21 @@ async def reconcile_lifecycle(context: dict[Any, Any], tenant_id: str, request_i
     return len(report.findings)
 
 
+async def cleanup_agent_memories(context: dict[Any, Any]) -> int:
+    """Physically delete expired governed memories on a bounded six-hour schedule."""
+    runtime = context.get("minimum_rag_runtime")
+    settings = context.get("settings")
+    if not isinstance(runtime, MinimumRagRuntime) or not isinstance(settings, AppSettings):
+        raise RuntimeError("ARQ worker runtime is not initialized")
+    service = LongTermMemoryService(
+        repository=SqlAlchemyMemoryRepository(create_session_factory(runtime.engine)),
+        id_generator=Uuid4Generator(),
+        clock=SystemClock(),
+        ttl_days=settings.agentic_rag.memory_ttl_days,
+    )
+    return await service.cleanup_expired()
+
+
 async def run_arq_ingestion_worker(
     settings: AppSettings,
     *,
@@ -85,9 +106,11 @@ async def run_arq_ingestion_worker(
     async def startup(context: dict[Any, Any]) -> None:
         await runtime.open(open_queue=False)
         context["minimum_rag_runtime"] = runtime
+        context["settings"] = settings
 
     async def shutdown(context: dict[Any, Any]) -> None:
         context.pop("minimum_rag_runtime", None)
+        context.pop("settings", None)
         await runtime.close()
 
     worker = Worker(
@@ -95,6 +118,17 @@ async def run_arq_ingestion_worker(
             cast(WorkerCoroutine, process_ingestion),
             cast(WorkerCoroutine, dispatch_lifecycle_outbox),
             cast(WorkerCoroutine, reconcile_lifecycle),
+            cast(WorkerCoroutine, cleanup_agent_memories),
+        ],
+        cron_jobs=[
+            cron(
+                cast(WorkerCoroutine, cleanup_agent_memories),
+                name="cleanup_agent_memories",
+                hour={0, 6, 12, 18},
+                minute=0,
+                unique=True,
+                max_tries=1,
+            )
         ],
         queue_name=settings.queue.queue_name,
         redis_pool=redis_pool,

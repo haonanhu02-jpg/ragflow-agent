@@ -21,6 +21,8 @@ class ChatGenerationResult(KnowledgeModel):
 
     model_id: NonEmptyStr
     content: NonEmptyStr
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 @runtime_checkable

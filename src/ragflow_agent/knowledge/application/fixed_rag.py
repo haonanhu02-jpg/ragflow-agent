@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from pydantic import Field
 
 from ragflow_agent.knowledge.application.knowledge_service import KnowledgeQueryService
@@ -48,6 +50,8 @@ class FixedRagAnswer(KnowledgeModel):
     retrieval_trace: RetrievalTrace = Field(exclude=True)
     prompt_version: NonEmptyStr
     model_id: str | None = None
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
 
 
 class FixedRagService:
@@ -68,7 +72,12 @@ class FixedRagService:
         self._id_generator = id_generator
         self._max_context_characters = max_context_characters
 
-    async def answer(self, request: FixedRagRequest) -> FixedRagAnswer:
+    async def answer(
+        self,
+        request: FixedRagRequest,
+        *,
+        before_model_call: Callable[[], None] | None = None,
+    ) -> FixedRagAnswer:
         retrieval = await self._query_service.retrieve(
             request.context,
             RetrievalQuery(
@@ -106,6 +115,8 @@ class FixedRagService:
             selected.append((candidate, marker))
             consumed += len(marker)
         context_text = "".join(marker for _, marker in selected)
+        if before_model_call is not None:
+            before_model_call()
         generated = await self._chat_provider.generate(
             request.context,
             ChatGenerationRequest(
@@ -126,4 +137,6 @@ class FixedRagService:
             retrieval_trace=retrieval.trace,
             prompt_version=FIXED_RAG_PROMPT_VERSION,
             model_id=generated.model_id,
+            input_tokens=generated.input_tokens,
+            output_tokens=generated.output_tokens,
         )

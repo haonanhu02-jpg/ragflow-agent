@@ -16,6 +16,7 @@ from ragflow_agent.agent.domain.state import (
 )
 
 CHECKPOINT_NAMESPACE = "ragflow-agent:agent-state:v1"
+AGENTIC_CHECKPOINT_NAMESPACE = "ragflow-agent:agentic-rag:v1"
 
 
 class TenantScopedCheckpointStore:
@@ -65,6 +66,17 @@ def _storage_thread_id(identity: AgentRunIdentity) -> str:
     tenant_id = quote(identity.authorization.tenant_id, safe="")
     thread_id = quote(identity.thread_id, safe="")
     return f"{CHECKPOINT_NAMESPACE}/tenant/{tenant_id}/thread/{thread_id}"
+
+
+def agentic_checkpoint_config(*, tenant_id: str, thread_id: str) -> RunnableConfig:
+    """Create a physically isolated tenant/thread key for Agentic RAG state."""
+    tenant = quote(tenant_id, safe="")
+    thread = quote(thread_id, safe="")
+    return {
+        "configurable": {
+            "thread_id": f"{AGENTIC_CHECKPOINT_NAMESPACE}/tenant/{tenant}/thread/{thread}"
+        }
+    }
 
 
 def _validate_owner(expected: AgentRunIdentity, state: AgentState) -> None:

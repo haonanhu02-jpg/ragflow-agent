@@ -9,11 +9,11 @@ applies_to: D:/download/ragflow-agent
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [决策与风险](./07-decisions-and-risks.md) · [领域契约](./08-domain-model-and-contracts.md) · [Agentic RAG](./10-agentic-rag.md)
 
 ## 1. 适用范围
 
-本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目仍没有业务功能代码；P01-T02 已在 `pyproject.toml` 落地 Python 包、依赖锁定和基础质量工具，后续任务继续按本文件实施工程底座。
+本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目已完成 Phase 01 至 Phase 08 的工程、RAG、生命周期和 Agentic RAG 能力；Phase 09/10 仍是规划，后续实现继续受本文件约束。
 
 冲突处理：
 
@@ -329,15 +329,24 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 2. 每个节点只有清晰输入、输出和副作用。
 3. 副作用节点必须可幂等恢复。
 4. Checkpoint 物理 key 至少包含 state version、tenant 和 thread；持久状态内同时验证 run，恢复令牌不得改变 tenant/thread/run。
-5. Phase 02 的技术递归、重试和超时上限必须有限且不可绕过；最大业务循环、Tool 调用、Token/成本预算在 Phase 08 实现。
+5. 技术递归、重试、业务循环、模型/检索/Tool 次数、Token、主动运行时间和费用预算必须由服务端限制且不可由模型提高；HITL 恢复沿用原剩余预算。
 6. HITL interrupt 保存审批原因、待执行动作和上下文摘要。
 7. 恢复时验证状态版本和权限。
 8. Tool 返回结构化结果和稳定错误。
-9. 多 Agent 必须有 supervisor、终止条件和共享状态边界。
+9. 多 Agent 默认关闭；启用前必须证明相对单 Agent 的可量化收益，并定义 supervisor、终止条件、权限传播、共享状态和预算边界。
 10. Agent 不得绕过 KnowledgeQueryService。
 11. 官方 PostgreSQL Checkpointer 内部表由其 `setup()` 管理，项目 Alembic 不手工接管；业务 AgentThread/AgentRun 表必须与内部表分离。
 12. 内存 Saver 只用于快速测试，不得作为进程重启或持久恢复的验收证据。
 13. Agent Trace sink 失败必须显式标记降级，事件 payload 不得保存密钥、认证头、原始文档全文或 Tool 凭据。
+14. Tool 必须显式注册名称/版本、输入输出 Schema、副作用、风险、租户/角色/业务范围、超时/重试/返回量、幂等、HITL 和脱敏规则；未知 Tool 默认拒绝。
+15. Tool 每次执行和 HITL 恢复后都必须重新执行服务端鉴权、风险、审批和预算检查；模型不能修改这些策略。
+16. SQL Tool 必须使用 AST 或等效可靠解析，只允许单条只读语句、参数化输入、对象 allowlist 和服务端 tenant 条件；API Tool 只能访问已登记 base URL/path/method 且禁止重定向和动态凭据。
+17. 证据充分性由服务端 Policy 最终裁决；LLM 不能把空结果、依赖故障、部分证据或冲突证据改写为确定性结论。
+18. 重要事实必须能映射到 Citation；多轮检索不得放宽 tenant、ACL、知识库范围、活动版本和文档状态硬条件。
+19. Checkpoint、Retrieval/Agent Trace 和长期记忆必须分离；长期记忆默认关闭，写入要求显式同意、tenant+user 双重隔离、最小内容、TTL、查看/撤回/删除和真实清理任务。
+20. Tool/SQL/API/Memory 内容均是不可信数据；提示注入不得改变系统 Prompt、Tool Policy、权限、审批或预算。
+21. 批准必须与 tenant、用户、Tool 名称/版本、参数摘要和 TTL 绑定；CAS 与幂等键防止重复副作用，批准不等于已经执行。
+22. Fake/Stub Agent 评测与真实模型、真实 SQL/API 集成必须分开报告；未运行真实 Provider 时不得报告真实效果。
 
 ## 15. 后台任务标准
 

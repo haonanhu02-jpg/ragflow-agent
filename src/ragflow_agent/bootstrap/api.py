@@ -34,6 +34,7 @@ def check_bootstrap() -> None:
     app = create_app(
         settings,
         minimum_rag_runtime=build_minimum_rag_runtime(settings),
+        enable_agentic_runtime=True,
     )
     paths = set(app.openapi()["paths"])
     required = {
@@ -43,6 +44,9 @@ def check_bootstrap() -> None:
         "/v1/knowledge-bases/{knowledge_base_id}/documents",
         "/v1/ingestion-jobs/{job_id}",
         "/v1/rag/query",
+        "/v1/agentic-rag/runs",
+        "/v1/agentic-rag/runs/{run_id}/resume",
+        "/v1/agentic-rag/memory",
     }
     if not required.issubset(paths):
         raise RuntimeError(f"API bootstrap is missing routes: {sorted(required - paths)}")
@@ -65,7 +69,7 @@ def main() -> None:
     settings = load_settings()
     runtime = build_minimum_rag_runtime(settings)
     uvicorn.run(
-        create_app(settings, minimum_rag_runtime=runtime),
+        create_app(settings, minimum_rag_runtime=runtime, enable_agentic_runtime=True),
         host=settings.api.host,
         port=settings.api.port,
         log_level=settings.observability.log_level.lower(),

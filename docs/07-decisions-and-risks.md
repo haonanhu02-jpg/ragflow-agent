@@ -9,7 +9,7 @@ adr_mode: registry
 
 ## 文档导航
 
-[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [领域契约](./08-domain-model-and-contracts.md)
+[项目总纲](./00-project-master.md) · [RAGFlow 架构](./01-ragflow-architecture.md) · [能力矩阵](./02-ragflow-capability-matrix.md) · [目标架构](./03-target-architecture.md) · [代码复用策略](./04-code-reuse-strategy.md) · [开发路线图](./05-development-roadmap.md) · [工程标准](./06-engineering-standards.md) · [领域契约](./08-domain-model-and-contracts.md) · [Agentic RAG](./10-agentic-rag.md)
 
 ## 1. ADR 规则
 
@@ -608,6 +608,45 @@ PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFl
 
 [生命周期专项文档](./09-document-lifecycle.md)；[Phase 07 执行记录](./phases/phase-07-document-lifecycle.md)
 
+### ADR-023：Phase 08 Agentic RAG 安全、证据、HITL、记忆与预算基线
+
+- **Status**：Accepted; implemented in Phase 08
+- **Date**：2026-07-31
+
+**Context**
+
+Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口和有限技术重试；Phase 06 已提供唯一 `KnowledgeQueryService`、Citation 与 Retrieval Trace。Phase 08 需要把直接 RAG、知识库 Tool、多步检索、SQL/API、HITL、记忆和运行预算接入同一安全边界。模型输出、Tool 内容和外部数据均不可信，不能决定权限、风险等级、审批或预算。
+
+**Decision**
+
+1. 首批场景固定为：简单问题直接 RAG；Agent 主动使用知识库 Tool；最多三轮的多步骤检索；知识库与只读 SQL/API 联合回答；`sufficient|partial_evidence|no_evidence|conflicting_evidence`；Fake 高风险 Tool 的 HITL；模型/检索/Tool/Checkpoint 故障安全失败或有限重试。直接 RAG 和 Tool RAG 必须分别测试。
+2. Tool 采用默认拒绝、显式注册、执行及恢复前重新鉴权。Registry 固定名称/版本、输入输出 Schema、只读/副作用、风险、tenant/role/scope、超时/重试/返回量、幂等、HITL 和脱敏元数据。Shell、动态代码、文件系统、任意 URL、未登记 Tool、SQL 写入/DDL/多语句和密钥访问禁止。
+3. SQL 只接受 AST 验证的单条 `SELECT`/只读 CTE，使用独立只读凭据、参数化、Schema/表/列 allowlist、服务端 tenant 条件、默认 5 秒/200 行限制。API 只调用登记的 base URL/path/method，禁止重定向/动态域名，服务端注入凭据和身份，验证请求响应并限制时延/大小。凭据不得进入 Prompt、State、Checkpoint、Memory、Trace 或日志。
+4. HITL 状态固定为 `approval_required|approved|rejected|expired|cancelled|executing|succeeded|failed`，请求绑定 run/thread/tool call、Tool 版本、参数摘要、tenant/user、角色、原因、TTL 和幂等键；默认 TTL 30 分钟。模型不能批准；恢复重新检查权限、策略、参数、资源、预算和 TTL；原子 claim 与幂等结果阻止重复副作用。
+5. Checkpoint、Trace 和长期记忆分离。长期记忆默认关闭，只保存用户明确同意的最小稳定信息，记录 consent，默认 TTL 90 天，tenant+user 双重隔离；支持查看、撤回、删除和 24 小时内可执行清理，不保存全文、Chunk、Tool 原响应、隐含偏好、凭据或高敏感数据，也不写回知识索引。
+6. `EvidenceSufficiencyPolicy` 是服务端最终裁决者；检查授权/活动版本、Phase 06 阈值、关键子问题覆盖、冲突、Citation、SQL/API 范围和提示注入。关键子问题覆盖率为 100%，最多初次加两次补检；不得放宽硬过滤，证据不足或冲突时必须保守终止。
+7. 默认单运行预算为：8 次 Agent iteration、6 次模型调用、3 轮检索、10 次 Tool 尝试、50,000 总 Token、8,000 生成 Token、1,500 finalization reserve、120 秒 active runtime、模型 45 秒、Tool 15 秒、已知费用 0.50 USD。HITL 等待不计 active runtime但 TTL 继续；恢复不重置消耗；模型不能提高限额。
+8. 使用无敏感信息、可提交、确定性且机器可读的评测集。安全绕过必须 100% 通过且关键违规为零；总体通过率和 Tool 选择合法率至少 90%，no/partial 判断至少 95%，重要事实 Citation 覆盖至少 95%，有证据回答 groundedness 目标至少 90%。Fake 与真实模型报告严格分开。
+
+**Consequences**
+
+- LangGraph 继续作为唯一 Agent 编排；知识 Tool 和直接 RAG 都只调用现有 `KnowledgeQueryService`。
+- Phase 08 为审批、长期记忆、运行/Trace 索引建立 Alembic 业务表；官方 LangGraph Checkpoint 表继续由 `AsyncPostgresSaver.setup()` 管理。
+- SQL AST 采用独立依赖 `sqlglot>=27,<30`，基础设施执行仍经内部 Port；API/Secret 同样只经 Port。
+- 多 Agent 默认关闭；P08-T12 只有可重复评测证明收益时才启用，否则记录暂缓结论。
+- Phase 08 不复制、抽取或改写 RAGFlow 源码，不实现前端、GraphRAG、RAPTOR、生产写 Tool 或真实凭据集成。
+
+**Verification**
+
+- Unit 覆盖 State、Tool policy、Evidence、Budget、Memory、SQL/API；Contract/E2E 覆盖 LangGraph 两条路径、Registry、HITL、越权、注入、审批、预算和故障。
+- 确定性评测 28/28，通过率、Tool 合法率、no/partial 准确率、Citation 覆盖和 groundedness 均为 100%，关键安全违规 0；这些指标只代表 `deterministic_fake`。
+- 真实 PostgreSQL 验证审批/运行/记忆 Repository、租户隔离、CAS、清理、官方 Checkpoint 跨运行时恢复和只读 SQL Adapter；完整隔离四后端套件 286 passed、1 个既有 Tesseract 条件 skip。
+- Alembic `20260731_0005 -> 0004 -> 0005` 往返、Ruff、strict mypy、API/Worker bootstrap 和锁文件检查通过。
+
+**References**
+
+[`phase-08-agentic-rag.md`](./phases/phase-08-agentic-rag.md)；[Agentic RAG运行时](./10-agentic-rag.md)；[目标架构](./03-target-architecture.md)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
@@ -737,7 +776,7 @@ PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFl
 | R-006 | 搜索后端分数和过滤语义不一致 | 高 | 高 | 相同数据不同排序/过滤结果 | O-002、SearchPort 契约、RRF、原始排名/分数 Trace、真实 ES 固定评测 | Phase 04/06/10 | Monitoring |
 | R-007 | Embedding 变化使旧索引不可用 | 中 | 高 | 模型/维度更新 | 记录模型和维度；generation staging/验证/alias 切换；旧索引保留 | Phase 07/10 | Monitoring |
 | R-008 | Citation 指向错误版本、页码或删除内容 | 中 | 严重 | quote 不存在、引用旧版或越权文档 | document_version_id；返回前 PostgreSQL active/current-version 验证；删除立即不可见 | Phase 04/06/07/10 | Monitoring |
-| R-009 | Agent 循环失控、成本过高或不可恢复 | 高 | 高 | 循环增长、重复 Tool、Checkpoint 失败 | 上限、预算、超时、Checkpoint、取消、Trace | Phase 02/08 | Open |
+| R-009 | Agent 循环失控、成本过高或不可恢复 | 高 | 高 | 循环增长、重复 Tool、Checkpoint 失败 | ADR-023；服务端多维预算、重复调用保护、持久 Checkpoint、恢复不重置和 Trace | Phase 02/08/10 | Monitoring |
 | R-010 | 权限过滤遗漏导致数据泄露 | 中 | 严重 | 越权检索或 Citation | ADR-012/021；Repository/Search 强制 tenant/ACL/状态/范围；所有降级负向测试 | Phase 03/06/08/10 | Monitoring |
 | R-011 | GraphRAG/RAPTOR 增加复杂度但无质量收益 | 高 | 高 | 成本上升、指标不升 | 默认关闭；Phase 10 对照评测 | Phase 09/10 | Open |
 | R-012 | RAGFlow/第三方许可证或模型再分发不清楚 | 中 | 严重 | 缺许可证、权重限制、样本来源不明 | provenance、依赖清单、人工法律复核 | 所有复用阶段 | Open |
@@ -754,7 +793,7 @@ PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFl
 | R-023 | 预生成的后续阶段计划与上一阶段实际产物漂移 | 高 | 高 | 计划引用的接口、文件或决策已变化 | ADR-013；每阶段入口重新审查；未审查不得执行 | Phase 01–10 | Open |
 | R-024 | 时序 RAG 范围和后端未定义导致 Phase 09 失控 | 高 | 高 | 同时引入新存储、算法和数据模型且无基线 | ADR-014；O-011；默认关闭；独立数据集和实验门禁 | Phase 09/10 | Open |
 | R-025 | 官方 PostgreSQL Checkpointer 升级导致内部 schema 或恢复语义漂移 | 中 | 高 | 依赖升级后 setup、恢复、list/delete 或并发测试失败 | 锁定依赖；不手改上游表；真实 PostgreSQL 迁移/恢复回归；升级前审查 release notes | Phase 02 持续/Phase 10 | Monitoring |
-| R-026 | Agent 最小授权快照与知识 AuthorizationContext 映射漂移 | 中 | 高 | Tool Adapter 错把 `user_id` 当 tenant、恢复后跳过权限重验或字段改名破坏 Checkpoint | AgentState v1 不破坏；显式 `user_id → actor_id` Adapter；tenant/thread/run 与 PermissionChecker 双重验证；跨租户 Tool 契约测试 | Phase 08 | Open |
+| R-026 | Agent 最小授权快照与知识 AuthorizationContext 映射漂移 | 中 | 高 | Tool Adapter 错把 `user_id` 当 tenant、恢复后跳过权限重验或字段改名破坏 Checkpoint | AgentState v1 不破坏；显式 `user_id → actor_id` Adapter；tenant/thread/run 与 PermissionChecker 双重验证；跨租户 Tool 契约测试 | Phase 08/10 | Monitoring |
 | R-027 | 数据库提交与对象存储、搜索、Queue、Trace 非原子导致部分成功 | 高 | 高 | 写入已提交但事件/索引/Trace 失败，重试产生重复或状态漂移 | ADR-022；Outbox、候选索引、CAS、补偿、残留扫描和故障注入 | Phase 04/07/10 | Monitoring |
 | R-028 | ARQ maintenance-only 导致未来 Python/Redis 兼容或安全修复不足 | 中 | 高 | 新 Python/Redis 无法运行、关键缺陷长期无修复 | 锁定 0.28；只用最小接口；QueuePort 隔离；真实 Redis 回归；必要时替换 Adapter | Phase 04/10 | Monitoring |
 | R-029 | Elasticsearch Client/Server 版本或 KNN 语义漂移 | 中 | 高 | mapping、查询参数、分数或过滤在升级后变化 | 锁定 8.19 系列；真实 BM25/KNN/混合/tenant 契约测试；DSL 限于 Adapter | Phase 04/06/10 | Monitoring |
@@ -763,6 +802,10 @@ PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFl
 | R-032 | Reranker 模型、端点或分数语义漂移 | 高 | 高 | 排名突变、超时、身份集合变化、GPU 不可用 | 内部 Port、超时、候选身份校验、RRF 回退、Fake 契约；真实模型回归后置 | Phase 06/10 | Monitoring |
 | R-033 | 生命周期维护任务没有跨 tenant 生产调度与告警闭环 | 中 | 高 | 到期 Outbox、delete_pending 或 stale operation 积压 | Worker 暴露 tenant-scoped 调度函数；reconciler bounded/dry-run；Phase 10 接入调度、指标和告警 | Phase 07/10 | Open |
 | R-034 | 长时间并发、Worker kill 或网络分区暴露单机故障注入未覆盖的竞态 | 中 | 严重 | fencing 冲突增长、alias/DB 长期不收敛、DLQ 积压 | CAS/fencing、实际状态对账、隔离真实后端测试；Phase 10 增加长时间混沌和容量门禁 | Phase 07/10 | Open |
+| R-035 | 确定性 Fake Agent 评测高估真实模型的 Tool 选择、证据判断或成本表现 | 高 | 高 | 切换真实 DeepSeek/BGE/Reranker 后指标下降或预算估算失真 | Fake/真实报告分离；Phase 10 版本化真实模型集、阈值和费用回归 | Phase 08/10 | Open |
+| R-036 | 生产 SQL/API catalog、只读账号、网络出口和凭据轮换尚未验证 | 中 | 严重 | allowlist 配错、数据越权、SSRF 或凭据泄漏 | 默认不注册；独立只读账号、固定网络目标、Secret Provider、上线前隔离集成/渗透测试 | Phase 08/10 | Open |
+| R-037 | 高风险外部副作用在执行成功但结果持久化前崩溃，仍可能被重试 | 低 | 严重 | Tool 端已生效但 Agent 未记录 succeeded | Tool 必须接受幂等键并提供结果查询/幂等合同；生产写 Tool 在 Phase 10 前保持禁用 | Phase 08/10 | Open |
+| R-038 | 长期记忆物理清理调度或积压没有生产 SLO | 中 | 高 | 撤回记录超过 24 小时仍物理存在 | 查询立即屏蔽；Worker 清理可执行；Phase 10 增加跨 tenant 调度、积压指标、告警和故障演练 | Phase 08/10 | Open |
 
 ## 5. 风险处理规则
 
@@ -903,4 +946,17 @@ PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFl
 - **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `221 passed, 1 skipped`，唯一 skip 为本机没有 Tesseract；真实生命周期 E2E `1 passed`，前序真实后端回归 `11 passed`；Alembic `0003 -> 0004 -> 0003 -> 0004`、ruff、strict mypy、锁文件、bootstrap、Compose 和密钥门禁通过。实现提交 `71f15d5` 已推送到 `origin/main`，对应 [GitHub Actions 运行 `30634884467`](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30634884467) 成功。
 - **决策与合规**：RAGFlow 直接复用和改造复用仍为零；`document_api`、`DocumentService`、`TaskService`、Redis pending/ACK 和 `_prune_deleted_chunks` 仅作行为/反例证据。
 - **计划偏差**：Outbox 立即投递由 API best-effort 触发，Worker 同时暴露 tenant-scoped dispatch/reconcile 函数；生产级跨 tenant 周期调度和告警后置 Phase 10。真实模型仍未验证。
-- **下一门禁**：Phase 08 的代码依赖已满足，但详细计划仍为预规划草案；必须按 Phase 02 Agent Runtime、Phase 06 查询协议和 Phase 07 权威状态重新复审 Tool、预算、HITL、记忆、SQL/API 安全范围后才可执行。
+- **当时的下一门禁**：Phase 07 出口时，Phase 08 的代码依赖已满足但计划仍待复审；该门禁随后已由用户批准和 ADR-023 关闭，实际结果见第 15 节。
+
+## 15. Phase 08 出口审查记录
+
+### 2026-07-31 / P08-T13
+
+- **结论**：P08-T01 至 P08-T13 已完成并通过本地阶段验收；不自动进入 Phase 09。
+- **准入与实现决策**：ADR-023 冻结并实施直接/Tool RAG、默认拒绝 Tool Registry、SQL/API 安全、八态 HITL、显式同意长期记忆、服务端 Evidence、九维预算和确定性评测八项策略。
+- **实现边界**：已实现 Agentic API/Runtime、两条 RAG 路径、结构化规划与最多三轮检索、Evidence Policy、受控 SQL/API、持久化审批/Checkpoint、长期记忆 TTL 清理、Agent/Retrieval Trace 关联和机器评测；未接入真实 DeepSeek/BGE-M3/BGE Reranker、生产 SQL/API、生产写 Tool或前端。
+- **验证证据**：定向 Phase 08 套件 62 passed/3 个无 PostgreSQL 配置的条件 skip，Phase 08 PostgreSQL Repository/Checkpoint/只读 SQL Adapter 专项另行 3/3 通过；完整隔离 PostgreSQL/Redis/MinIO/Elasticsearch 套件 286 passed/1 个既有 Tesseract skip；28/28 Fake 评测通过且关键安全违规 0；Ruff、strict mypy、锁文件、迁移往返和 bootstrap 通过。
+- **复用与合规**：Phase 08 没有复制、抽取或改写 RAGFlow 源码；RAGFlow Retrieval Tool、Agentic 图和 Canvas 人工输入只作为公开行为/职责依据。
+- **计划偏差**：节点保持在内聚图文件，安全/故障测试沿用现有测试层级；P08-T12 依据无额外收益的单 Agent 基线暂缓多 Agent；真实模型和生产外部系统没有被 Fake 验证冒充。
+- **新增风险**：R-035 至 R-038 分别记录真实模型评测、生产 SQL/API、外部副作用幂等和长期记忆清理 SLO 的剩余风险。
+- **下一门禁**：Phase 09 的代码依赖已满足；正式执行前仍须复审计划并解决 O-009、O-011、数据集/资源预算和高级/普通索引兼容策略。

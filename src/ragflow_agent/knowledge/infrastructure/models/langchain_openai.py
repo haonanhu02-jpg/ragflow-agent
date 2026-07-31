@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import cast
+
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -114,7 +117,13 @@ class LangChainChatProvider:
                 "chat provider returned no text",
                 error_code="chat_empty_result",
             )
-        return ChatGenerationResult(model_id=self._model_id, content=response.content.strip())
+        usage = cast(Mapping[str, int], response.usage_metadata or {})
+        return ChatGenerationResult(
+            model_id=self._model_id,
+            content=response.content.strip(),
+            input_tokens=int(usage.get("input_tokens", 0)),
+            output_tokens=int(usage.get("output_tokens", 0)),
+        )
 
 
 class UnconfiguredChatProvider:
@@ -155,6 +164,9 @@ def build_embedding_adapter(settings: ModelSettings) -> LangChainEmbeddingAdapte
 
 def build_chat_provider(
     settings: ModelSettings,
+    *,
+    timeout_seconds: float | None = None,
+    max_completion_tokens: int | None = None,
 ) -> LangChainChatProvider | UnconfiguredChatProvider:
     """Build DeepSeek when configured, otherwise an explicit unavailable adapter."""
     if settings.chat_api_key is None:
@@ -163,7 +175,8 @@ def build_chat_provider(
         model=settings.chat_model,
         base_url=settings.chat_base_url,
         api_key=settings.chat_api_key,
-        timeout=settings.request_timeout_seconds,
+        timeout=timeout_seconds or settings.request_timeout_seconds,
+        max_completion_tokens=max_completion_tokens,
         temperature=0,
     )
     return LangChainChatProvider(model, model_id=settings.chat_model)
