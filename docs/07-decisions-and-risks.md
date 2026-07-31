@@ -1,7 +1,7 @@
 ---
 document_id: DECISIONS-AND-RISKS
 status: active
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 adr_mode: registry
 ---
 
@@ -840,7 +840,9 @@ BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不�
 - **验证证据**：隔离 PostgreSQL/MinIO/Redis/Elasticsearch 全仓回归
   `203 passed, 1 skipped`，唯一 skip 为本机缺 Tesseract；真实 ES+PG 检索/Trace
   专项 `4 passed`；ruff、strict mypy、锁文件、迁移往返、bootstrap、Compose 和
-  密钥门禁通过。远程提交/CI 证据在推送闭环后补记。
+  密钥门禁通过。实现提交 `80e3d312e6dfc3b4ba0e66aa94ca01aa19109813`
+  已推送到 `origin/main`，对应 [GitHub Actions 运行 #9](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30627535052)
+  成功（2 分 22 秒）。
 - **决策与合规**：ADR-021 已实施，O-008 已关闭；RAGFlow 直接复用和改造复用均为
   零，首次复制前仍需重新许可证审查。
 - **计划偏差**：改写/翻译/扩展合并到 `transforms.py`，融合文件为 `fusion.py`；

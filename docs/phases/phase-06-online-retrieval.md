@@ -366,5 +366,7 @@ tests/{unit,contract,integration,evaluation}/retrieval/
 - **计划偏差**：`rewrite.py`、`translate.py`、`expand.py` 合并为统一
   `transforms.py`；`fuse.py` 实际命名 `fusion.py`；Citation/Context 沿用并扩展
   Phase 04 主链路；本地 Windows 真实 PG E2E 使用 Selector event loop。
-- **阶段出口结论**：P06-T01 至 P06-T12 全部完成并通过本地门禁；提交、推送和
-  GitHub Actions 证据在远程闭环后补记。Phase 07 仅具备计划复审入口，不在本阶段执行。
+- **阶段出口结论**：P06-T01 至 P06-T12 全部完成并通过本地门禁；实现提交
+  `80e3d312e6dfc3b4ba0e66aa94ca01aa19109813` 已推送到 `origin/main`，
+  [GitHub Actions 运行 #9](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30627535052)
+  成功（2 分 22 秒）。Phase 07 仅具备计划复审入口，不在本阶段执行。
