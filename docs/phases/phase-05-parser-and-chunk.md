@@ -329,7 +329,7 @@ tests/{contract,golden,integration,performance}/parsing/
 - **验收标准**：CAP-01 至 CAP-04 基础/完整范围按真实结果验收；自动增强仍未实现。
 - **风险和回滚方法**：任何高风险格式可默认关闭，但状态必须真实。
 - **实际执行结果**：生产 runtime 已接入八 Parser、Tesseract、auto Chunk 路由和九种策略；上传允许列表扩展到八类输入；新增八格式 Memory E2E 和 PostgreSQL/MinIO/Redis/Elasticsearch 真实后端 E2E。
-- **实际验证结果**：本地隔离 Compose 真实后端专项 8 项通过；完整真实基础设施环境 180 项通过、1 项真实 Tesseract 本机显式 skip；默认无外部服务环境 169 项通过、12 项显式 skip；`ruff check .`、strict `mypy src/ragflow_agent tests`、锁文件、密钥卫生、Alembic、bootstrap 和 Compose config 通过；GitHub Actions 最终结果见阶段出口记录。
+- **实际验证结果**：本地隔离 Compose 真实后端专项 8 项通过；完整真实基础设施环境 180 项通过、1 项真实 Tesseract 本机显式 skip；默认无外部服务环境 169 项通过、12 项显式 skip；`ruff check .`、strict `mypy src/ragflow_agent tests`、锁文件、密钥卫生、Alembic、bootstrap 和 Compose config 通过；实现提交 `0a4bca1` 的 [GitHub Actions](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30614252319) 成功，并真实执行 Tesseract `eng`/`chi_sim` 与 bbox 验证。
 - **计划偏差**：真实 DeepSeek/BGE-M3/GPU 仍不是 Phase 05 门禁；真实 Tesseract 由 Linux CI 覆盖，本机 Windows 未安装 Tesseract 时如实 skip。
 
 ## 8. 阶段验收、DoD、风险与后续
@@ -351,4 +351,4 @@ tests/{contract,golden,integration,performance}/parsing/
 - 实际批准复用清单：RAGFlow 直接复用 0、改造复用 0；全部目标实现为独立第三方适配或自研，详见 [Phase 05 许可与资源基线](../research/phase-05-parser-license-and-resource-baseline.md)。
 - 实际格式/策略/模型与资源结果：八类格式、Tesseract CPU OCR、9 种策略、schema v2、OOXML/PDF/图片/XLSX 门禁已落地；复杂模型版面、GPU 和真实外部 Chat/Embedding 未进入本阶段验收。
 - 实际测试命令和偏差：默认环境、隔离真实后端环境和 GitHub Actions 三层验证；本机没有 Tesseract 时只允许显式 skip，CI required；没有提交二进制测试文档。
-- 阶段出口结论：Phase 05 已完成；Phase 06 的技术准入条件已具备，但仍须先按本阶段实际 metadata、Citation 和 Elasticsearch 能力复审其预规划草案，且本轮不执行 Phase 06。
+- 阶段出口结论：Phase 05 已完成；实现提交 `0a4bca1` 已推送且 GitHub Actions run `30614252319` 成功。Phase 06 的技术前置阶段已满足，但执行准入尚需复审预规划草案并关闭 O-008、融合/Reranker 和 Trace 保留策略，本轮不执行 Phase 06。

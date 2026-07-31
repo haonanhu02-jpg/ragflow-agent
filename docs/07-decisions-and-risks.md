@@ -761,6 +761,12 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
   schema v2、bbox/Citation、九种 Chunk Method 和资源限制；未实现模型型
   多栏语义版面、GPU Vision、真实 DeepSeek/BGE-M3、Reranker 或 Phase 06
   查询处理。
+- **验证证据**：默认无外部服务环境 169 passed、12 个条件 skip；隔离
+  PostgreSQL/MinIO/Redis/Elasticsearch 环境 180 passed、仅本机缺少
+  Tesseract 的 1 项显式 skip；Parser/Chunk 专项 25 passed；提交
+  `0a4bca1` 的 [GitHub Actions](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30614252319)
+  成功，并真实执行 Tesseract `eng`/`chi_sim`、bbox、全部测试、ruff、strict
+  mypy、迁移往返、bootstrap、Compose 和密钥门禁。
 - **决策与合规**：ADR-020 已实施；RAGFlow 直接复用和改造复用均为零，
   所以没有空 `ragflow_adapters` 包，也没有 RAGFlow 派生源码分发义务。
 - **计划偏差**：二进制黄金样本在测试时生成；真实 OCR 由 Linux CI 强制，
