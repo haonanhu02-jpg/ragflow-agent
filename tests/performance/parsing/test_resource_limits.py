@@ -41,9 +41,7 @@ def test_image_pixel_limit_fails_before_ocr() -> None:
 
 
 def test_pdf_page_and_xlsx_sheet_limits_fail_closed() -> None:
-    pdf_sample = next(
-        item for item in generated_format_samples() if item.name.endswith(".pdf")
-    )
+    pdf_sample = next(item for item in generated_format_samples() if item.name.endswith(".pdf"))
     reader = PdfReader(BytesIO(pdf_sample.payload))
     writer = PdfWriter()
     writer.add_page(reader.pages[0])
@@ -66,9 +64,7 @@ def test_pdf_page_and_xlsx_sheet_limits_fail_closed() -> None:
         )
     assert pages.value.details["resource"] == "pdf_pages"
 
-    xlsx_sample = next(
-        item for item in generated_format_samples() if item.name.endswith(".xlsx")
-    )
+    xlsx_sample = next(item for item in generated_format_samples() if item.name.endswith(".xlsx"))
     xlsx_parser = next(
         item
         for item in build_default_binary_parsers(
@@ -87,9 +83,7 @@ def test_pdf_page_and_xlsx_sheet_limits_fail_closed() -> None:
 
 
 def test_parser_adapters_are_repeatable_under_bounded_concurrency() -> None:
-    sample = next(
-        item for item in generated_format_samples() if item.name.endswith(".docx")
-    )
+    sample = next(item for item in generated_format_samples() if item.name.endswith(".docx"))
     parser = next(
         item
         for item in build_default_binary_parsers(

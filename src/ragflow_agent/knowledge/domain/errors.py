@@ -68,3 +68,23 @@ class KnowledgeConflictError(KnowledgeDomainError):
             trace_id=trace_id,
             details=details,
         )
+
+
+class KnowledgeRetrievalError(KnowledgeDomainError):
+    """A retrieval dependency failed; this must never be reported as no evidence."""
+
+    def __init__(
+        self,
+        message: str = "knowledge retrieval dependency failed",
+        *,
+        error_code: str = "retrieval_dependency_failed",
+        trace_id: str | None = None,
+        details: Mapping[str, object] | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            error_code=error_code,
+            status_code=503,
+            trace_id=trace_id,
+            details=details,
+        )

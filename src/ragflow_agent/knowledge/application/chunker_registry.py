@@ -20,9 +20,7 @@ class ChunkerRegistry:
         identifiers = [self._identity(chunker)[0] for chunker in chunkers]
         if len(identifiers) != len(set(identifiers)):
             raise ValueError("chunk strategy identifiers must be unique")
-        self._chunkers = {
-            self._identity(chunker)[0]: chunker for chunker in chunkers
-        }
+        self._chunkers = {self._identity(chunker)[0]: chunker for chunker in chunkers}
 
     async def chunk(
         self,
@@ -40,10 +38,10 @@ class ChunkerRegistry:
                 details={"strategy_id": strategy_id},
             )
         chunker_id, chunker_version = self._identity(chunker)
-        if (
-            request.strategy_id != "auto"
-            and request.strategy_version not in {"auto", chunker_version}
-        ):
+        if request.strategy_id != "auto" and request.strategy_version not in {
+            "auto",
+            chunker_version,
+        }:
             raise KnowledgeConflictError(
                 "chunk strategy version is not available",
                 error_code="chunk_strategy_version_unknown",

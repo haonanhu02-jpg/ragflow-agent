@@ -16,12 +16,8 @@ from ragflow_agent.knowledge.domain.chunk import BoundingBox, CoordinateSpace
 from ragflow_agent.knowledge.ports.ocr import OcrResult, OcrWord
 from ragflow_agent.knowledge.ports.parsing import ParseRequest
 
-DOCX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
-PPTX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-)
+DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+PPTX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
@@ -208,7 +204,7 @@ def _xlsx_bytes() -> bytes:
     worksheet.title = "Alarms"
     worksheet.append(["Code", "Action", "Priority"])
     worksheet.append(["A-100", "Reset controller", 1])
-    worksheet.append(["A-200", "=CONCAT(\"Inspect\", \" relay\")", 2])
+    worksheet.append(["A-200", '=CONCAT("Inspect", " relay")', 2])
     worksheet.merge_cells("A5:B5")
     worksheet["A5"] = "Approved procedure"
     second = workbook.create_sheet("Assets")

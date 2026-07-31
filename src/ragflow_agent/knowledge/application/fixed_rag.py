@@ -9,6 +9,8 @@ from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
 from ragflow_agent.knowledge.domain.retrieval import (
     Citation,
+    MetadataFilter,
+    MetadataFilterGroup,
     RetrievalCandidate,
     RetrievalQuery,
     RetrievalTrace,
@@ -17,6 +19,7 @@ from ragflow_agent.knowledge.ports.generation import (
     ChatGenerationRequest,
     ChatProviderPort,
 )
+from ragflow_agent.shared.ports.identity import IdGenerator
 
 FIXED_RAG_PROMPT_VERSION = "fixed-rag-v1"
 NO_EVIDENCE_ANSWER = "未检索到可用于回答该问题的授权证据。"
@@ -30,6 +33,10 @@ class FixedRagRequest(KnowledgeModel):
     knowledge_base_ids: tuple[NonEmptyStr, ...] = Field(min_length=1)
     top_k: int = Field(default=20, ge=1, le=1000)
     top_n: int = Field(default=5, ge=1, le=50)
+    history: tuple[str, ...] = Field(default=(), max_length=16)
+    target_languages: tuple[NonEmptyStr, ...] = Field(default=(), max_length=4)
+    filters: tuple[MetadataFilter, ...] = ()
+    filter_expression: MetadataFilterGroup | None = None
 
 
 class FixedRagAnswer(KnowledgeModel):
@@ -37,7 +44,8 @@ class FixedRagAnswer(KnowledgeModel):
 
     answer: NonEmptyStr
     citations: tuple[Citation, ...]
-    retrieval_trace: RetrievalTrace
+    trace_id: NonEmptyStr
+    retrieval_trace: RetrievalTrace = Field(exclude=True)
     prompt_version: NonEmptyStr
     model_id: str | None = None
 
@@ -51,11 +59,13 @@ class FixedRagService:
         query_service: KnowledgeQueryService,
         chat_provider: ChatProviderPort,
         chat_model_id: str,
+        id_generator: IdGenerator | None = None,
         max_context_characters: int = 12_000,
     ) -> None:
         self._query_service = query_service
         self._chat_provider = chat_provider
         self._chat_model_id = chat_model_id
+        self._id_generator = id_generator
         self._max_context_characters = max_context_characters
 
     async def answer(self, request: FixedRagRequest) -> FixedRagAnswer:
@@ -67,13 +77,23 @@ class FixedRagService:
                 knowledge_base_ids=request.knowledge_base_ids,
                 top_k=request.top_k,
                 top_n=request.top_n,
-                trace_id=request.context.request_id,
+                history=request.history,
+                target_languages=request.target_languages,
+                filters=request.filters,
+                filter_expression=request.filter_expression,
+                trace_id=(
+                    self._id_generator.new_id()
+                    if self._id_generator is not None
+                    else request.context.request_id
+                ),
+                request_id=(request.context.request_id if self._id_generator is not None else None),
             ),
         )
         if not retrieval.candidates:
             return FixedRagAnswer(
                 answer=NO_EVIDENCE_ANSWER,
                 citations=(),
+                trace_id=retrieval.trace.trace_id,
                 retrieval_trace=retrieval.trace,
                 prompt_version=FIXED_RAG_PROMPT_VERSION,
             )
@@ -102,6 +122,7 @@ class FixedRagService:
         return FixedRagAnswer(
             answer=generated.content,
             citations=citations,
+            trace_id=retrieval.trace.trace_id,
             retrieval_trace=retrieval.trace,
             prompt_version=FIXED_RAG_PROMPT_VERSION,
             model_id=generated.model_id,

@@ -122,13 +122,13 @@ async def test_all_chunk_methods_are_deterministic_and_traceable(strategy: str) 
         [
             GeneralChunker(max_tokens=64, overlap_tokens=8),
             *(
-            ScenarioChunker(
-                strategy_id=item,
-                max_tokens=64,
-                overlap_tokens=8,
-            )
-            for item in STRATEGIES
-            if item != "general"
+                ScenarioChunker(
+                    strategy_id=item,
+                    max_tokens=64,
+                    overlap_tokens=8,
+                )
+                for item in STRATEGIES
+                if item != "general"
             ),
         ]
     )

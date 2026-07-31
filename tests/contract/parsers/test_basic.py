@@ -124,11 +124,7 @@ def _single_page_pdf(text: str) -> bytes:
         }
     )
     resources = DictionaryObject(
-        {
-            NameObject("/Font"): DictionaryObject(
-                {NameObject("/F1"): writer._add_object(font)}
-            )
-        }
+        {NameObject("/Font"): DictionaryObject({NameObject("/F1"): writer._add_object(font)})}
     )
     stream = StreamObject()
     escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")

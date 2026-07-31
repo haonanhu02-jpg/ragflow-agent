@@ -50,6 +50,23 @@ class RetrieverPort(Protocol):
     ) -> RetrievalResult: ...
 
 
+@runtime_checkable
+class SearchChannelPort(Protocol):
+    """Expose independently auditable full-text and vector retrieval channels."""
+
+    async def retrieve_full_text(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> tuple[RetrievalCandidate, ...]: ...
+
+    async def retrieve_vector(
+        self,
+        context: AuthorizationContext,
+        query: RetrievalQuery,
+    ) -> tuple[RetrievalCandidate, ...]: ...
+
+
 class RerankRequest(KnowledgeModel):
     """Provider-neutral rerank input."""
 

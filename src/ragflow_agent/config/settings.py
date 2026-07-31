@@ -86,14 +86,69 @@ class ModelSettings(FrozenSettingsModel):
     embedding_base_url: str = "http://localhost:8080/v1"
     embedding_api_key: SecretStr | None = None
     embedding_dimensions: int = Field(default=1024, ge=1, le=65_536)
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_base_url: str | None = None
+    reranker_api_key: SecretStr | None = None
     request_timeout_seconds: float = Field(default=60, gt=0, le=600)
 
-    @field_validator("chat_api_key", "embedding_api_key", mode="before")
+    @field_validator("chat_api_key", "embedding_api_key", "reranker_api_key", mode="before")
     @classmethod
     def blank_credentials_are_unconfigured(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("reranker_base_url", mode="before")
+    @classmethod
+    def blank_reranker_url_is_unconfigured(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+
+class RetrievalSettings(FrozenSettingsModel):
+    """Phase 06 online retrieval profile and bounded fallback policy."""
+
+    config_version: str = "retrieval-v2"
+    rrf_k: int = Field(default=60, ge=1, le=10_000)
+    candidate_top_k: int = Field(default=100, ge=1, le=10_000)
+    rerank_candidate_count: int = Field(default=30, ge=1, le=1_000)
+    final_top_k: int = Field(default=10, ge=1, le=1_000)
+    fusion_threshold: float = Field(default=0.0, ge=0)
+    fallback_threshold_floor: float = Field(default=0.0, ge=0)
+    max_fallback_attempts: int = Field(default=4, ge=0, le=4)
+    fallback_candidate_multiplier: int = Field(default=2, ge=1, le=10)
+    per_document_limit: int = Field(default=4, ge=1, le=100)
+    reranker_timeout_seconds: float = Field(default=5, gt=0, le=120)
+    rewrite_enabled: bool = True
+    translation_enabled: bool = True
+    keyword_expansion_enabled: bool = True
+    max_query_variants: int = Field(default=8, ge=1, le=32)
+    max_query_characters: int = Field(default=8_000, ge=1, le=100_000)
+
+    @model_validator(mode="after")
+    def candidate_windows_are_ordered(self) -> Self:
+        if self.final_top_k > self.rerank_candidate_count:
+            raise ValueError("final_top_k cannot exceed rerank_candidate_count")
+        if self.rerank_candidate_count > self.candidate_top_k:
+            raise ValueError("rerank_candidate_count cannot exceed candidate_top_k")
+        if self.fallback_threshold_floor > self.fusion_threshold:
+            raise ValueError("fallback threshold floor cannot exceed the normal threshold")
+        return self
+
+
+class RetrievalTraceSettings(FrozenSettingsModel):
+    """Content-minimized trace retention and privileged access profile."""
+
+    retention_days: int = Field(default=30, ge=1, le=365)
+    aggregate_retention_days: int = Field(default=180, ge=1, le=3_650)
+    detailed_roles: tuple[str, ...] = ("retrieval_debug", "operations")
+
+    @model_validator(mode="after")
+    def aggregate_retention_is_not_shorter(self) -> Self:
+        if self.aggregate_retention_days < self.retention_days:
+            raise ValueError("aggregate retention cannot be shorter than full trace retention")
+        return self
 
 
 class IngestionSettings(FrozenSettingsModel):
@@ -163,6 +218,8 @@ class AppSettings(BaseSettings):
     search: SearchSettings = Field(default_factory=SearchSettings)
     models: ModelSettings = Field(default_factory=ModelSettings)
     ingestion: IngestionSettings = Field(default_factory=IngestionSettings)
+    retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    retrieval_trace: RetrievalTraceSettings = Field(default_factory=RetrievalTraceSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     def redacted_dict(self) -> dict[str, object]:

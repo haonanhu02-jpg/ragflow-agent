@@ -14,9 +14,7 @@ def test_runtime_secret_references_are_not_reported() -> None:
 
 
 def test_wrapped_literal_secret_is_reported() -> None:
-    assert scan_text('api_key=SecretStr("not-a-placeholder")') == [
-        "credential-assignment"
-    ]
+    assert scan_text('api_key=SecretStr("not-a-placeholder")') == ["credential-assignment"]
 
 
 def test_known_bootstrap_placeholder_is_allowed() -> None:

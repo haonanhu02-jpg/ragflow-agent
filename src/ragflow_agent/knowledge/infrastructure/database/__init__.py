@@ -6,6 +6,10 @@ from ragflow_agent.knowledge.infrastructure.database.models import (
     IngestionJobRow,
     IngestionTaskRow,
     KnowledgeBaseRow,
+    RetrievalTraceRow,
+)
+from ragflow_agent.knowledge.infrastructure.database.retrieval_trace import (
+    SqlAlchemyRetrievalTraceStore,
 )
 from ragflow_agent.knowledge.infrastructure.database.uow import (
     SqlAlchemyKnowledgeUnitOfWork,
@@ -18,6 +22,8 @@ __all__ = [
     "IngestionJobRow",
     "IngestionTaskRow",
     "KnowledgeBaseRow",
+    "RetrievalTraceRow",
     "SqlAlchemyKnowledgeUnitOfWork",
     "SqlAlchemyKnowledgeUnitOfWorkFactory",
+    "SqlAlchemyRetrievalTraceStore",
 ]

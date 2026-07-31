@@ -80,11 +80,7 @@ class MarkdownBinaryParser:
                     None,
                 )
                 if inline_token is not None and inline_token.content.strip():
-                    kind = (
-                        BlockKind.LIST
-                        if current.type == "list_item_open"
-                        else BlockKind.TEXT
-                    )
+                    kind = BlockKind.LIST if current.type == "list_item_open" else BlockKind.TEXT
                     blocks.append(
                         ParsedBlock(
                             id=f"md_{len(blocks)}",

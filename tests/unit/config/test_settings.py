@@ -76,9 +76,7 @@ def test_secret_values_are_redacted() -> None:
 
 
 def test_blank_optional_model_credentials_are_unconfigured() -> None:
-    settings = ModelSettings.model_validate(
-        {"chat_api_key": "", "embedding_api_key": "   "}
-    )
+    settings = ModelSettings.model_validate({"chat_api_key": "", "embedding_api_key": "   "})
 
     assert settings.chat_api_key is None
     assert settings.embedding_api_key is None

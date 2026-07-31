@@ -57,16 +57,12 @@ async def test_failed_tool_node_resumes_after_process_reconstruction() -> None:
         await store.delete(identity)
         first_runtime = _runtime(
             store,
-            model=ScriptedAgentModel(
-                [ModelDecision(kind="tool", tool_name="recoverable")]
-            ),
+            model=ScriptedAgentModel([ModelDecision(kind="tool", tool_name="recoverable")]),
             tool_adapter=failing_tool,
             sink=first_sink,
         )
         with pytest.raises(AgentRetryExhaustedError):
-            await first_runtime.run(
-                AgentRunRequest(identity=identity, user_input="recover")
-            )
+            await first_runtime.run(AgentRunRequest(identity=identity, user_input="recover"))
 
         failed_state = await store.load(identity)
         assert failed_state is not None
@@ -74,9 +70,7 @@ async def test_failed_tool_node_resumes_after_process_reconstruction() -> None:
 
         reconstructed_runtime = _runtime(
             store,
-            model=ScriptedAgentModel(
-                [ModelDecision(kind="final", content="recovered answer")]
-            ),
+            model=ScriptedAgentModel([ModelDecision(kind="final", content="recovered answer")]),
             tool_adapter=healthy_tool,
             sink=second_sink,
         )

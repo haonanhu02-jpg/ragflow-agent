@@ -14,6 +14,7 @@ from ragflow_agent.knowledge.application.upload import UploadDocumentCommand
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
 from ragflow_agent.knowledge.domain.ingestion import IngestionJob
 from ragflow_agent.knowledge.domain.knowledge_base import KnowledgeBase
+from ragflow_agent.knowledge.domain.retrieval import MetadataFilter, MetadataFilterGroup
 from ragflow_agent.knowledge.runtime import MinimumRagRuntime
 from ragflow_agent.observability import current_trace_context, new_correlation_id
 
@@ -43,6 +44,10 @@ class FixedRagBody(ApiModel):
     knowledge_base_ids: tuple[str, ...] = Field(min_length=1)
     top_k: int = Field(default=20, ge=1, le=1000)
     top_n: int = Field(default=5, ge=1, le=50)
+    history: tuple[str, ...] = Field(default=(), max_length=16)
+    target_languages: tuple[str, ...] = Field(default=(), max_length=4)
+    filters: tuple[MetadataFilter, ...] = ()
+    filter_expression: MetadataFilterGroup | None = None
 
 
 def _runtime(request: Request) -> MinimumRagRuntime:
@@ -60,6 +65,7 @@ def _context(request: Request) -> AuthorizationContext:
         tenant_id=identity.tenant_id,
         actor_id=identity.subject_id,
         request_id=request_id,
+        roles=identity.roles,
     )
 
 
@@ -126,8 +132,22 @@ def build_knowledge_router() -> APIRouter:
                 knowledge_base_ids=body.knowledge_base_ids,
                 top_k=body.top_k,
                 top_n=body.top_n,
+                history=body.history,
+                target_languages=body.target_languages,
+                filters=body.filters,
+                filter_expression=body.filter_expression,
             )
         )
         return answer.model_dump(mode="json")
+
+    @router.get("/retrieval-traces/{trace_id}")
+    async def get_retrieval_trace(request: Request, trace_id: str) -> dict[str, object]:
+        trace = await _runtime(request).retrieval_trace_access.get_detailed(
+            _context(request),
+            trace_id,
+        )
+        if trace is None:
+            return {"trace_id": trace_id, "found": False}
+        return {"found": True, **trace.model_dump(mode="json")}
 
     return router

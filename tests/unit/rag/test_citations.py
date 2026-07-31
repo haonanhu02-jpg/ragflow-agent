@@ -114,4 +114,7 @@ async def test_selected_citation_and_source_version_are_returned_unchanged() -> 
     assert answer.citations == (citation,)
     assert answer.citations[0].document_version_id == "version-a"
     assert answer.retrieval_trace == retrieval.trace
+    public_payload = answer.model_dump(mode="json")
+    assert public_payload["trace_id"] == "trace-a"
+    assert "retrieval_trace" not in public_payload
     assert "[1] Reset controller." in chat.requests[0].user_prompt

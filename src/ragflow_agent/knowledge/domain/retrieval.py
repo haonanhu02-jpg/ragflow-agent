@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from hashlib import sha256
 
 from pydantic import Field, field_validator, model_validator
 
@@ -11,7 +12,7 @@ from ragflow_agent.knowledge.domain.authorization import Visibility
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
 from ragflow_agent.knowledge.domain.chunk import BoundingBox, ChunkMetadata
 
-RETRIEVAL_SCHEMA_VERSION = 1
+RETRIEVAL_SCHEMA_VERSION = 2
 INDEX_SCHEMA_VERSION = 1
 
 type FilterScalar = str | int | float | bool
@@ -25,6 +26,10 @@ class MetadataField(StrEnum):
     MEDIA_TYPE = "media_type"
     LANGUAGE = "language"
     CREATED_AT = "created_at"
+    HEADING_PATH = "heading_path"
+    CONTAINS_TABLE = "contains_table"
+    CONTAINS_IMAGE = "contains_image"
+    CHUNK_STRATEGY_ID = "chunk_strategy_id"
 
 
 class FilterOperator(StrEnum):
@@ -53,6 +58,27 @@ class MetadataFilter(KnowledgeModel):
         return self
 
 
+class FilterGroupOperator(StrEnum):
+    """Boolean operators supported by the backend-neutral Filter AST."""
+
+    AND = "and"
+    OR = "or"
+    NOT = "not"
+
+
+class MetadataFilterGroup(KnowledgeModel):
+    """Recursive, validated metadata expression compiled only by adapters."""
+
+    operator: FilterGroupOperator = FilterGroupOperator.AND
+    items: tuple[MetadataFilter | MetadataFilterGroup, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def not_has_exactly_one_child(self) -> MetadataFilterGroup:
+        if self.operator is FilterGroupOperator.NOT and len(self.items) != 1:
+            raise ValueError("not filter groups require exactly one child")
+        return self
+
+
 class RetrievalQuery(KnowledgeModel):
     """Shared fixed-RAG and KnowledgeBaseTool query request."""
 
@@ -63,7 +89,13 @@ class RetrievalQuery(KnowledgeModel):
     top_k: int = Field(default=100, ge=1, le=10_000)
     top_n: int = Field(default=10, ge=1, le=1_000)
     filters: tuple[MetadataFilter, ...] = ()
+    filter_expression: MetadataFilterGroup | None = None
+    inferred_filter_expression: MetadataFilterGroup | None = None
+    index_version_ids: tuple[NonEmptyStr, ...] = ()
+    history: tuple[str, ...] = ()
+    target_languages: tuple[NonEmptyStr, ...] = ()
     trace_id: NonEmptyStr
+    request_id: NonEmptyStr | None = None
 
     @field_validator("knowledge_base_ids")
     @classmethod
@@ -82,6 +114,24 @@ class RetrievalQuery(KnowledgeModel):
         return self
 
 
+class QueryVariantKind(StrEnum):
+    """Auditable source of one retrieval query variant."""
+
+    CANONICAL = "canonical"
+    REWRITE = "rewrite"
+    TRANSLATION = "translation"
+    KEYWORD = "keyword"
+
+
+class QueryVariant(KnowledgeModel):
+    """Bounded query variation that never carries authorization state."""
+
+    text: NonEmptyStr
+    kind: QueryVariantKind
+    language: str | None = None
+    provider: str | None = None
+
+
 class ScoreBreakdown(KnowledgeModel):
     """Explainable scores without assuming backend score ranges."""
 
@@ -90,6 +140,11 @@ class ScoreBreakdown(KnowledgeModel):
     vector_score: float | None = None
     fusion_score: float | None = None
     rerank_score: float | None = None
+    full_text_rank: int | None = Field(default=None, ge=1)
+    vector_rank: int | None = Field(default=None, ge=1)
+    fusion_rank: int | None = Field(default=None, ge=1)
+    rerank_rank: int | None = Field(default=None, ge=1)
+    final_rank: int | None = Field(default=None, ge=1)
 
 
 class Citation(KnowledgeModel):
@@ -150,13 +205,20 @@ class RetrievalStage(StrEnum):
     """Trace stages shared by simple and advanced retrieval."""
 
     QUERY = "query"
+    PREPROCESS = "preprocess"
+    REWRITE = "rewrite"
+    TRANSLATE = "translate"
+    EXPAND = "expand"
     AUTHORIZATION = "authorization"
     FILTER = "filter"
     FULL_TEXT = "full_text"
     VECTOR = "vector"
     FUSION = "fusion"
     RERANK = "rerank"
+    CLEAN = "clean"
+    FALLBACK = "fallback"
     SELECT = "select"
+    TRACE_PERSIST = "trace_persist"
 
 
 class TraceAttribute(KnowledgeModel):
@@ -176,22 +238,97 @@ class RetrievalTraceEvent(KnowledgeModel):
     attributes: tuple[TraceAttribute, ...] = ()
 
 
+class RetrievalCandidateTrace(KnowledgeModel):
+    """Content-free ranking evidence persisted for audit and evaluation."""
+
+    knowledge_base_id: NonEmptyStr
+    document_id: NonEmptyStr
+    document_version_id: NonEmptyStr
+    chunk_id: NonEmptyStr
+    full_text_rank: int | None = Field(default=None, ge=1)
+    full_text_score: float | None = None
+    vector_rank: int | None = Field(default=None, ge=1)
+    vector_score: float | None = None
+    fusion_rank: int | None = Field(default=None, ge=1)
+    fusion_score: float | None = None
+    rerank_rank: int | None = Field(default=None, ge=1)
+    rerank_score: float | None = None
+    final_rank: int | None = Field(default=None, ge=1)
+    selected: bool = False
+    exclusion_reason: str | None = None
+
+
+class RetrievalFallbackStep(KnowledgeModel):
+    """One finite fallback attempt without any mutable authorization scope."""
+
+    attempt: int = Field(ge=1)
+    mode: NonEmptyStr
+    reason: NonEmptyStr
+    candidate_top_k: int = Field(ge=1)
+    threshold: float
+    inferred_filter_removed: bool = False
+    result_count: int = Field(ge=0)
+
+
+class RetrievalTraceStatus(StrEnum):
+    """Final retrieval state, intentionally separating no evidence and failure."""
+
+    SUCCESS = "success"
+    NO_EVIDENCE = "no_evidence"
+    FAILED = "failed"
+
+
 class RetrievalTrace(KnowledgeModel):
     """Versioned trace sufficient to reconstruct retrieval selection."""
 
     schema_version: int = RETRIEVAL_SCHEMA_VERSION
     trace_id: NonEmptyStr
+    request_id: NonEmptyStr | None = None
     tenant_id: NonEmptyStr
-    original_query: NonEmptyStr
-    rewritten_queries: tuple[str, ...] = ()
+    original_query: NonEmptyStr | None = Field(default=None, exclude=True)
+    canonical_query: NonEmptyStr | None = Field(default=None, exclude=True)
+    query_digest: str = ""
+    canonical_query_digest: str = ""
+    rewritten_queries: tuple[str, ...] = Field(default=(), exclude=True)
+    query_variant_digests: tuple[NonEmptyStr, ...] = ()
     authorization_applied: bool
     events: tuple[RetrievalTraceEvent, ...]
+    knowledge_base_ids: tuple[NonEmptyStr, ...] = ()
+    index_version_ids: tuple[NonEmptyStr, ...] = ()
+    config_version: NonEmptyStr = "retrieval-v2"
+    provider_ids: tuple[NonEmptyStr, ...] = ()
+    filter_summary: tuple[str, ...] = ()
+    candidates: tuple[RetrievalCandidateTrace, ...] = ()
+    fallback_steps: tuple[RetrievalFallbackStep, ...] = ()
+    status: RetrievalTraceStatus = RetrievalTraceStatus.SUCCESS
+    error_code: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    expires_at: datetime | None = None
 
     @model_validator(mode="after")
     def event_sequences_are_ordered(self) -> RetrievalTrace:
         sequences = [event.sequence for event in self.events]
         if len(sequences) != len(set(sequences)) or sequences != sorted(sequences):
             raise ValueError("retrieval trace sequences must be unique and ordered")
+        original = self.original_query or ""
+        canonical = self.canonical_query or original
+        if not self.query_digest and original:
+            object.__setattr__(
+                self,
+                "query_digest",
+                sha256(original.encode("utf-8")).hexdigest(),
+            )
+        if not self.canonical_query_digest and canonical:
+            object.__setattr__(
+                self,
+                "canonical_query_digest",
+                sha256(canonical.encode("utf-8")).hexdigest(),
+            )
+        if self.started_at and self.completed_at and self.completed_at < self.started_at:
+            raise ValueError("retrieval trace completion cannot precede start")
+        if self.completed_at and self.expires_at and self.expires_at <= self.completed_at:
+            raise ValueError("retrieval trace expiry must follow completion")
         return self
 
 
@@ -201,6 +338,7 @@ class RetrievalEmptyReason(StrEnum):
     NO_MATCH = "no_match"
     PERMISSION_FILTERED = "permission_filtered"
     BELOW_THRESHOLD = "below_threshold"
+    NO_EVIDENCE = "no_evidence"
 
 
 class RetrievalResult(KnowledgeModel):
@@ -218,8 +356,14 @@ class RetrievalResult(KnowledgeModel):
             raise ValueError("query and trace identifiers must match")
         if self.trace.tenant_id != self.query.tenant_id:
             raise ValueError("query and trace tenant must match")
-        if self.trace.original_query != self.query.text:
+        if self.trace.original_query is not None and self.trace.original_query != self.query.text:
             raise ValueError("trace original_query must match query text")
+        if (
+            self.query.request_id is not None
+            and self.trace.request_id is not None
+            and self.trace.request_id != self.query.request_id
+        ):
+            raise ValueError("query and trace request identifiers must match")
         if self.candidates and self.empty_reason is not None:
             raise ValueError("non-empty results cannot have empty_reason")
         if not self.candidates and self.empty_reason is None:
@@ -283,6 +427,10 @@ class IndexRecord(KnowledgeModel):
     knowledge_base_id: NonEmptyStr
     owner_id: NonEmptyStr
     visibility: Visibility
+    allowed_actor_ids: tuple[NonEmptyStr, ...] = ()
+    allowed_roles: tuple[NonEmptyStr, ...] = ()
+    document_enabled: bool = True
+    document_deleted: bool = False
     document_id: NonEmptyStr
     document_version_id: NonEmptyStr
     chunk_id: NonEmptyStr

@@ -75,11 +75,7 @@ def repository_files(root: Path) -> list[Path]:
         check=True,
         capture_output=True,
     )
-    return [
-        root / relative
-        for relative in result.stdout.decode("utf-8").split("\0")
-        if relative
-    ]
+    return [root / relative for relative in result.stdout.decode("utf-8").split("\0") if relative]
 
 
 def main() -> int:
@@ -87,11 +83,7 @@ def main() -> int:
     findings: list[str] = []
     for path in repository_files(root):
         relative_path = path.relative_to(root)
-        if (
-            path.name in SKIPPED_FILES
-            or relative_path in SKIPPED_PATHS
-            or not path.is_file()
-        ):
+        if path.name in SKIPPED_FILES or relative_path in SKIPPED_PATHS or not path.is_file():
             continue
         try:
             text = path.read_text(encoding="utf-8")

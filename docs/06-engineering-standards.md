@@ -1,7 +1,7 @@
 ---
 document_id: ENGINEERING-STANDARDS
 status: active
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 applies_to: D:/download/ragflow-agent
 ---
 
@@ -271,17 +271,20 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 对应 `CAP-09` 至 `CAP-22`。
 
 1. RetrievalQuery 是唯一查询入口。
-2. 查询改写、跨语言和关键词扩展分别记录原始输入和输出。
+2. 查询改写、跨语言和关键词扩展必须记录变体类型、数量和 Provider；持久 Trace 只保存不可逆查询摘要，不保存完整原始/变体文本。
 3. Metadata Filter 先解析为受控 AST。
 4. 权限约束在检索前注入。
 5. 全文、向量、Rerank 和最终分数分别保存。
-6. 不同后端分数必须规范化后再融合。
+6. 不同后端原始分数不得直接相加；当前唯一默认融合是按排名执行 RRF `k=60`，同时保留各通道原始分数和排名。
 7. 候选清理记录淘汰原因。
 8. TopK 是候选池，TopN 是最终结果，不混用。
 9. 空结果与后端错误使用不同 `empty_reason/error_code`。
-10. RetrievalTrace 足以重建每个阶段。
+10. RetrievalTrace 足以审计每个阶段，但不得成为查询、正文、Prompt、密钥或 Authorization 的敏感副本；默认 30 天 TTL、tenant 隔离、角色读取和可执行清理。
 11. SearchPort Adapter 必须运行相同契约测试。
-12. 当前 Retrieval schema v1 强制 query、trace、candidate、citation 的 tenant 和知识库范围一致；`authorization_applied` 必须为真。
+12. 当前 Retrieval schema v2 强制 query、trace、candidate、citation 的 tenant 和知识库范围一致；`authorization_applied` 必须为真。
+13. 有限空结果降级只能扩大候选、降低有下限的软阈值、移除系统推断软过滤或切换单通道；tenant、ACL、KB/index、文档状态和用户过滤永不放宽。
+14. Reranker 必须通过内部 Port；超时、不可用、异常或候选身份变化时回退 RRF，并在 Trace 中记录，不能让检索整体失败。
+15. Trace 写入失败不得阻断成功检索，但必须产生内容最小化日志和可观察失败计数。
 
 ### 12.1 时序 RAG 附加标准
 

@@ -116,9 +116,7 @@ class MemoryHybridSearch:
         keys = [
             key
             for key in self.records
-            if key[0] == context.tenant_id
-            and key[1] == index_version_id
-            and key[2] in chunk_ids
+            if key[0] == context.tenant_id and key[1] == index_version_id and key[2] in chunk_ids
         ]
         for key in keys:
             del self.records[key]
@@ -221,10 +219,7 @@ class MemoryHybridSearch:
             record.tenant_id == context.tenant_id
             and record.knowledge_base_id in query.knowledge_base_ids
             and record.index_version_id == active
-            and (
-                record.owner_id == context.actor_id
-                or record.visibility is Visibility.TENANT
-            )
+            and (record.owner_id == context.actor_id or record.visibility is Visibility.TENANT)
         )
 
     @staticmethod

@@ -2,9 +2,9 @@
 document_id: PROJECT-MASTER
 document_role: Codex 项目首要入口与范围事实源
 status: active
-document_version: "0.8.0"
+document_version: "0.9.0"
 created_at: "2026-07-27"
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 project_root: "D:/download/ragflow-agent"
 project_code_status: phase_05_parser_and_chunk
 project_repository: "https://github.com/haonanhu02-jpg/ragflow-agent"
@@ -28,7 +28,7 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 1. 读取本文件。
 2. 读取 [`docs/07-decisions-and-risks.md`](./07-decisions-and-risks.md)；独立 `docs/adr/` 文件当前尚未生成。
 3. 根据任务读取本文件第 18 节索引中的专项文档；未生成的文档不得被当成已有事实。
-4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 05 已完成，Phase 06 至 Phase 10 为“预规划草案/未执行”，真正执行前必须复审并确认。
+4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 06 已完成，Phase 07 至 Phase 10 为“预规划草案/未执行”，真正执行前必须复审并确认。
 5. 检查实际代码、数据库迁移和自动化测试，确认“已实现状态”没有与文档漂移。
 
 ### 0.1 状态标签
@@ -120,8 +120,9 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 - **[事实]** 项目已实现 Phase 03 知识领域模型、状态机、AuthorizationContext/PermissionChecker、统一 Ports、KnowledgeService/KnowledgeQueryService 和内存契约 Adapter。
 - **[事实]** Phase 04 已实现最小 ingestion、模型 Provider、Elasticsearch BM25/KNN/RRF、固定 RAG、Citation/Trace、知识 API 和 Redis/ARQ Worker；真实 PostgreSQL/MinIO/Redis/Elasticsearch 测试通过。
 - **[事实]** Phase 05 已实现 TXT、Markdown、HTML、DOCX、PPTX、XLSX、PDF、图片八类 Parser，外部 Tesseract CPU OCR，统一 ParsedDocument/Chunk schema v2，General/Paper/Book/Manual/Laws/QA/Table/Resume/Picture 九种 Chunk Method，以及 bbox/来源元数据到 Elasticsearch/Citation 的闭环。
-- **[事实]** 外部 DeepSeek/BGE-M3 服务、模型型复杂版面、完整在线检索策略、KnowledgeBaseTool、生命周期一致性和生产部署仍未实现；CI 的 Chat/Embedding 仍只使用 Fake/Stub Provider，Tesseract 则使用真实运行时。
-- **[事实]** Phase 00 至 Phase 05 已完成；当前处于 Phase 06 计划复审门禁。
+- **[事实]** Phase 06 已实现查询规范化/改写/跨语言/关键词变体、递归 Filter AST、权限过滤、Elasticsearch 全文/向量双路召回、RRF、Provider 隔离 Reranker、有限安全降级和 PostgreSQL Retrieval Trace。
+- **[事实]** 外部 DeepSeek/BGE-M3/BGE Reranker 服务、模型型复杂版面、KnowledgeBaseTool、生命周期一致性和生产部署仍未实现；CI 的 Chat/Embedding/Reranker 使用 Fake/Stub Provider，Tesseract 则使用真实运行时。
+- **[事实]** Phase 00 至 Phase 06 已完成；当前处于 Phase 07 计划复审门禁。
 
 ### 3.2 双基线定义
 
@@ -553,11 +554,11 @@ LangChain 的 Chat Model、Embedding、Tool、Prompt 和 Structured Output 优�
 | `ParsedDocument/ParsedBlock` | v1：tenant/document_version、parser identity、顺序 Block、页码、显式坐标系/bbox、heading、表格和图片 |
 | `ChunkRecord` | v1：稳定 `sha256-v1` ID、tenant/document_version、content、source_block_ids、parent、页范围和 token_count |
 | `IndexVersion/IndexRecord` | v1：tenant/KB、Embedding 兼容身份；Record 含 owner/visibility、文档版本、Chunk、MIME、时间、向量和来源元数据 |
-| `RetrievalQuery` | v1：`tenant_id`、`text`、KB IDs、白名单 MetadataFilter、`top_k`、`top_n`、`trace_id` |
-| `RetrievalCandidate` | v1：tenant/KB/DocumentVersion/Chunk、内容、分项分数和同范围 Citation |
-| `RetrievalResult` | v1：原查询、候选、Trace、派生 citations 和结构化 `empty_reason` |
+| `RetrievalQuery` | v2：v1 字段 + index version、history、target languages、递归用户/系统 Filter AST、request_id |
+| `RetrievalCandidate` | v2：tenant/KB/DocumentVersion/Chunk、内容、全文/向量/融合/Rerank/最终分数与排名、同范围 Citation |
+| `RetrievalResult` | v2：原查询、候选、内容最小化 Trace、派生 citations 和结构化 `no_evidence` |
 | `Citation` | `tenant_id`、`knowledge_base_id`、`document_id`、`document_version_id`、`chunk_id`、`page`、`bbox`、`quote`、`source_uri` |
-| `RetrievalTrace` | `tenant_id`、原始查询、改写查询、权限与元数据过滤条件、候选阶段、各阶段分数、模型、参数、延迟、错误、最终选择 |
+| `RetrievalTrace` | v2：trace/request/tenant、查询摘要、授权/范围/过滤摘要、候选 ID 与各阶段排名/分数、Provider/config 版本、耗时、降级、错误和最终状态；持久化排除查询/正文/Prompt/密钥/Authorization |
 | `AgentState` | `AuthorizationContext`、消息、用户输入、计划、当前节点、Tool 调用、Retrieval Trace、Citation、重试计数、HITL 状态、最终答案 |
 
 第一版 `visibility` 已由 ADR-018 固化为 `private|tenant`。`tenant_id` 是不可绕过的第一层过滤条件；跨租户访问默认拒绝，不能仅依赖调用方传入的知识库 ID、搜索索引命名或生成后的结果清理。
@@ -639,7 +640,7 @@ Phase 03 `IngestionJob/Task` v1 已实现 `PENDING -> RUNNING -> SUCCEEDED|FAILE
 
 ## 14. 开发阶段与阶段依赖
 
-Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
+Phase 00 至 Phase 06 已完成；Phase 07 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
 
 | 阶段 | 名称 | 主要产出 | 依赖 | 当前状态 |
 |---|---|---|---|---|
@@ -649,7 +650,7 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 | Phase 03 | 知识库统一接口 | 核心实体、状态机、统一 Ports、第一版权限契约和契约测试 | Phase 02 | 已完成；P03-T01 至 P03-T11 验收通过 |
 | Phase 04 | 最小RAG闭环 | 上传、TXT/Markdown/PDF、General Chunk、Embedding、Elasticsearch BM25/KNN/RRF、固定回答、引用和端到端测试 | Phase 03 | 已完成；P04-T01 至 P04-T12 验收通过 |
 | Phase 05 | Parser与Chunk | 八类格式、OCR、版面、表格、Chunk 策略映射和元数据保留 | Phase 04 | 已完成；P05-T01 至 P05-T12 验收通过 |
-| Phase 06 | 在线检索 | 查询改写、跨语言、全文/向量/混合检索、过滤、Rerank、融合、降级、Citation、Trace | Phase 04、Phase 05 | 预规划草案/未执行 |
+| Phase 06 | 在线检索 | 查询改写、跨语言、全文/向量/混合检索、过滤、Rerank、融合、降级、Citation、Trace | Phase 04、Phase 05 | 已完成；P06-T01 至 P06-T12 验收通过 |
 | Phase 07 | 文档生命周期 | 更新、删除、重解析、索引版本、幂等、补偿和一致性 | Phase 05、Phase 06 | 预规划草案/未执行 |
 | Phase 08 | Agentic RAG | KnowledgeBaseTool、查询规划、多次检索、Tool 选择、SQL/API Tool、HITL、记忆和预算 | Phase 02、Phase 06 | 预规划草案/未执行 |
 | Phase 09 | 高级RAG | 自动关键词、自动问题、摘要、TOC、父子 Chunk、多模态 RAG、GraphRAG、RAPTOR、时序 RAG、开关和索引兼容 | Phase 05、Phase 06、Phase 08 | 预规划草案/未执行 |
@@ -675,8 +676,9 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 - **[事实]** Phase 02 的 `P02-T01` 至 `P02-T10` 已全部执行并通过阶段验收。
 - **[事实]** Phase 03 的 `P03-T01` 至 `P03-T11` 已全部执行并通过阶段验收。
 - **[事实]** Phase 04 的 `P04-T01` 至 `P04-T12` 已全部执行并通过阶段验收。
-- **[事实]** Phase 05 的 `P05-T01` 至 `P05-T12` 已全部执行并通过阶段验收；当前处于 Phase 06 计划复审门禁。
-- **[事实]** Phase 06 至 Phase 10 为“预规划草案/未执行”。
+- **[事实]** Phase 05 的 `P05-T01` 至 `P05-T12` 已全部执行并通过阶段验收。
+- **[事实]** Phase 06 的 `P06-T01` 至 `P06-T12` 已全部执行并通过本地阶段验收；当前处于 Phase 07 计划复审门禁。
+- **[事实]** Phase 07 至 Phase 10 为“预规划草案/未执行”。
 
 ### 15.2 已完成
 
@@ -700,7 +702,7 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 18. **[事实]** 已生成 `docs/research/ragflow-baseline.md`、`project-baseline.md` 和 `ragflow-source-map.md`；源码结论固定到 commit `cd846cc9d4e32a19e684c59a1f302601027ef976`。
 19. **[事实]** P00-T12 原始跨文档一致性审计通过；14 个 Markdown 文件、当时 42 项能力、阶段编号、链接、表格和固定源码链接检查为零错误。
 20. **[事实]** 用户随后确认 Phase 00 出口；ADR-013 将“研究阶段完成”和“下一阶段执行准入”分离，Phase 00 已完成。
-21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；Phase 01 至 Phase 05 已执行，Phase 06 至 Phase 10 未执行。
+21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；Phase 01 至 Phase 06 已执行，Phase 07 至 Phase 10 未执行。
 22. **[事实]** 用户最新明确要求 Phase 09 规划时序 RAG；能力矩阵新增 `CAP-43`，不追溯改变 Phase 00 原始 42 项验收快照。
 23. **[决策]** ADR-016 已解决 O-001 与 O-012：冻结项目/包/服务命名、Git 仓库、GitHub Actions 和 `mypy`；这些 Phase 01 工程配置现已落地。
 24. **[事实]** Phase 01 已建立可安装包、类型化配置、日志/Trace、端口边界、可逆空迁移、FastAPI/Worker 空壳、Docker 开发环境和 CI 质量门禁。
@@ -714,14 +716,16 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 32. **[事实]** Phase 04 本地真实后端验收为 153 passed、0 skipped；默认无外部基础设施环境为 143 passed、10 个显式 skip；代码提交 `0732d47` 的 [GitHub Actions Phase 04 quality gate](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30533783441) 成功；外部 DeepSeek/BGE-M3 未调用，不得把 Fake Provider 验证描述为真实模型验证。
 33. **[决策]** ADR-020 冻结 Phase 05 零 RAGFlow 源码复制、独立 Parser/Chunk、外部 Tesseract CPU OCR、生成式二进制样本和资源 Profile。
 34. **[事实]** Phase 05 已落地八格式 Parser、九种 Chunk Method、schema v2、稳定来源/bbox/warning、OOXML/PDF/图片/XLSX 资源门禁、真实 Tesseract CI 及真实 PostgreSQL/MinIO/Redis/Elasticsearch E2E。
+35. **[决策]** ADR-021 冻结有限安全降级、RRF `k=60` → Provider 隔离 Reranker、内容最小化 Retrieval Trace、30 天 TTL、角色读取和零 RAGFlow 源码复制。
+36. **[事实]** Phase 06 已落地统一在线检索服务、Filter AST、硬权限 push-down、真实 Elasticsearch 双路检索、RRF/Reranker 回退、结构化 `no_evidence`、受控 Trace API/清理和 Recall/MRR/NDCG 基线。
 
 ### 15.3 下一步
 
 下一步必须按阶段门禁执行：
 
-1. 根据 Phase 05 的实际 `ParserRegistry`、`ChunkerRegistry`、schema v2、Citation bbox 和 Elasticsearch mapping 复审 `phase-06-online-retrieval.md`。
-2. Phase 06 仍是预规划草案；必须先确认查询改写、跨语言、过滤、融合、Reranker、空结果降级和评测门禁，不能因 Phase 05 完成自动执行。
-3. Phase 06 必须把 Phase 04/05 的 Elasticsearch BM25/KNN/RRF 和统一 SearchPort 当作基线增强，不得重新实现第二套主检索链路。
+1. 根据 Phase 06 的实际 `RetrievalQuery` v2、文档状态/可见性过滤、index version、Trace 与 SearchPort 复审 `phase-07-document-lifecycle.md`。
+2. Phase 07 仍是预规划草案；必须先冻结版本激活、重试分类/次数、索引切换、软删除/物理回收和跨存储补偿语义。
+3. Phase 07 必须沿用 Phase 06 的统一检索与可见性规则，不得用生命周期补偿绕过硬过滤或创建第二套索引读取主链路。
 4. 每个后续阶段执行前，继续根据上一阶段实际结果重新审查其“预规划草案”。
 
 ---
@@ -751,6 +755,8 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 | D-017 | Phase 02 使用 LangGraph StateGraph、官方异步 PostgreSQL Checkpointer + 租户作用域适配、AgentState/Event v1 和确定性模型门禁；Phase 04 的真实模型选择后由 D-019 补充 |
 | D-018 | Phase 03 使用自研知识领域/Ports；AuthorizationContext 为 tenant/actor/request，visibility 为 private/tenant，Repository/Storage/Queue/Search/Citation/Trace 强制 tenant，固定 RAG 与 Tool 共用 KnowledgeQueryService |
 | D-019 | Phase 04 使用 Elasticsearch 8.19、Redis + ARQ 0.28、DeepSeek OpenAI-compatible、BGE-M3 1024 维、PostgreSQL、S3/MinIO；CI 使用 Fake Provider；本阶段不复制、抽取或改写 RAGFlow 源码 |
+| D-020 | Phase 05 使用独立 Parser/Chunk 实现、外部 Tesseract CPU OCR、生成式二进制样本、schema v2 与资源 Profile；继续零 RAGFlow 源码复制 |
+| D-021 | Phase 06 使用有限安全降级、RRF `k=60` → 内部 RerankerPort、内容最小化 PostgreSQL Retrieval Trace、30 天 TTL/角色读取；继续零 RAGFlow 源码复制 |
 
 ### 16.2 已解决的原待确认问题
 
@@ -881,7 +887,7 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 | [`docs/phases/phase-03-knowledge-interface.md`](./phases/phase-03-knowledge-interface.md) | Phase 03 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-04-minimum-rag.md`](./phases/phase-04-minimum-rag.md) | Phase 04 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-05-parser-and-chunk.md`](./phases/phase-05-parser-and-chunk.md) | Phase 05 详细规划与执行记录 | 已完成 |
-| [`docs/phases/phase-06-online-retrieval.md`](./phases/phase-06-online-retrieval.md) | Phase 06 详细规划 | 预规划草案/未执行 |
+| [`docs/phases/phase-06-online-retrieval.md`](./phases/phase-06-online-retrieval.md) | Phase 06 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-07-document-lifecycle.md`](./phases/phase-07-document-lifecycle.md) | Phase 07 详细规划 | 预规划草案/未执行 |
 | [`docs/phases/phase-08-agentic-rag.md`](./phases/phase-08-agentic-rag.md) | Phase 08 详细规划 | 预规划草案/未执行 |
 | [`docs/phases/phase-09-advanced-rag.md`](./phases/phase-09-advanced-rag.md) | Phase 09 详细规划 | 预规划草案/未执行 |
@@ -972,3 +978,4 @@ Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 均为 **[规划]**。�
 | 2026-07-30 | 0.5.2 | 完成 P01-T02；建立可安装包、Python 3.13 项目环境、依赖锁定、最小测试和 pytest/ruff/mypy 本地质量基线 |
 | 2026-07-30 | 0.6.0 | 完成 P01-T03 至 P01-T10 和 Phase 01 阶段验收；建立配置、观测、端口、迁移、API/Worker 空壳、Docker 与 GitHub Actions 门禁 |
 | 2026-07-31 | 0.8.0 | 完成 Phase 05：八格式 Parser、Tesseract OCR、schema v2、九种 Chunk Method、资源/黄金/真实后端/CI 验收；进入 Phase 06 计划复审门禁 |
+| 2026-07-31 | 0.9.0 | 完成 Phase 06：查询变体、Filter AST、真实 Elasticsearch 双路检索、RRF/Reranker 回退、安全降级、PostgreSQL Trace 和评测；进入 Phase 07 计划复审门禁 |

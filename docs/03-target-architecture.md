@@ -1,7 +1,7 @@
 ---
 document_id: TARGET-ARCHITECTURE
 status: active
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 architecture_status: partially_implemented
 ---
 
@@ -305,7 +305,7 @@ DocumentVersion
   status
 ```
 
-**[事实]** Phase 03 已实现以上核心字段、REGISTERED/INGESTING/READY/FAILED/SUPERSEDED/DELETED 状态转换和 ready 同范围版本激活。Parser、Chunker、Embedding 和 Index 的版本身份分别进入 `ParsedDocument`、`ChunkRecord` 和 `IndexVersion/Record`；真实持久化与生命周期编排尚未实现。
+**[事实]** Phase 03 已实现以上核心字段和状态转换；Phase 04 已落地 PostgreSQL 持久化与最小 ingestion 编排。完整更新、删除、重解析、候选索引激活/回退、补偿和残留清理仍属于 Phase 07，不能把最小持久化描述成生命周期已完成。
 
 ### 6.2 ParsedDocument 与 Chunk
 
@@ -401,7 +401,7 @@ Phase 04 已实现规则 1、2、5、6、7 的最小形态；规则 3、4 的跨
 
 ## 8. 在线链路设计
 
-**[事实]** Phase 04 当前在线路径是权限先行 `KnowledgeQueryService → Elasticsearch BM25 + KNN → RRF → TopN → fixed-rag-v1 context → ChatProvider → Citation/RetrievalTrace`。下列 QueryRewrite、跨语言、清理、Reranker、阈值、邻近/TOC 和降级链路仍为 Phase 06 目标。
+**[事实]** Phase 06 已把 Phase 04 在线路径升级为唯一主链路：`KnowledgeQueryService → OnlineRetrievalService → 查询规范化/可选改写/跨语言/关键词变体 → 强制权限与 Filter AST → Elasticsearch BM25 + KNN → RRF(k=60) → 可选 Reranker/失败回退 → 阈值/TopN → fixed-rag-v1 context → ChatProvider → Citation + 内容最小化 Retrieval Trace`。父子/邻近/TOC 仍属于 Phase 09 高级检索，不得描述成 Phase 06 已实现。
 
 ```text
 RetrievalQuery
@@ -413,13 +413,14 @@ RetrievalQuery
 → ScoreFusion
 → Reranker
 → Threshold/TopK/TopN
-→ Parent/Neighbor/TOC/AdvancedRetrieval
 → ContextBuilder
 → CitationBuilder
 → RetrievalTrace
 ```
 
-`CAP-17 空结果降级`必须作为显式策略执行，不允许通过捕获所有异常伪装为空结果。
+`CAP-17 空结果降级`已按 ADR-021 实现为有限尝试；硬权限和用户过滤保持，依赖错误与 `no_evidence` 分离。Trace 由 PostgreSQL tenant-scoped Store 持久化 30 天，详细读取受角色限制，过期清理通过应用服务与真实数据库测试验证。
+
+Phase 09 可在统一候选协议之后插入 `Parent/Neighbor/TOC/AdvancedRetrieval`，但不得改变 Phase 06 的硬过滤或另建检索主链路。
 
 固定 RAG 路径：
 

@@ -88,9 +88,7 @@ class IngestionWorker:
 
     async def _poll_until_stopped(self) -> None:
         while not self._stop_requested.is_set():
-            message = await self.queue.receive(
-                wait_seconds=self._settings.poll_interval_seconds
-            )
+            message = await self.queue.receive(wait_seconds=self._settings.poll_interval_seconds)
             if message is not None:
                 raise AppError(
                     "Phase 01 worker received an unsupported task",

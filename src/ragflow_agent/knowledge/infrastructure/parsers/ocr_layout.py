@@ -24,10 +24,7 @@ def ocr_words_to_blocks(
     """Group ordered OCR words into stable visual lines."""
     if not words:
         return []
-    heights = [
-        word.bounding_box.y1 - word.bounding_box.y0
-        for word in words
-    ]
+    heights = [word.bounding_box.y1 - word.bounding_box.y0 for word in words]
     tolerance = max(4.0, median(heights) * 0.65)
     sorted_words = sorted(
         words,
@@ -47,8 +44,7 @@ def ocr_words_to_blocks(
         else:
             lines[-1].append(word)
             centers[-1] = sum(
-                (item.bounding_box.y0 + item.bounding_box.y1) / 2
-                for item in lines[-1]
+                (item.bounding_box.y0 + item.bounding_box.y1) / 2 for item in lines[-1]
             ) / len(lines[-1])
     blocks: list[ParsedBlock] = []
     for line in lines:

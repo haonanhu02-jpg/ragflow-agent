@@ -222,9 +222,7 @@ class PdfBinaryParser:
         if gap < max(48.0, page_width * 0.08):
             return (words,)
         left_words = tuple(
-            word
-            for word in words
-            if (word.bounding_box.x0 + word.bounding_box.x1) / 2 < divider
+            word for word in words if (word.bounding_box.x0 + word.bounding_box.x1) / 2 < divider
         )
         right_words = tuple(word for word in words if word not in left_words)
         if not left_words or not right_words:
@@ -240,10 +238,7 @@ class PdfBinaryParser:
     ) -> list[ParsedBlock]:
         blocks: list[ParsedBlock] = []
         for table in page.find_tables():
-            rows = [
-                [str(cell or "").strip() for cell in row]
-                for row in table.extract()
-            ]
+            rows = [[str(cell or "").strip() for cell in row] for row in table.extract()]
             rows = [row for row in rows if any(row)]
             if not rows:
                 continue

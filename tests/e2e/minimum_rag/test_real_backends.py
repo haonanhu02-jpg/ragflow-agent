@@ -72,9 +72,7 @@ async def test_real_backends_complete_minimum_rag_vertical_slice() -> None:
     engine = create_database_engine(
         DatabaseSettings(url=SecretStr(environment["RAGFLOW_AGENT_TEST_DATABASE_URL"]))
     )
-    unit_of_work_factory = SqlAlchemyKnowledgeUnitOfWorkFactory(
-        create_session_factory(engine)
-    )
+    unit_of_work_factory = SqlAlchemyKnowledgeUnitOfWorkFactory(create_session_factory(engine))
     storage = S3ObjectStorage(
         ObjectStoreSettings(
             endpoint_url=environment["RAGFLOW_AGENT_TEST_S3_ENDPOINT_URL"],
@@ -146,8 +144,7 @@ async def test_real_backends_complete_minimum_rag_vertical_slice() -> None:
                 file_name="manual.md",
                 media_type="text/markdown",
                 content=(
-                    b"# Alarm Recovery\n\n"
-                    b"controller reset relay inspection recovery procedure"
+                    b"# Alarm Recovery\n\ncontroller reset relay inspection recovery procedure"
                 ),
                 idempotency_key=f"upload-{suffix}",
             )

@@ -1,7 +1,7 @@
 ---
 document_id: CODE-REUSE-STRATEGY
 status: active
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -215,12 +215,28 @@ tests:
 - **证据**：[Phase 05 许可与资源基线](./research/phase-05-parser-license-and-resource-baseline.md)、
   [Phase 05 执行记录](./phases/phase-05-parser-and-chunk.md)。
 
+### 6.4 Phase 06 实际复用审计
+
+- **直接复用**：0 个 RAGFlow 文件/类/函数。
+- **改造复用**：0 个 RAGFlow 文件/类/函数；没有创建
+  `knowledge/infrastructure/ragflow_adapters/retrieval/`。
+- **参考后自研**：查询变体、Filter AST、Elasticsearch 双通道、RRF、候选清理、
+  Reranker 回退、安全降级、Citation/Context 接线和 PostgreSQL Retrieval Trace。
+- **源码边界**：只以冻结 commit 的 `FulltextQueryer`、`Dealer.search/retrieval`、
+  `generator.py` 查询变换、metadata 哨兵和 Citation 调用顺序作为行为证据；没有
+  复制 Prompt、算法片段、注释、测试或上游依赖图。
+- **许可证结果**：未形成 RAGFlow 派生源码分发；第三方运行时只通过
+  `pyproject.toml`/`uv.lock` 管理。首次复制或修改上游源码前仍必须重开 O-004
+  许可证审查并通过隔离层。
+- **证据**：[Phase 06 执行记录](./phases/phase-06-online-retrieval.md)、
+  [Phase 06 评测](./research/phase-06-retrieval-evaluation.md)、ADR-021。
+
 ## 7. 与能力和阶段的关系
 
 - Phase 00：完成源码、依赖和许可证登记，不做抽取实验，不合入业务实现。
 - Phase 04：已完成；只参考最小 RAG 闭环所需的 Parser/Chunk/检索行为，未引入 RAGFlow 源码。
 - Phase 05：已完成；研究 DeepDOC、OCR、多格式和场景化 Chunk Method，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
-- Phase 06：处理 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation。
+- Phase 06：已完成；研究 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
 - Phase 08：只参考 Agent Retrieval Tool 和 Agentic RAG，不引入 Canvas。
 - Phase 09：处理 GraphRAG、RAPTOR 和多模态。
 

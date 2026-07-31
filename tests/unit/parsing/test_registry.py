@@ -118,8 +118,6 @@ def test_explicit_parser_contract_rejects_mismatched_media_type() -> None:
     assert registry.resolve(parse_request(sample)).capability.parser_id == "independent-text"
     with pytest.raises(KnowledgeConflictError) as incompatible:
         registry.resolve(
-            parse_request(sample).model_copy(
-                update={"parser_id": "independent-markdown"}
-            )
+            parse_request(sample).model_copy(update={"parser_id": "independent-markdown"})
         )
     assert incompatible.value.error_code == "parser_override_incompatible"

@@ -121,10 +121,7 @@ class DocxBinaryParser:
                         )
                     )
             elif isinstance(item, Table):
-                rows = [
-                    [cell.text.strip() for cell in row.cells]
-                    for row in item.rows
-                ]
+                rows = [[cell.text.strip() for cell in row.cells] for row in item.rows]
                 rows = [row for row in rows if any(row)]
                 if rows:
                     blocks.append(

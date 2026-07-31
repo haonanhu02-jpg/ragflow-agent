@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+from pydantic import field_validator
+
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
 
 
@@ -27,6 +29,14 @@ class AuthorizationContext(KnowledgeModel):
     tenant_id: NonEmptyStr
     actor_id: NonEmptyStr
     request_id: NonEmptyStr
+    roles: tuple[NonEmptyStr, ...] = ()
+
+    @field_validator("roles")
+    @classmethod
+    def roles_are_unique(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if len(value) != len(set(value)):
+            raise ValueError("authorization roles must be unique")
+        return value
 
 
 class ResourceAuthorization(KnowledgeModel):

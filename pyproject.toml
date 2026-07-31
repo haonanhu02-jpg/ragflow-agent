@@ -16,6 +16,7 @@ dependencies = [
     "defusedxml>=0.7,<1",
     "elasticsearch[async]>=8.19,<9",
     "fastapi>=0.116,<1",
+    "httpx>=0.28,<1",
     "langchain>=1.0,<2",
     "langchain-core>=1.5,<2",
     "langchain-openai>=1.0,<2",

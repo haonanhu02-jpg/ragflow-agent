@@ -106,10 +106,7 @@ class PptxBinaryParser:
                     else None
                 )
                 if getattr(shape, "has_table", False):
-                    rows = [
-                        [cell.text.strip() for cell in row.cells]
-                        for row in shape.table.rows
-                    ]
+                    rows = [[cell.text.strip() for cell in row.cells] for row in shape.table.rows]
                     rows = [row for row in rows if any(row)]
                     if rows:
                         blocks.append(
@@ -140,9 +137,7 @@ class PptxBinaryParser:
                             heading_path=heading_path,
                             image=ImageReference(
                                 object_key=request.object_key,
-                                embedded_path=(
-                                    f"slide-{slide_number}-picture-{shape_index}"
-                                ),
+                                embedded_path=(f"slide-{slide_number}-picture-{shape_index}"),
                                 media_type=str(shape.image.content_type),
                             ),
                         )
@@ -151,10 +146,7 @@ class PptxBinaryParser:
                     value = str(shape.text).strip()
                     if not value:
                         continue
-                    is_title = (
-                        title_shape is not None
-                        and shape.shape_id == title_shape.shape_id
-                    )
+                    is_title = title_shape is not None and shape.shape_id == title_shape.shape_id
                     kind = BlockKind.HEADING if is_title else BlockKind.TEXT
                     if kind is BlockKind.HEADING:
                         heading_path = (value,)

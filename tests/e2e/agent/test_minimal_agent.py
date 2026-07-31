@@ -46,9 +46,7 @@ async def test_minimal_agent_tool_loop_is_deterministic() -> None:
     )
     identity = agent_identity(thread_id="e2e-thread", run_id="e2e-run")
 
-    result = await runtime.run(
-        AgentRunRequest(identity=identity, user_input="inspect train-01")
-    )
+    result = await runtime.run(AgentRunRequest(identity=identity, user_input="inspect train-01"))
 
     restored = await store.load(identity)
     event_types = [event.event_type for event in sink.events]

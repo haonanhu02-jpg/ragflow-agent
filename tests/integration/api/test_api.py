@@ -22,9 +22,7 @@ async def _ready(engine: AsyncEngine) -> bool:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     settings = AppSettings(
-        database=DatabaseSettings(
-            url=SecretStr("postgresql+psycopg://test:test@localhost/test")
-        )
+        database=DatabaseSettings(url=SecretStr("postgresql+psycopg://test:test@localhost/test"))
     )
     app = create_app(settings, readiness_probe=_ready)
 
@@ -33,8 +31,9 @@ def client() -> Iterator[TestClient]:
         raise AppError("test failure", error_code="test_error", status_code=409)
 
     @app.get("/test/identity", include_in_schema=False)
-    async def identity_route(request: Request) -> None:
-        require_trusted_identity(request)
+    async def identity_route(request: Request) -> dict[str, object]:
+        identity = require_trusted_identity(request)
+        return {"roles": identity.roles}
 
     with TestClient(app) as test_client:
         yield test_client
@@ -76,3 +75,17 @@ def test_caller_headers_do_not_create_a_trusted_identity(client: TestClient) -> 
 
     assert response.status_code == 401
     assert response.json()["error_code"] == "authentication_required"
+
+
+def test_development_identity_normalizes_server_trusted_roles(client: TestClient) -> None:
+    response = client.get(
+        "/test/identity",
+        headers={
+            "x-tenant-id": "tenant-a",
+            "x-actor-id": "actor-a",
+            "x-roles": "retrieval_debug, operations,retrieval_debug",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"roles": ["retrieval_debug", "operations"]}

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Index, String
+from sqlalchemy import JSON, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ragflow_agent.infrastructure.database import Base
@@ -100,4 +101,21 @@ class IngestionTaskRow(Base):
             "tenant_id",
             "job_id",
         ),
+    )
+
+
+class RetrievalTraceRow(Base):
+    """Content-minimized Phase 06 trace with tenant and expiry indexes."""
+
+    __tablename__ = "knowledge_retrieval_traces"
+
+    tenant_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    trace_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    __table_args__ = (
+        Index("ix_retrieval_traces_tenant_expires", "tenant_id", "expires_at"),
+        Index("ix_retrieval_traces_expires", "expires_at"),
     )

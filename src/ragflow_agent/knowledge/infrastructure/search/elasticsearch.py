@@ -17,10 +17,12 @@ from ragflow_agent.knowledge.domain.errors import (
 )
 from ragflow_agent.knowledge.domain.retrieval import (
     Citation,
+    FilterGroupOperator,
     FilterOperator,
     IndexRecord,
     IndexVersion,
     MetadataFilter,
+    MetadataFilterGroup,
     RetrievalCandidate,
     RetrievalEmptyReason,
     RetrievalQuery,
@@ -49,6 +51,12 @@ _PHASE05_METADATA_PROPERTIES: dict[str, dict[str, Any]] = {
     "parser_version": {"type": "keyword"},
     "chunk_strategy_id": {"type": "keyword"},
     "chunk_strategy_version": {"type": "keyword"},
+}
+_PHASE06_SECURITY_PROPERTIES: dict[str, dict[str, Any]] = {
+    "allowed_actor_ids": {"type": "keyword"},
+    "allowed_roles": {"type": "keyword"},
+    "document_enabled": {"type": "boolean"},
+    "document_deleted": {"type": "boolean"},
 }
 
 
@@ -83,7 +91,7 @@ class ElasticsearchSearchAdapter:
             await self._validate_index_mapping()
             await self._client.indices.put_mapping(
                 index=self._index_name,
-                properties=_PHASE05_METADATA_PROPERTIES,
+                properties={**_PHASE05_METADATA_PROPERTIES, **_PHASE06_SECURITY_PROPERTIES},
             )
             return
         try:
@@ -104,6 +112,7 @@ class ElasticsearchSearchAdapter:
                         "media_type": {"type": "keyword"},
                         "created_at": {"type": "date"},
                         "active": {"type": "boolean"},
+                        **_PHASE06_SECURITY_PROPERTIES,
                         "heading_path": {"type": "keyword"},
                         "page_start": {"type": "integer"},
                         "page_end": {"type": "integer"},
@@ -315,7 +324,14 @@ class ElasticsearchSearchAdapter:
     ) -> tuple[RetrievalCandidate, ...]:
         """Expose the Phase 04 BM25 path for contract verification."""
         hits = await self._full_text_hits(context, query)
-        return tuple(self._candidate(hit, full_text_score=hit.score) for hit in hits[: query.top_n])
+        return tuple(
+            self._candidate(
+                hit,
+                full_text_score=hit.score,
+                full_text_rank=rank,
+            )
+            for rank, hit in enumerate(hits[: query.top_k], start=1)
+        )
 
     async def retrieve_vector(
         self,
@@ -333,7 +349,14 @@ class ElasticsearchSearchAdapter:
             ),
         )
         hits = await self._vector_hits(context, query, result.vectors[0].values)
-        return tuple(self._candidate(hit, vector_score=hit.score) for hit in hits[: query.top_n])
+        return tuple(
+            self._candidate(
+                hit,
+                vector_score=hit.score,
+                vector_rank=rank,
+            )
+            for rank, hit in enumerate(hits[: query.top_k], start=1)
+        )
 
     async def _full_text_hits(
         self,
@@ -344,7 +367,17 @@ class ElasticsearchSearchAdapter:
             index=self._index_name,
             query={
                 "bool": {
-                    "must": [{"match": {"content": {"query": query.text}}}],
+                    "must": [
+                        {
+                            "match": {
+                                "content": {
+                                    "query": query.text,
+                                    "operator": "or",
+                                }
+                            }
+                        }
+                    ],
+                    "should": [{"match_phrase": {"content": {"query": query.text, "boost": 2}}}],
                     "filter": self._filters(context, query),
                 }
             },
@@ -385,14 +418,36 @@ class ElasticsearchSearchAdapter:
             {
                 "bool": {
                     "should": [
+                        {"term": {"document_enabled": True}},
+                        {"bool": {"must_not": [{"exists": {"field": "document_enabled"}}]}},
+                    ],
+                    "minimum_should_match": 1,
+                }
+            },
+            {"bool": {"must_not": [{"term": {"document_deleted": True}}]}},
+            {
+                "bool": {
+                    "should": [
                         {"term": {"owner_id": context.actor_id}},
                         {"term": {"visibility": Visibility.TENANT.value}},
+                        {"term": {"allowed_actor_ids": context.actor_id}},
+                        *(
+                            [{"terms": {"allowed_roles": list(context.roles)}}]
+                            if context.roles
+                            else []
+                        ),
                     ],
                     "minimum_should_match": 1,
                 }
             },
         ]
+        if query.index_version_ids:
+            filters.append({"terms": {"index_version_id": list(query.index_version_ids)}})
         filters.extend(self._metadata_filter(item) for item in query.filters)
+        if query.filter_expression is not None:
+            filters.append(self._metadata_filter_group(query.filter_expression))
+        if query.inferred_filter_expression is not None:
+            filters.append(self._metadata_filter_group(query.inferred_filter_expression))
         return filters
 
     @staticmethod
@@ -404,6 +459,20 @@ class ElasticsearchSearchAdapter:
             return {"terms": {field_name: list(cast(tuple[object, ...], item.value))}}
         operation = "gte" if item.operator is FilterOperator.GREATER_THAN_OR_EQUAL else "lte"
         return {"range": {field_name: {operation: item.value}}}
+
+    @classmethod
+    def _metadata_filter_group(cls, group: MetadataFilterGroup) -> dict[str, Any]:
+        children = [
+            cls._metadata_filter(item)
+            if isinstance(item, MetadataFilter)
+            else cls._metadata_filter_group(item)
+            for item in group.items
+        ]
+        if group.operator is FilterGroupOperator.AND:
+            return {"bool": {"filter": children}}
+        if group.operator is FilterGroupOperator.OR:
+            return {"bool": {"should": children, "minimum_should_match": 1}}
+        return {"bool": {"must_not": children}}
 
     @staticmethod
     def _hits(response: Any) -> list[_SearchHit]:
@@ -451,6 +520,8 @@ class ElasticsearchSearchAdapter:
         full_text_score: float | None = None,
         vector_score: float | None = None,
         fusion_score: float | None = None,
+        full_text_rank: int | None = None,
+        vector_rank: int | None = None,
     ) -> RetrievalCandidate:
         source = hit.source
         quote = str(source["content"])
@@ -482,6 +553,8 @@ class ElasticsearchSearchAdapter:
                 full_text_score=full_text_score,
                 vector_score=vector_score,
                 fusion_score=fusion_score,
+                full_text_rank=full_text_rank,
+                vector_rank=vector_rank,
             ),
             citation=citation,
         )
@@ -502,6 +575,10 @@ class ElasticsearchSearchAdapter:
             "media_type": record.media_type,
             "created_at": record.created_at.isoformat(),
             "active": active,
+            "allowed_actor_ids": list(record.allowed_actor_ids),
+            "allowed_roles": list(record.allowed_roles),
+            "document_enabled": record.document_enabled,
+            "document_deleted": record.document_deleted,
             "heading_path": list(record.metadata.heading_path),
             "page_start": record.metadata.page_start,
             "page_end": record.metadata.page_end,
@@ -514,9 +591,7 @@ class ElasticsearchSearchAdapter:
             "bbox_x1": bounding_box.x1 if bounding_box is not None else None,
             "bbox_y1": bounding_box.y1 if bounding_box is not None else None,
             "bbox_coordinate_space": (
-                bounding_box.coordinate_space.value
-                if bounding_box is not None
-                else None
+                bounding_box.coordinate_space.value if bounding_box is not None else None
             ),
             "contains_table": record.metadata.contains_table,
             "contains_image": record.metadata.contains_image,

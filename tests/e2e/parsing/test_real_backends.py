@@ -197,9 +197,7 @@ async def test_all_formats_reach_real_storage_database_queue_and_index() -> None
         for index, sample in enumerate(generated_format_samples()):
             submitted = await upload.submit(
                 UploadDocumentCommand(
-                    context=context.model_copy(
-                        update={"request_id": f"trace-{suffix}-{index}"}
-                    ),
+                    context=context.model_copy(update={"request_id": f"trace-{suffix}-{index}"}),
                     knowledge_base_id=knowledge_base.id,
                     file_name=sample.name,
                     media_type=sample.media_type,
@@ -215,9 +213,7 @@ async def test_all_formats_reach_real_storage_database_queue_and_index() -> None
                     tenant_id=tenant_id,
                     job_id=submitted.job.id,
                 )
-            parse_task = next(
-                task for task in tasks if task.stage is IngestionStage.PARSE
-            )
+            parse_task = next(task for task in tasks if task.stage is IngestionStage.PARSE)
             completed = await pipeline.handle(
                 IngestionEnvelope.from_task(
                     parse_task,
@@ -232,13 +228,7 @@ async def test_all_formats_reach_real_storage_database_queue_and_index() -> None
                     "bool": {
                         "filter": [
                             {"term": {"tenant_id": tenant_id}},
-                            {
-                                "term": {
-                                    "document_version_id": (
-                                        submitted.job.document_version_id
-                                    )
-                                }
-                            },
+                            {"term": {"document_version_id": (submitted.job.document_version_id)}},
                         ]
                     }
                 },

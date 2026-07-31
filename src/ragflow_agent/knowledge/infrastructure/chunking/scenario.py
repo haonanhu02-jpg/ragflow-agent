@@ -141,9 +141,7 @@ class ScenarioChunker:
         groups: list[list[ParsedBlock]] = []
         current: list[ParsedBlock] = []
         for block in blocks:
-            if block.kind is BlockKind.HEADING and (
-                _CHAPTER.match(block.text) or current
-            ):
+            if block.kind is BlockKind.HEADING and (_CHAPTER.match(block.text) or current):
                 if current:
                     groups.append(current)
                 current = [block]
@@ -197,8 +195,7 @@ class ScenarioChunker:
                     _Group(
                         blocks=(block,),
                         content=(
-                            f"Question: {match.group(1).strip()}\n"
-                            f"Answer: {match.group(2).strip()}"
+                            f"Question: {match.group(1).strip()}\nAnswer: {match.group(2).strip()}"
                         ),
                     )
                     for match in matches
@@ -224,8 +221,7 @@ class ScenarioChunker:
                 groups.append(_Group(blocks=(block,), content=header))
             else:
                 groups.extend(
-                    _Group(blocks=(block,), content=f"{header}\n{row}")
-                    for row in data_rows
+                    _Group(blocks=(block,), content=f"{header}\n{row}") for row in data_rows
                 )
         return groups
 

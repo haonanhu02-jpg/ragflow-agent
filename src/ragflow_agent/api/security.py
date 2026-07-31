@@ -15,6 +15,7 @@ class TrustedIdentity:
 
     tenant_id: str
     subject_id: str
+    roles: tuple[str, ...] = ()
 
 
 class TrustedIdentityResolver(Protocol):
@@ -51,8 +52,16 @@ class DevelopmentIdentityMiddleware:
             tenant_id = headers.get("x-tenant-id", "").strip()
             actor_id = headers.get("x-actor-id", "").strip()
             if tenant_id and actor_id:
+                roles = tuple(
+                    dict.fromkeys(
+                        role.strip()
+                        for role in headers.get("x-roles", "").split(",")
+                        if role.strip()
+                    )
+                )
                 scope.setdefault("state", {})["trusted_identity"] = TrustedIdentity(
                     tenant_id=tenant_id,
                     subject_id=actor_id,
+                    roles=roles,
                 )
         await self._app(scope, receive, send)

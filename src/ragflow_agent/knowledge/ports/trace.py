@@ -6,8 +6,9 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import Field, field_validator
 
+from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
-from ragflow_agent.knowledge.domain.retrieval import TraceAttribute
+from ragflow_agent.knowledge.domain.retrieval import RetrievalTrace, TraceAttribute
 
 
 class KnowledgeTraceKind(StrEnum):
@@ -49,3 +50,25 @@ class KnowledgeTracePort(Protocol):
     """Record an event without selecting a persistence or observability backend."""
 
     async def record(self, event: KnowledgeTraceEvent) -> None: ...
+
+
+@runtime_checkable
+class RetrievalTraceStorePort(Protocol):
+    """Persist minimized tenant-scoped retrieval traces with explicit cleanup."""
+
+    async def save(self, trace: RetrievalTrace) -> None: ...
+
+    async def get(
+        self,
+        context: AuthorizationContext,
+        trace_id: str,
+    ) -> RetrievalTrace | None: ...
+
+    async def delete_expired(self, *, before: datetime) -> int: ...
+
+
+@runtime_checkable
+class RetrievalTraceMetricsPort(Protocol):
+    """Observable counter boundary for non-blocking trace write failures."""
+
+    def record_write_failure(self, *, tenant_id: str, reason: str) -> None: ...

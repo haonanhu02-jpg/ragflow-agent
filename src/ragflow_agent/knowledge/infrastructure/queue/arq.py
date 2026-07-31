@@ -75,9 +75,7 @@ class ArqIngestionQueue:
             _queue_name=self._settings.queue_name,
         )
         reference = (
-            f"arq:{job.job_id}"
-            if job is not None
-            else f"arq:{envelope.message_id}:duplicate"
+            f"arq:{job.job_id}" if job is not None else f"arq:{envelope.message_id}:duplicate"
         )
         return QueueReceipt(
             message_id=envelope.message_id,

@@ -73,6 +73,4 @@ async def test_adapter_rejects_model_and_dimension_drift() -> None:
         await adapter.embed(context, request)
 
     assert mismatch.value.error_code == "embedding_dimension_mismatch"
-    assert mismatch.value.details["inputs"] == [
-        {"input_id": "chunk-1", "actual_dimensions": 3}
-    ]
+    assert mismatch.value.details["inputs"] == [{"input_id": "chunk-1", "actual_dimensions": 3}]

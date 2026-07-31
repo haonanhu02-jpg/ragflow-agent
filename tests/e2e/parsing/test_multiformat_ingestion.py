@@ -130,9 +130,7 @@ async def test_all_formats_complete_upload_parse_chunk_embed_index_pipeline() ->
     for index, sample in enumerate(samples):
         submitted = await upload.submit(
             UploadDocumentCommand(
-                context=context.model_copy(
-                    update={"request_id": f"trace-upload-{index}"}
-                ),
+                context=context.model_copy(update={"request_id": f"trace-upload-{index}"}),
                 knowledge_base_id=knowledge_base.id,
                 file_name=sample.name,
                 media_type=sample.media_type,

@@ -85,12 +85,8 @@ def test_pdf_retains_page_geometry_and_table_shape() -> None:
     assert table.table is not None
     assert (table.table.rows, table.table.columns) == (2, 2)
     ordered_text = [block.text for block in result.blocks if block.kind is BlockKind.TEXT]
-    left_index = next(
-        index for index, value in enumerate(ordered_text) if "LEFT COLUMN" in value
-    )
-    right_index = next(
-        index for index, value in enumerate(ordered_text) if "RIGHT COLUMN" in value
-    )
+    left_index = next(index for index, value in enumerate(ordered_text) if "LEFT COLUMN" in value)
+    right_index = next(index for index, value in enumerate(ordered_text) if "RIGHT COLUMN" in value)
     assert left_index < right_index
 
 

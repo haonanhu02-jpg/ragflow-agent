@@ -63,12 +63,8 @@ async def test_postgres_checkpoint_keys_isolate_tenants_and_threads() -> None:
         await store.delete(identity_a)
         await store.delete(identity_b)
         await asyncio.gather(
-            _runtime(store, "answer-a").run(
-                AgentRunRequest(identity=identity_a, user_input="a")
-            ),
-            _runtime(store, "answer-b").run(
-                AgentRunRequest(identity=identity_b, user_input="b")
-            ),
+            _runtime(store, "answer-a").run(AgentRunRequest(identity=identity_a, user_input="a")),
+            _runtime(store, "answer-b").run(AgentRunRequest(identity=identity_b, user_input="b")),
         )
 
         state_a = await store.load(identity_a)

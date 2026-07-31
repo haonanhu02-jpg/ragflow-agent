@@ -139,9 +139,7 @@ async def test_elasticsearch_full_text_vector_hybrid_and_tenant_filter() -> None
         )
         denied = await adapter.retrieve(
             other,
-            query.model_copy(
-                update={"tenant_id": other.tenant_id, "trace_id": other.request_id}
-            ),
+            query.model_copy(update={"tenant_id": other.tenant_id, "trace_id": other.request_id}),
         )
         assert denied.candidates == ()
         assert denied.empty_reason is RetrievalEmptyReason.NO_MATCH

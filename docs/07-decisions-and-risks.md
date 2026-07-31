@@ -524,6 +524,52 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 [`phase-05-parser-license-and-resource-baseline.md`](./research/phase-05-parser-license-and-resource-baseline.md)；
 [`phase-05-parser-and-chunk.md`](./phases/phase-05-parser-and-chunk.md)
 
+### ADR-021：Phase 06 安全降级、RRF/Reranker 与 Retrieval Trace
+
+- **Status**：Accepted
+- **Date**：2026-07-31
+
+**Context**
+
+Phase 05 已提供 schema v2、Citation bbox 和多格式 Chunk，Phase 04 已提供 Elasticsearch
+BM25/KNN/RRF 基线。Phase 06 必须在不创建第二套检索主链路、不放宽任何授权范围的前提下，
+完成查询处理、双路召回、融合、重排、降级和可审计 Trace。
+
+**Decision**
+
+- 空结果采用有限、可配置重试：先扩大候选集并在安全下限内降低软阈值，再只移除系统推断的
+  可选软过滤，必要时分别尝试全文或向量单通道；tenant、用户/角色 ACL、知识库/索引范围、
+  文档启用/删除/可见状态和用户明确过滤永不放宽。所有尝试失败后返回结构化 `no_evidence`；
+  搜索、Embedding 或 Reranker 系统错误不得伪装成空结果。
+- 默认管线为全文与向量两路召回、按 `chunk_id` 去重、RRF（`k=60`）融合、融合 TopN
+  调用内部 `RerankerPort`、最终阈值和 `top_k` 截断。保留两路原始排名/分数、融合分数和
+  Reranker 分数；Reranker 超时、不可用或异常时显式回退 RRF，不让整个请求失败。
+- Reranker 默认目标是经内部 Provider Adapter 调用 BGE Reranker；业务代码不绑定供应商 SDK，
+  CI 使用 Fake/Stub。没有真实端点/GPU 结果时不得声称真实 BGE Reranker 已验证。
+- 每次检索生成独立 `trace_id` 并关联 `request_id`。完整 Trace 默认保留 30 天，聚合指标可保留
+  180 天；持久化内容不含完整原查询、Chunk 正文、Prompt、密钥或 Authorization，只保存摘要、
+  哈希、ID、排名、分数、耗时、降级和错误。Trace 按 tenant 隔离，详细读取要求
+  `retrieval_debug` 或 `operations` 角色；写入失败不阻断检索但必须形成可观察计数。
+- Phase 06 继续零复制、零改写 RAGFlow 源码；公开源码只用于调用顺序和行为目标证据。
+
+**Consequences**
+
+- O-008 关闭；Phase 06 计划获准执行。复杂 RBAC、部门规则和生命周期补偿仍分别属于后续阶段。
+- Trace 存储和过期清理需要 Alembic 表、租户/过期索引、权限服务与真实 PostgreSQL 测试。
+- 查询改写、跨语言与关键词扩展按 Phase 06 正式计划实现为可关闭 Provider 能力；失败回退规范查询，
+  不能改变硬过滤。
+
+**Verification**
+
+- 确定性验证 RRF、去重、阈值、Rerank/超时回退、真空与系统错误区分、有限重试终止。
+- 负向验证所有降级步骤的 tenant、ACL、知识库、索引、状态和用户过滤不变。
+- 真实 Elasticsearch 验证双路检索/过滤/排名，真实 PostgreSQL 验证 Trace 租户隔离、TTL 和清理；
+  Fake Reranker/查询 Provider 不冒充真实模型。
+
+**References**
+
+[`phase-06-online-retrieval.md`](./phases/phase-06-online-retrieval.md)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
@@ -557,11 +603,11 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 
 ### O-004：RAGFlow 复用代码物理隔离
 
-- **Status**：Resolved through Phase 05
+- **Status**：Resolved through Phase 06
 - **Resolution**：ADR-019、ADR-020
 - **Decision deadline**：首次抽取代码前
 - **Question**：内部 Adapter 包、独立 Python 包或独立 Worker？
-- **Decision**：Phase 04、Phase 05 均不复制、抽取或改写 RAGFlow 源码；不存在这两个阶段的复用代码物理隔离问题。
+- **Decision**：Phase 04、Phase 05、Phase 06 均不复制、抽取或改写 RAGFlow 源码；不存在这三个阶段的复用代码物理隔离问题。
 - **Current handling**：只保留固定 commit 源码依据和独立实现 provenance；后续首次复制前必须重新打开许可证审查并形成 ADR。
 - **Required evidence**：依赖大小、模型资源、进程稳定性、许可证和部署影响。
 
@@ -584,21 +630,23 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 
 ### O-007：首批模型
 
-- **Status**：Resolved through Phase 05 for Chat/Embedding/OCR
-- **Resolution**：ADR-019、ADR-020
+- **Status**：Resolved through Phase 06 for Chat/Embedding/OCR/Reranker
+- **Resolution**：ADR-019、ADR-020、ADR-021
 - **Decision deadline**：Phase 04 开始前
 - **Question**：LLM、Embedding、Reranker、OCR、Vision、ASR 的首批 Provider/模型？
-- **Decision**：Chat 默认 DeepSeek OpenAI-compatible `deepseek-chat`；Embedding 默认 `BAAI/bge-m3`、1024 维；OCR 默认通过内部 Port 调用外部 Tesseract；Reranker 不作为 Phase 04/05 门禁。
-- **Current handling**：业务只依赖 Provider/Embedding/OCR Ports；CI 使用 Fake Chat/Embedding，并使用真实 Tesseract `eng`/`chi_sim`；真实 DeepSeek/BGE 端点和凭据仅来自环境变量。
+- **Decision**：Chat 默认 DeepSeek OpenAI-compatible `deepseek-chat`；Embedding 默认 `BAAI/bge-m3`、1024 维；OCR 默认通过内部 Port 调用外部 Tesseract；Reranker 默认目标为通过内部 `RerankerPort` 接入 BGE Reranker。
+- **Current handling**：业务只依赖 Provider/Embedding/OCR/Reranker Ports；CI 使用 Fake Chat/Embedding/Reranker，并使用真实 Tesseract `eng`/`chi_sim`；真实 DeepSeek/BGE 端点和凭据仅来自环境变量。
 - **Required evidence**：语言、维度、上下文、成本、延迟、隐私、部署、许可证和回退。
 
 ### O-008：空结果降级默认策略
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-021
 - **Decision deadline**：Phase 06
 - **Question**：降低阈值、去除改写、放宽 metadata、跨知识库还是直接空结果？
-- **Current handling**：返回结构化 `empty_reason`，不默认扩大权限或知识库范围。
-- **Security constraint**：任何降级不得放宽权限过滤。
+- **Decision**：有限可配置重试，只能扩大候选、在下限内降低软阈值、移除系统推断软过滤或改单通道；任何硬过滤不放宽，最终允许结构化 `no_evidence`。
+- **Current handling**：Phase 06 按 ADR-021 实施并记录每一步 Trace；后端/模型错误与真空分离。
+- **Security constraint**：tenant、ACL、知识库/索引、文档状态/可见性和用户过滤在所有步骤保持。
 
 ### O-009：GraphRAG 和 RAPTOR 默认范围
 
@@ -648,18 +696,18 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 | R-003 | Parser/OCR 依赖模型、原生库、GPU 和资源文件 | 高 | 高 | 安装失败、内存过高、平台不兼容 | 可选依赖、隔离实验、容器 Profile、资源限制 | Phase 05 | Open |
 | R-004 | 抽取代码残留 settings/Peewee/LLMBundle/Redis 全局依赖 | 高 | 高 | Adapter 导入上游 API/Service | import 边界、源码登记、契约测试 | Phase 04/05/06/09 | Open |
 | R-005 | PostgreSQL、对象存储、搜索索引不一致 | 中 | 严重 | 孤儿对象、孤儿 Chunk、错误 current version | DocumentVersion、候选索引、补偿、幂等 | Phase 07 | Open |
-| R-006 | 搜索后端分数和过滤语义不一致 | 高 | 高 | 相同数据不同排序/过滤结果 | O-002、SearchPort 契约、固定评测集 | Phase 04/06 | Open |
+| R-006 | 搜索后端分数和过滤语义不一致 | 高 | 高 | 相同数据不同排序/过滤结果 | O-002、SearchPort 契约、RRF、原始排名/分数 Trace、真实 ES 固定评测 | Phase 04/06/10 | Monitoring |
 | R-007 | Embedding 变化使旧索引不可用 | 中 | 高 | 模型/维度更新 | 记录模型和维度；新 index_version；重建切换 | Phase 07 | Open |
 | R-008 | Citation 指向错误版本、页码或删除内容 | 中 | 严重 | quote 不存在、引用旧版或越权文档 | document_version_id、验证器、删除可见性 | Phase 04/06/07 | Open |
 | R-009 | Agent 循环失控、成本过高或不可恢复 | 高 | 高 | 循环增长、重复 Tool、Checkpoint 失败 | 上限、预算、超时、Checkpoint、取消、Trace | Phase 02/08 | Open |
-| R-010 | 权限过滤遗漏导致数据泄露 | 中 | 严重 | 越权检索或 Citation | ADR-012；AuthorizationContext、PermissionChecker、Repository/Search 强制 tenant 条件；负向测试 | Phase 03/06/08/10 | Open |
+| R-010 | 权限过滤遗漏导致数据泄露 | 中 | 严重 | 越权检索或 Citation | ADR-012/021；Repository/Search 强制 tenant/ACL/状态/范围；所有降级负向测试 | Phase 03/06/08/10 | Monitoring |
 | R-011 | GraphRAG/RAPTOR 增加复杂度但无质量收益 | 高 | 高 | 成本上升、指标不升 | 默认关闭；Phase 10 对照评测 | Phase 09/10 | Open |
 | R-012 | RAGFlow/第三方许可证或模型再分发不清楚 | 中 | 严重 | 缺许可证、权重限制、样本来源不明 | provenance、依赖清单、人工法律复核 | 所有复用阶段 | Open |
 | R-013 | 文档规划过度，Minimum RAG 延迟 | 中 | 中 | Phase 00 持续扩大而无出口 | Phase 00 已归档；Phase 01 后按任务 DoD 推进 | Phase 00 | Mitigated |
 | R-014 | 抽象过度导致 Phase 04 没有垂直切片 | 中 | 高 | 只有 Protocol/DTO，没有端到端请求 | Phase 04 已完成 Fake 与真实基础设施上传到回答 E2E | Phase 03/04 | Closed |
 | R-015 | 测试数据不能代表复杂企业文档 | 高 | 高 | 黄金样本过于简单，线上质量差 | 多格式复杂样本、轨道交通脱敏集、错误样本 | Phase 05/10 | Open |
 | R-016 | LLM/Embedding/Reranker 供应商波动 | 高 | 中 | 限流、价格、模型下线、响应变化 | 模型注册、契约测试、回退、版本锁定 | Phase 04/10 | Open |
-| R-017 | Trace 记录敏感原文 | 中 | 严重 | 日志或 Trace 泄露文档内容 | 数据最小化、脱敏、访问控制、保留策略 | Phase 01/06/10 | Open |
+| R-017 | Trace 记录敏感原文 | 中 | 严重 | 日志或 Trace 泄露文档内容 | 数据最小化、查询摘要、tenant/角色读取、30 天 TTL、真实 PG 清理测试 | Phase 01/06/10 | Monitoring |
 | R-018 | 任务取消与重试竞态产生重复索引 | 中 | 高 | 已取消任务继续写入 | 状态比较、幂等 key、候选索引和最终检查 | Phase 07 | Open |
 | R-019 | 模块化单体退化为 API/Worker 两套重复实现 | 中 | 高 | 重复 DTO、内部 HTTP、行为漂移 | ADR-011；共享领域/应用层；导入边界与契约测试 | Phase 01 持续 | Open |
 | R-020 | 队列消息 tenant 与数据库资源 tenant 不一致 | 中 | 严重 | 跨租户任务执行或索引污染 | tenant_id + job_id 加载、双重校验、安全审计、拒绝执行 | Phase 03/04/07 | Open |
@@ -673,6 +721,8 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 | R-028 | ARQ maintenance-only 导致未来 Python/Redis 兼容或安全修复不足 | 中 | 高 | 新 Python/Redis 无法运行、关键缺陷长期无修复 | 锁定 0.28；只用最小接口；QueuePort 隔离；真实 Redis 回归；必要时替换 Adapter | Phase 04/10 | Monitoring |
 | R-029 | Elasticsearch Client/Server 版本或 KNN 语义漂移 | 中 | 高 | mapping、查询参数、分数或过滤在升级后变化 | 锁定 8.19 系列；真实 BM25/KNN/混合/tenant 契约测试；DSL 限于 Adapter | Phase 04/06/10 | Monitoring |
 | R-030 | Parser 格式库、PDFium、Tesseract 或语言数据跨平台漂移 | 中 | 高 | 同一文档输出结构变化、运行时缺失、语言包不可用或坐标漂移 | 锁定 Python 依赖；外部运行时能力检测；生成式黄金；Linux CI 真实 OCR；资源/错误契约；升级前基线比较 | Phase 05 持续/Phase 10 | Monitoring |
+| R-031 | 查询改写/翻译/关键词扩展引入噪声或 Prompt 注入 | 中 | 高 | 召回下降、恶意历史改变查询范围、变体爆炸 | 结构化 Provider、变体上限/去重、可关闭开关、失败回 canonical、硬过滤不随变体变化 | Phase 06/08/10 | Monitoring |
+| R-032 | Reranker 模型、端点或分数语义漂移 | 高 | 高 | 排名突变、超时、身份集合变化、GPU 不可用 | 内部 Port、超时、候选身份校验、RRF 回退、Fake 契约；真实模型回归后置 | Phase 06/10 | Monitoring |
 
 ## 5. 风险处理规则
 
@@ -684,9 +734,9 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-020。
-- Resolved：O-001 → ADR-016；O-002/O-006/O-007 → ADR-019；O-003 → ADR-011；O-004（Phase 04 不抽取）→ ADR-019；O-005 → ADR-012；O-012 → ADR-016。
-- Deferred：O-008、O-009、O-010、O-011。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-021。
+- Resolved：O-001 → ADR-016；O-002/O-006 → ADR-019；O-007 → ADR-019/020/021；O-003 → ADR-011；O-004（Phase 04–06 不抽取）→ ADR-019/020/021；O-005 → ADR-012；O-008 → ADR-021；O-012 → ADR-016。
+- Deferred：O-009、O-010、O-011。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
 - Superseded：ADR-006 → ADR-014。
 - 当前没有通过待决策事项擅自形成的实现。
@@ -777,3 +827,26 @@ Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重
 - **下一门禁**：Phase 06 预规划草案必须基于 schema v2、Citation bbox、
   现有 Elasticsearch BM25/KNN/RRF 和统一 SearchPort 复审；不得创建第二套
   检索主链路。
+
+## 13. Phase 06 出口审查记录
+
+### 2026-07-31 / P06-T12
+
+- **结论**：P06-T01 至 P06-T12 已完成并通过本地阶段验收；不自动进入 Phase 07。
+- **实现边界**：已实现查询规范化/可选改写/翻译/关键词变体、递归 Filter AST、
+  Elasticsearch BM25/KNN 双路检索、RRF `k=60`、Provider 隔离 Reranker、阈值/
+  TopN、有限安全降级、固定 RAG 统一接线和 PostgreSQL Retrieval Trace；未实现
+  真实 DeepSeek/BGE-M3/BGE Reranker 质量/性能验证、生命周期或 Agent Tool。
+- **验证证据**：隔离 PostgreSQL/MinIO/Redis/Elasticsearch 全仓回归
+  `203 passed, 1 skipped`，唯一 skip 为本机缺 Tesseract；真实 ES+PG 检索/Trace
+  专项 `4 passed`；ruff、strict mypy、锁文件、迁移往返、bootstrap、Compose 和
+  密钥门禁通过。远程提交/CI 证据在推送闭环后补记。
+- **决策与合规**：ADR-021 已实施，O-008 已关闭；RAGFlow 直接复用和改造复用均为
+  零，首次复制前仍需重新许可证审查。
+- **计划偏差**：改写/翻译/扩展合并到 `transforms.py`，融合文件为 `fusion.py`；
+  Citation/Context 沿用 Phase 04 主链路；没有建设 180 天聚合指标仓库或真实 BGE
+  运行时，二者都没有被描述成已实现。
+- **新增/持续风险**：R-031 监控查询变体噪声/注入，R-032 监控 Reranker 漂移；
+  R-006、R-010、R-017 进入持续监控，未因单阶段测试而关闭。
+- **下一门禁**：Phase 07 具备计划复审入口；必须冻结版本激活/回滚、重试分类与
+  次数、索引切换、软删除/物理回收期限和跨存储补偿后，才可批准执行。

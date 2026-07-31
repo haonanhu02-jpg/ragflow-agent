@@ -1,15 +1,15 @@
 ---
 document_id: DOMAIN-MODEL-AND-CONTRACTS
-document_role: Phase 03 领域契约与 Phase 04 Adapter 落地事实
+document_role: Phase 03 领域契约与 Phase 04-06 Adapter 落地事实
 status: active
-schema_version: 1
-last_updated_at: "2026-07-30"
+schema_version: 2
+last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
 # 领域模型与统一契约
 
-本文件记录 Phase 03 实际落地的领域语言、不可变量、状态机和端口，以及 Phase 04 对这些端口的最小真实 Adapter 落地。代码与本文冲突时，以已通过测试的源码为事实，并在同一任务内修正文档。
+本文件记录 Phase 03 实际落地的领域语言、不可变量、状态机和端口，以及 Phase 04-06 对这些端口的真实 Adapter 与在线检索落地。代码与本文冲突时，以已通过测试的源码为事实，并在同一任务内修正文档。
 
 导航：[项目主文档](./00-project-master.md) · [目标架构](./03-target-architecture.md) · [决策与风险](./07-decisions-and-risks.md) · [Phase 03](./phases/phase-03-knowledge-interface.md) · [Phase 04](./phases/phase-04-minimum-rag.md)
 
@@ -172,7 +172,7 @@ Phase 03 已通过：
 
 完整命令与最终数量以 [Phase 03 执行记录](./phases/phase-03-knowledge-interface.md) 为准。
 
-## 10. Phase 04/05 Adapter 落地与仍未实现
+## 10. Phase 04/05/06 Adapter 落地与仍未实现
 
 Phase 04 已实现：
 
@@ -183,11 +183,16 @@ Phase 04 已实现：
 - Phase 05 的 `ParserRegistry`、八类 Binary Parser、`OcrEnginePort`/Tesseract、
   `ChunkerRegistry`、九种 Chunk Method、schema v2、资源门禁和
   Elasticsearch/Citation bbox 映射。
+- Phase 06 的 Retrieval schema v2、`QueryTransformProviderPort`、`SearchChannelPort`、
+  `RerankerPort`、`RetrievalTraceStorePort`、`OnlineRetrievalService`、递归 Filter AST、
+  RRF/清理/有限降级、BGE Reranker HTTP Adapter、PostgreSQL Trace Store/清理和
+  权限受限 Trace API。
 
 仍未实现：
 
-- Reranker、完整查询改写/跨语言/阈值/空结果重试和持久 Retrieval Trace。
 - KnowledgeBaseTool、完整 Agentic RAG。
 - 模型型复杂多栏版面、GPU Vision、图片语义理解和模型型表格识别。
+- 真实 DeepSeek、BGE-M3 和 BGE Reranker 服务/GPU 质量/性能验证。
+- 文档更新、删除、重解析、索引版本原子切换、补偿和残留清理。
 - 复杂 RBAC、部门权限、动态数据规则、可靠 outbox、跨存储补偿、取消/DLQ/批量与生命周期清理。
 - 真实 DeepSeek/BGE-M3 smoke、模型注册/配额/降级；CI 只有 Fake/Stub Provider。

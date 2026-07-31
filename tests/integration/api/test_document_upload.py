@@ -82,9 +82,7 @@ def upload_client() -> Iterator[tuple[TestClient, MemoryIngestionQueue]]:
         ),
     )
     settings = AppSettings(
-        database=DatabaseSettings(
-            url=SecretStr("postgresql+psycopg://test:test@localhost/test")
-        ),
+        database=DatabaseSettings(url=SecretStr("postgresql+psycopg://test:test@localhost/test")),
         ingestion=IngestionSettings(
             max_upload_bytes=1024,
             chunk_max_tokens=32,

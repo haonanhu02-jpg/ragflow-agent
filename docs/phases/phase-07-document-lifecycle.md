@@ -6,7 +6,7 @@ phase: Phase 07
 phase_name: 文档生命周期
 plan_status: 预规划草案
 execution_status: 未执行
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -16,7 +16,9 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 - **计划状态**：预规划草案。
 - **执行状态**：未执行。
-- Phase 05/06 完成后必须按真实索引版本、任务实现和 Citation 语义重审。
+- Phase 05/06 已完成，代码前置产物存在；本计划仍须按真实 index version、
+  文档状态/可见性、Redis/ARQ、PostgreSQL Trace 和 Citation 语义重审并冻结，
+  因此当前只进入计划复审门禁，尚未批准或执行 P07-T01。
 - 导航：[阶段索引](./README.md) · [Phase 06](./phase-06-online-retrieval.md) · [Phase 08](./phase-08-agentic-rag.md) · [Phase 10](./phase-10-evaluation-and-production.md)
 
 ## 1. 目标、必要性与 Phase 00 依据
@@ -28,7 +30,9 @@ Phase 00 证明 RAGFlow 重解析采用原地状态/先删后建；删除先移�
 ## 2. 前置、输入、范围与排除
 
 - **前置阶段**：Phase 05、Phase 06。
-- **进入条件**：Parser/Chunk/Index/Citation 字段稳定；任务后端已运行；版本可见性规则确认；本计划复审。
+- **进入条件**：Parser/Chunk/Index/Citation/在线检索字段稳定且任务后端可运行的
+  代码条件已满足；仍需在 P07-T01 前确认版本激活/回滚、重试分类与次数、索引
+  切换、软删除/物理回收期限、跨存储补偿和批量隔离规则，并完成本计划复审。
 - **输入**：DocumentVersion/IngestionJob 状态、Search/Object/Queue Adapter、Trace、评测和故障注入环境。
 
 **范围**：更新/重解析/删除/重建、Embedding/Parser 版本迁移、候选索引激活、进度、可靠消息、dead-letter、取消、幂等、批量、补偿、回收/墓碑/reconciliation。
@@ -325,4 +329,3 @@ docs/09-document-lifecycle.md
 - 实际故障注入/恢复指标：待执行。
 - 计划偏差/新增 ADR：待执行。
 - 阶段出口结论：待执行。
-

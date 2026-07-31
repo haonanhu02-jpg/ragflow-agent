@@ -1,7 +1,7 @@
 ---
 document_id: RAGFLOW-ARCHITECTURE
 status: active
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 scope: RAGFlow Python
 ---
@@ -522,5 +522,15 @@ Knowledgebase 存在 `permission=me|team`，API 和 Service 具有 Tenant/User �
 7. 性能 benchmark 可参考，但质量评测必须自行建设。
 8. RAGFlow 的 API/Task Executor 分进程拓扑与目标第一版相近，但无条件 ACK 和分散状态规则要求本项目自研可靠任务协议。
 9. RAGFlow 的 tenant/user/owner 语义部分混用，目标项目必须通过 `AuthorizationContext`、`PermissionChecker` 和所有数据面的强制 tenant 条件建立清晰边界。
+
+### 10.1 Phase 06 采用结果（目标项目事实，不是 RAGFlow 上游事实）
+
+- 目标项目没有复制或改写上述 RAGFlow 文件；只参考调用顺序和行为目标。
+- `OnlineRetrievalService` 独立实现查询变体、硬过滤、Elasticsearch 双路召回、
+  RRF、Reranker 回退、有限空结果降级和结构化 `no_evidence`。
+- 目标项目通过 PostgreSQL `RetrievalTraceStorePort` 补足上游没有提供的统一、
+  内容最小化、tenant 隔离、TTL 可清理 Trace；该能力不得反向表述为 RAGFlow 已具备。
+- 实际代码和验证见[Phase 06 执行记录](./phases/phase-06-online-retrieval.md)与
+  [Phase 06 评测](./research/phase-06-retrieval-evaluation.md)。
 
 详细采用分类见[代码复用策略](./04-code-reuse-strategy.md)，目标落点见[目标架构](./03-target-architecture.md)。
