@@ -305,7 +305,7 @@ docs/09-document-lifecycle.md
 - **验收标准**：更新/删除/重建/取消/重试/幂等/批量全部通过。
 - **风险和回滚方法**：严重一致性缺陷阻止阶段完成。
 - **实际执行结果**：CAP-24、CAP-25、CAP-26 和 CAP-38 的 Phase 07 范围已实现；迁移、API/Worker、文档、能力矩阵和风险记录同步完成。
-- **实际验证结果**：隔离四后端全套 `221 passed, 1 skipped`；无外部服务套件 `206 passed, 16 skipped`；Ruff、严格 mypy、锁文件、包导入、API/Worker bootstrap、Alembic 升降级和敏感信息检查均通过。GitHub Actions 结果在推送后补录。
+- **实际验证结果**：隔离四后端全套 `221 passed, 1 skipped`；无外部服务套件 `206 passed, 16 skipped`；Ruff、严格 mypy、锁文件、包导入、API/Worker bootstrap、Alembic 升降级和敏感信息检查均通过。实现提交 `71f15d5` 已推送，其 [GitHub Actions 运行](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30634884467) 成功。
 - **计划偏差**：本机唯一跳过项为未安装 Tesseract 的既有 OCR 运行时测试，与生命周期无关；真实长期调度和混沌验证未冒充完成。
 
 ## 8. 验收、DoD、风险与后续
@@ -326,5 +326,6 @@ docs/09-document-lifecycle.md
 
 - **实际消息/索引/回收策略**：PostgreSQL 是权威状态；事务 Outbox 驱动 ARQ 投递；候选 generation 验证后切 Elasticsearch alias，再以数据库 CAS 发布当前版本；删除先 tombstone，默认 30 天后幂等回收。
 - **实际故障注入/恢复证据**：聚焦生命周期/Worker 套件 17 项通过，真实 PostgreSQL/Redis/MinIO/Elasticsearch 生命周期 E2E 通过；完整隔离后端套件 221 项通过、1 项仅因本机无 Tesseract 跳过。
+- **远程验证证据**：实现提交 `71f15d5` 已推送到 `origin/main`，[GitHub Actions 运行 `30634884467`](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30634884467) 成功。
 - **计划偏差/新增 ADR**：新增 ADR-022；不采用 2PC/分布式锁/RAGFlow 源码，生产调度告警与长时混沌分别登记 R-033、R-034。
 - **阶段出口结论**：Phase 07 的代码、测试和文档验收完成；可以进入 Phase 08 计划复审，不自动执行 Phase 08。

@@ -44,7 +44,7 @@ current_phase: Phase 07 completed; Phase 08 review gate
 - P04-T01 至 P04-T12 已完成并通过 PostgreSQL/MinIO/Redis/Elasticsearch 真实后端、Fake Provider、迁移、tenant、Citation/Trace、本地质量门禁及代码提交 `0732d47` 的 GitHub Actions。
 - P05-T01 至 P05-T12 已完成；实现提交 `0a4bca1` 已推送，GitHub Actions run `30614252319` 成功，包含真实 Tesseract `eng`/`chi_sim`、bbox 和完整质量门禁。
 - P06-T01 至 P06-T12 已完成；双路召回、RRF、Provider 隔离 Reranker、有限安全降级和内容最小化持久 Trace 已通过真实 Elasticsearch/PostgreSQL 与完整质量门禁。
-- P07-T01 至 P07-T11 已完成；不可变版本、候选索引/alias + CAS 激活、删除/恢复/回收、Outbox、重试/死信、取消、批量和 reconciliation 已通过完整质量门禁与隔离四后端测试。
+- P07-T01 至 P07-T11 已完成；不可变版本、候选索引/alias + CAS 激活、删除/恢复/回收、Outbox、重试/死信、取消、批量和 reconciliation 已通过完整质量门禁与隔离四后端测试；实现提交 `71f15d5` 的 [GitHub Actions](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30634884467) 成功。
 - Phase 08 至 Phase 10 都是预规划草案，必须逐阶段复审确认；当前只进入 Phase 08 计划复审门禁，不代表已批准执行。
 - ADR-017 至 ADR-022 分别记录 Phase 02 至 Phase 07 的执行基线；Phase 00 旧一致性审计仍记录当时 42 项基线事实。
 

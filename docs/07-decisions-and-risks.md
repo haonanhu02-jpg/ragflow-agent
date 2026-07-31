@@ -900,7 +900,7 @@ PostgreSQL、MinIO、Redis 和 Elasticsearch 没有跨系统原子事务。RAGFl
 - **结论**：P07-T01 至 P07-T11 已完成并通过本地阶段验收；不自动进入 Phase 08。
 - **准入决策**：ADR-022 冻结 PostgreSQL 权威状态、事务 Outbox/幂等步骤/补偿对账、不可变版本及 CAS/fencing、6 次总尝试/3 次并发冲突、generation alias、30 天版本与软删除、7 天旧索引保留和 tenant/KB 批量隔离。
 - **实现边界**：已实现更新/重解析、候选版本发布、回滚、删除/恢复/物理回收、generation staging/验证/alias、重试/取消/dead-letter/进度、Outbox、bounded reconciler、批次状态和 PostgreSQL 最终候选校验；没有实现跨 tenant 自动调度、生产告警、长时间混沌、复杂 RBAC 或 Phase 08 Agent Tool。
-- **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `221 passed, 1 skipped`，唯一 skip 为本机没有 Tesseract；真实生命周期 E2E `1 passed`，前序真实后端回归 `11 passed`；Alembic `0003 -> 0004 -> 0003 -> 0004`、ruff、strict mypy、锁文件、bootstrap、Compose 和密钥门禁通过。
+- **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `221 passed, 1 skipped`，唯一 skip 为本机没有 Tesseract；真实生命周期 E2E `1 passed`，前序真实后端回归 `11 passed`；Alembic `0003 -> 0004 -> 0003 -> 0004`、ruff、strict mypy、锁文件、bootstrap、Compose 和密钥门禁通过。实现提交 `71f15d5` 已推送到 `origin/main`，对应 [GitHub Actions 运行 `30634884467`](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30634884467) 成功。
 - **决策与合规**：RAGFlow 直接复用和改造复用仍为零；`document_api`、`DocumentService`、`TaskService`、Redis pending/ACK 和 `_prune_deleted_chunks` 仅作行为/反例证据。
 - **计划偏差**：Outbox 立即投递由 API best-effort 触发，Worker 同时暴露 tenant-scoped dispatch/reconcile 函数；生产级跨 tenant 周期调度和告警后置 Phase 10。真实模型仍未验证。
 - **下一门禁**：Phase 08 的代码依赖已满足，但详细计划仍为预规划草案；必须按 Phase 02 Agent Runtime、Phase 06 查询协议和 Phase 07 权威状态重新复审 Tool、预算、HITL、记忆、SQL/API 安全范围后才可执行。
