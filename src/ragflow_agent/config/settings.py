@@ -97,12 +97,37 @@ class ModelSettings(FrozenSettingsModel):
 
 
 class IngestionSettings(FrozenSettingsModel):
-    """Minimum upload, parser, chunk, and index profile."""
+    """Bounded upload, parser, OCR, chunk, and index profile."""
 
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
     chunk_max_tokens: int = Field(default=384, ge=16, le=8192)
     chunk_overlap_tokens: int = Field(default=48, ge=0, le=2048)
     parser_timeout_seconds: float = Field(default=30, gt=0, le=300)
+    ocr_languages: str = "eng"
+    tesseract_command: str | None = None
+    ooxml_max_entries: int = Field(default=5_000, ge=1)
+    ooxml_max_uncompressed_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
+    ooxml_max_compression_ratio: float = Field(default=100, ge=1)
+    pdf_max_pages: int = Field(default=2_000, ge=1)
+    image_max_pixels: int = Field(default=40_000_000, ge=1)
+    xlsx_max_sheets: int = Field(default=64, ge=1)
+    xlsx_max_rows_per_sheet: int = Field(default=100_000, ge=1)
+    xlsx_max_nonempty_cells: int = Field(default=1_000_000, ge=1)
+
+    @field_validator("ocr_languages")
+    @classmethod
+    def ocr_languages_are_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("ocr_languages must not be blank")
+        return normalized
+
+    @field_validator("tesseract_command", mode="before")
+    @classmethod
+    def blank_tesseract_command_is_unconfigured(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @model_validator(mode="after")
     def overlap_is_smaller_than_chunk(self) -> Self:

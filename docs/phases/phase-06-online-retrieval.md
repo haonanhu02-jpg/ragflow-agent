@@ -6,7 +6,7 @@ phase: Phase 06
 phase_name: 在线检索
 plan_status: 预规划草案
 execution_status: 未执行
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -16,7 +16,12 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 - **计划状态**：预规划草案。
 - **执行状态**：未执行。
-- Phase 04、05 完成后按真实 Search Adapter、Chunk metadata、评测集和模型重审。
+- **前置阶段事实**：Phase 04、Phase 05 已完成；现有基线为 Elasticsearch
+  BM25/KNN/RRF、统一 SearchPort、schema v2 Chunk metadata、Citation bbox
+  和多格式测试集。
+- **准入判断**：阶段依赖已满足，可以进入正式计划复审；O-008、
+  Reranker/融合/Trace 保留策略和本计划确认尚未完成，因此当前不得执行
+  P06-T01。
 - 导航：[阶段索引](./README.md) · [Phase 05](./phase-05-parser-and-chunk.md) · [Phase 07](./phase-07-document-lifecycle.md) · [Phase 08](./phase-08-agentic-rag.md)
 
 ## 1. 目标、必要性与事实依据
@@ -350,4 +355,3 @@ tests/{unit,contract,integration,evaluation}/retrieval/
 - 实际指标/安全/后端契约结果：待执行。
 - 实际偏差和新增决策：待执行。
 - 阶段出口结论：待执行。
-

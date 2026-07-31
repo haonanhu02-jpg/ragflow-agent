@@ -10,9 +10,10 @@ from pydantic import Field, field_validator, model_validator
 
 from ragflow_agent.knowledge.domain.base import KnowledgeModel, NonEmptyStr
 
-PARSED_DOCUMENT_SCHEMA_VERSION = 1
-CHUNK_SCHEMA_VERSION = 1
+PARSED_DOCUMENT_SCHEMA_VERSION = 2
+CHUNK_SCHEMA_VERSION = 2
 CHUNK_ID_ALGORITHM = "sha256-v1"
+CHUNK_ID_ALGORITHM_V2 = "sha256-v2"
 
 
 class BlockKind(StrEnum):
@@ -69,6 +70,15 @@ class ImageReference(KnowledgeModel):
     media_type: NonEmptyStr
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
+    embedded_path: str | None = None
+
+
+class ParseWarning(KnowledgeModel):
+    """Stable, non-fatal parser degradation visible to ingestion callers."""
+
+    code: NonEmptyStr
+    message: NonEmptyStr
+    page_number: int | None = Field(default=None, ge=1)
 
 
 class ParsedBlock(KnowledgeModel):
@@ -83,6 +93,7 @@ class ParsedBlock(KnowledgeModel):
     heading_path: tuple[str, ...] = ()
     table: TableMetadata | None = None
     image: ImageReference | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
 
     @field_validator("heading_path")
     @classmethod
@@ -122,6 +133,10 @@ class ParsedDocument(KnowledgeModel):
     parser_version: NonEmptyStr
     parsed_at: datetime
     blocks: tuple[ParsedBlock, ...]
+    source_media_type: str | None = None
+    source_name: str | None = None
+    recommended_chunk_strategy: NonEmptyStr = "general"
+    warnings: tuple[ParseWarning, ...] = ()
 
     @field_validator("parsed_at")
     @classmethod
@@ -150,6 +165,16 @@ class ChunkMetadata(KnowledgeModel):
     page_start: int | None = Field(default=None, ge=1)
     page_end: int | None = Field(default=None, ge=1)
     language: str | None = None
+    source_order_start: int | None = Field(default=None, ge=0)
+    source_order_end: int | None = Field(default=None, ge=0)
+    block_kinds: tuple[BlockKind, ...] = ()
+    bounding_box: BoundingBox | None = None
+    contains_table: bool = False
+    contains_image: bool = False
+    parser_name: str | None = None
+    parser_version: str | None = None
+    chunk_strategy_id: str | None = None
+    chunk_strategy_version: str | None = None
 
     @model_validator(mode="after")
     def validate_page_range(self) -> ChunkMetadata:
@@ -161,6 +186,16 @@ class ChunkMetadata(KnowledgeModel):
             and self.page_end < self.page_start
         ):
             raise ValueError("page_end cannot precede page_start")
+        if (self.source_order_start is None) != (self.source_order_end is None):
+            raise ValueError("source order bounds must be provided together")
+        if (
+            self.source_order_start is not None
+            and self.source_order_end is not None
+            and self.source_order_end < self.source_order_start
+        ):
+            raise ValueError("source_order_end cannot precede source_order_start")
+        if self.bounding_box is not None and self.page_start != self.page_end:
+            raise ValueError("one chunk bounding_box requires one source page")
         return self
 
 
@@ -214,5 +249,39 @@ def derive_chunk_id(
     )
     if not parts[1] or not parts[2] or not source_block_ids or not content.strip():
         raise ValueError("chunk identity inputs must not be empty")
+    digest = sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
+    return f"chk_{digest[:32]}"
+
+
+def derive_chunk_id_v2(
+    *,
+    tenant_id: str,
+    document_version_id: str,
+    strategy_id: str,
+    strategy_version: str,
+    sequence: int,
+    source_block_ids: tuple[str, ...],
+    content: str,
+) -> str:
+    """Derive a strategy-aware stable ID without changing Phase 04 v1 IDs."""
+    values = (
+        tenant_id.strip(),
+        document_version_id.strip(),
+        strategy_id.strip(),
+        strategy_version.strip(),
+        content.strip(),
+    )
+    if sequence < 0 or any(not value for value in values) or not source_block_ids:
+        raise ValueError("v2 chunk identity inputs must not be empty")
+    parts = (
+        CHUNK_ID_ALGORITHM_V2,
+        values[0],
+        values[1],
+        values[2],
+        values[3],
+        str(sequence),
+        ",".join(source_block_ids),
+        sha256(values[4].encode("utf-8")).hexdigest(),
+    )
     digest = sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
     return f"chk_{digest[:32]}"

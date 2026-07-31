@@ -71,7 +71,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 | `domain/authorization.py` | `AuthorizationContext`、`ResourceAuthorization`、`Visibility`、`PermissionAction`、`PermissionDecision` | tenant 优先；`private|tenant`；默认拒绝 |
 | `domain/knowledge_base.py` | `KnowledgeBase`、`KnowledgeBaseStatus` | tenant/owner/visibility 显式；ACTIVE/ARCHIVED |
 | `domain/document.py` | `Document`、`DocumentVersion`、`transition_document_version`、`activate_document_version` | Document/Version 分离；ready 且同范围版本才能激活；时间不回退 |
-| `domain/chunk.py` | `ParsedDocument`、`ParsedBlock`、`BoundingBox`、`ChunkRecord`、`derive_chunk_id` | schema v1；block 顺序/来源唯一；bbox 坐标系显式；稳定 `sha256-v1` ID |
+| `domain/chunk.py` | `ParsedDocument`、`ParsedBlock`、`BoundingBox`、`ChunkRecord`、`derive_chunk_id/derive_chunk_id_v2` | schema v2；block 顺序/来源唯一；bbox 坐标系显式；General `sha256-v1` 兼容、场景策略 `sha256-v2` |
 | `domain/ingestion.py` | `IngestionJob`、`IngestionTask`、`IngestionEnvelope`、`transition_ingestion`、`retry_ingestion_task` | tenant/job/version/attempt/idempotency/trace 完整；进度和时间单调；终态受控 |
 | `domain/retrieval.py` | `RetrievalQuery/Result/Candidate`、`Citation`、`RetrievalTrace/Event`、`IndexVersion/Record` | query/trace/candidate/citation tenant 与 KB 范围一致；空结果有明确原因；索引记录绑定版本 |
 | `domain/errors.py` | `KnowledgeAuthorizationError`、`KnowledgeNotFoundError`、`KnowledgeConflictError` | 稳定错误码，不依赖 HTTP 框架 |
@@ -172,7 +172,7 @@ Phase 03 已通过：
 
 完整命令与最终数量以 [Phase 03 执行记录](./phases/phase-03-knowledge-interface.md) 为准。
 
-## 10. Phase 04 Adapter 落地与仍未实现
+## 10. Phase 04/05 Adapter 落地与仍未实现
 
 Phase 04 已实现：
 
@@ -180,11 +180,14 @@ Phase 04 已实现：
 - S3-compatible/MinIO ObjectStorage、Redis/ARQ Queue、TXT/Markdown/PDF Parser、General Chunker。
 - BGE-M3 OpenAI-compatible Embedding Adapter、Elasticsearch 8.19 SearchIndex/Retriever、最小日志 Trace。
 - 上传/Job API、Worker pipeline、BM25/KNN/RRF、固定 RAG、Citation/RetrievalTrace。
+- Phase 05 的 `ParserRegistry`、八类 Binary Parser、`OcrEnginePort`/Tesseract、
+  `ChunkerRegistry`、九种 Chunk Method、schema v2、资源门禁和
+  Elasticsearch/Citation bbox 映射。
 
 仍未实现：
 
 - Reranker、完整查询改写/跨语言/阈值/空结果重试和持久 Retrieval Trace。
 - KnowledgeBaseTool、完整 Agentic RAG。
-- OCR/版面/表格/八类格式和场景 Chunk Method。
+- 模型型复杂多栏版面、GPU Vision、图片语义理解和模型型表格识别。
 - 复杂 RBAC、部门权限、动态数据规则、可靠 outbox、跨存储补偿、取消/DLQ/批量与生命周期清理。
 - 真实 DeepSeek/BGE-M3 smoke、模型注册/配额/降级；CI 只有 Fake/Stub Provider。

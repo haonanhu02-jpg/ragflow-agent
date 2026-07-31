@@ -39,7 +39,16 @@ ALLOWED_UPLOAD_MEDIA_TYPES = frozenset(
     {
         "text/plain",
         "text/markdown",
+        "text/html",
         "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "image/png",
+        "image/jpeg",
+        "image/tiff",
+        "image/webp",
+        "image/bmp",
     }
 )
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
@@ -234,7 +243,7 @@ class UploadService:
     def _validate_upload(self, command: UploadDocumentCommand) -> None:
         if command.media_type not in ALLOWED_UPLOAD_MEDIA_TYPES:
             raise KnowledgeConflictError(
-                "upload media type is not supported in Phase 04",
+                "upload media type is not supported by the Phase 05 parser profile",
                 error_code="upload_media_type_unsupported",
                 details={"media_type": command.media_type},
             )

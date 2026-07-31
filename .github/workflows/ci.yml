@@ -1,4 +1,4 @@
-name: Phase 04 quality gate
+name: Phase 05 quality gate
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: phase-04-${{ github.workflow }}-${{ github.ref }}
+  group: phase-05-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -63,6 +63,8 @@ jobs:
       RAGFLOW_AGENT_DEV_POSTGRES_PASSWORD: phase01-ci-only
       RAGFLOW_AGENT_DEV_MINIO_ROOT_USER: phase04-ci-minio
       RAGFLOW_AGENT_DEV_MINIO_ROOT_PASSWORD: phase04-ci-minio-secret
+      RAGFLOW_AGENT_TEST_REQUIRE_TESSERACT: "1"
+      RAGFLOW_AGENT_INGESTION__OCR_LANGUAGES: eng+chi_sim
 
     steps:
       - uses: actions/checkout@v5
@@ -74,6 +76,12 @@ jobs:
 
       - name: Install locked dependencies
         run: uv sync --frozen --all-groups
+
+      - name: Install OCR runtime and declared language packs
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            fonts-noto-cjk tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim
 
       - name: Start MinIO
         run: |

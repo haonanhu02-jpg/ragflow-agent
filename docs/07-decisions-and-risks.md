@@ -486,6 +486,44 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 
 [`phase-04-minimum-rag.md`](./phases/phase-04-minimum-rag.md)；[ARQ documentation](https://arq-docs.helpmanual.io/)；[Elasticsearch async client](https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/async.html)
 
+### ADR-020：Phase 05 独立 Parser、Tesseract OCR 与样本资源 Profile
+
+- **Status**：Accepted
+- **Date**：2026-07-31
+
+**Context**
+
+Phase 04 已提供版本化 `ParsedDocument`、`ChunkRecord` 和真实 ingestion 闭环。RAGFlow DeepDOC
+Parser/Vision 与 `common.settings`、RAG tokenizer、ONNX/OpenCV、模型权重和业务服务深度耦合；
+用户明确要求 Phase 05 不复制、抽取或改写 RAGFlow 源码。
+
+**Decision**
+
+- 八类 Parser、Parser/Chunk Registry 和九种 Chunk Method 全部独立实现；RAGFlow 冻结源码只作职责和行为证据，Phase 05 的直接复用/改造复用数量均为零。
+- TXT/Markdown/HTML 使用 charset-normalizer、markdown-it-py、BeautifulSoup；DOCX/PPTX/XLSX 使用 python-docx、python-pptx、openpyxl + defusedxml；PDF 使用 pdfplumber 提取文本/坐标/表格，使用 pypdfium2 渲染扫描页。
+- OCR 通过项目内部 `OcrEnginePort` 隔离，首个 Adapter 调用外部 Tesseract 5.x。项目不捆绑 OCR 引擎、模型或语言权重；CI 安装并真实验证 `eng` 与 `chi_sim`。
+- Parser 同时校验 MIME 与扩展名，输出 schema v2、结构化 warning、来源顺序、bbox、表格/图片引用和推荐 Chunk Method。所有策略继续使用稳定、版本化 ID。
+- 测试样本必须人工创建、无敏感信息、小体积且有 provenance；Office/PDF/图片二进制样本在测试运行时确定性生成。
+- 资源门禁固定 OOXML entries/解压大小/压缩比、PDF 页数、图片像素、XLSX sheet/row/cell、Parser 超时；解析器不得把临时路径或第三方对象泄漏进领域层。
+
+**Consequences**
+
+- O-004 在 Phase 05 继续按“零 RAGFlow 源码复制”关闭；若未来首次复制，必须新增 ADR 并重新许可证审查。
+- O-007 的 Phase 05 OCR 基线解决为 Tesseract；真实 DeepSeek/BGE、Reranker 和模型型 Vision 仍不属于本阶段验收。
+- Tesseract 不可用时图片或扫描 PDF 必须明确失败；本地可 skip 真实 OCR，但 CI 不允许 skip。
+- 新增 R-030 监控格式库、PDFium/Tesseract 运行时、语言数据、资源上限和 Parser 输出漂移。
+
+**Verification**
+
+- `uv lock --check`、`uv sync --frozen --all-groups`、`uv pip check` 和全部 Parser import probe。
+- 每种格式/策略的 golden/contract/resource test，以及 CI 的英文/中文真实 OCR。
+- 导入边界与 provenance 扫描必须证明 `src/` 不导入 RAGFlow、DeepDOC、Peewee 或 `common.settings`。
+
+**References**
+
+[`phase-05-parser-license-and-resource-baseline.md`](./research/phase-05-parser-license-and-resource-baseline.md)；
+[`phase-05-parser-and-chunk.md`](./phases/phase-05-parser-and-chunk.md)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
@@ -519,11 +557,11 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 
 ### O-004：RAGFlow 复用代码物理隔离
 
-- **Status**：Resolved for Phase 04
-- **Resolution**：ADR-019
+- **Status**：Resolved through Phase 05
+- **Resolution**：ADR-019、ADR-020
 - **Decision deadline**：首次抽取代码前
 - **Question**：内部 Adapter 包、独立 Python 包或独立 Worker？
-- **Decision**：Phase 04 不复制、抽取或改写 RAGFlow 源码；不存在本阶段复用代码的物理隔离问题。
+- **Decision**：Phase 04、Phase 05 均不复制、抽取或改写 RAGFlow 源码；不存在这两个阶段的复用代码物理隔离问题。
 - **Current handling**：只保留固定 commit 源码依据和独立实现 provenance；后续首次复制前必须重新打开许可证审查并形成 ADR。
 - **Required evidence**：依赖大小、模型资源、进程稳定性、许可证和部署影响。
 
@@ -546,12 +584,12 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 
 ### O-007：首批模型
 
-- **Status**：Resolved for Phase 04
-- **Resolution**：ADR-019
+- **Status**：Resolved through Phase 05 for Chat/Embedding/OCR
+- **Resolution**：ADR-019、ADR-020
 - **Decision deadline**：Phase 04 开始前
 - **Question**：LLM、Embedding、Reranker、OCR、Vision、ASR 的首批 Provider/模型？
-- **Decision**：Chat 默认 DeepSeek OpenAI-compatible `deepseek-chat`；Embedding 默认 `BAAI/bge-m3`、1024 维；Reranker 不作为 Phase 04 门禁。
-- **Current handling**：业务只依赖 Provider/Embedding Ports；CI 使用 Fake/Stub，真实端点和凭据仅来自环境变量。
+- **Decision**：Chat 默认 DeepSeek OpenAI-compatible `deepseek-chat`；Embedding 默认 `BAAI/bge-m3`、1024 维；OCR 默认通过内部 Port 调用外部 Tesseract；Reranker 不作为 Phase 04/05 门禁。
+- **Current handling**：业务只依赖 Provider/Embedding/OCR Ports；CI 使用 Fake Chat/Embedding，并使用真实 Tesseract `eng`/`chi_sim`；真实 DeepSeek/BGE 端点和凭据仅来自环境变量。
 - **Required evidence**：语言、维度、上下文、成本、延迟、隐私、部署、许可证和回退。
 
 ### O-008：空结果降级默认策略
@@ -634,6 +672,7 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 | R-027 | 数据库提交与对象存储、搜索、Queue、Trace 非原子导致部分成功 | 高 | 高 | 写入已提交但事件/索引/Trace 失败，重试产生重复或状态漂移 | Phase 03 只定义端口；Phase 04 命令使用幂等键；Phase 07 落地 outbox、候选索引、补偿、残留扫描和故障注入 | Phase 04/07 | Open |
 | R-028 | ARQ maintenance-only 导致未来 Python/Redis 兼容或安全修复不足 | 中 | 高 | 新 Python/Redis 无法运行、关键缺陷长期无修复 | 锁定 0.28；只用最小接口；QueuePort 隔离；真实 Redis 回归；必要时替换 Adapter | Phase 04/10 | Monitoring |
 | R-029 | Elasticsearch Client/Server 版本或 KNN 语义漂移 | 中 | 高 | mapping、查询参数、分数或过滤在升级后变化 | 锁定 8.19 系列；真实 BM25/KNN/混合/tenant 契约测试；DSL 限于 Adapter | Phase 04/06/10 | Monitoring |
+| R-030 | Parser 格式库、PDFium、Tesseract 或语言数据跨平台漂移 | 中 | 高 | 同一文档输出结构变化、运行时缺失、语言包不可用或坐标漂移 | 锁定 Python 依赖；外部运行时能力检测；生成式黄金；Linux CI 真实 OCR；资源/错误契约；升级前基线比较 | Phase 05 持续/Phase 10 | Monitoring |
 
 ## 5. 风险处理规则
 
@@ -645,7 +684,7 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-019。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-020。
 - Resolved：O-001 → ADR-016；O-002/O-006/O-007 → ADR-019；O-003 → ADR-011；O-004（Phase 04 不抽取）→ ADR-019；O-005 → ADR-012；O-012 → ADR-016。
 - Deferred：O-008、O-009、O-010、O-011。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
@@ -708,3 +747,27 @@ Phase 03 已冻结知识领域、租户隔离和基础能力 Ports，但 O-002�
 - **决策与合规**：ADR-019 已实施；Phase 04 直接复用和改造复用 RAGFlow 源码均为零，后续首次复制前必须重新许可证审查。
 - **计划偏差**：用户准入决策将最小 RRF 混合检索提前到 Phase 04；ARQ 要求 `redis<6`；复杂调度、补偿、流式回答和真实 Provider 验证仍按后续阶段处理。
 - **下一门禁**：依据 Phase 04 实际 Parser/Chunk/provenance 复审 Phase 05 计划，确认复杂格式、OCR、资源、样本和许可证后才可执行。
+
+## 12. Phase 05 出口审查记录
+
+### 2026-07-31 / P05-T12
+
+- **结论**：P05-T01 至 P05-T12 已完成；Phase 05 通过八格式/九策略、
+  资源攻击、并发、内存 E2E、真实 PostgreSQL/MinIO/Redis/Elasticsearch、
+  真实 Tesseract CI、ruff、strict mypy、锁文件、迁移、bootstrap 和密钥门禁；
+  不自动进入 Phase 06。
+- **实现边界**：已实现确定性 Parser/Chunk Registry、TXT/Markdown/HTML/
+  DOCX/PPTX/XLSX/PDF/图片、Tesseract OCR、扫描 PDF fallback、原生表格、
+  schema v2、bbox/Citation、九种 Chunk Method 和资源限制；未实现模型型
+  多栏语义版面、GPU Vision、真实 DeepSeek/BGE-M3、Reranker 或 Phase 06
+  查询处理。
+- **决策与合规**：ADR-020 已实施；RAGFlow 直接复用和改造复用均为零，
+  所以没有空 `ragflow_adapters` 包，也没有 RAGFlow 派生源码分发义务。
+- **计划偏差**：二进制黄金样本在测试时生成；真实 OCR 由 Linux CI 强制，
+  本机缺 Tesseract 时只允许显式 skip；General 保留 `sha256-v1` 兼容，
+  场景策略使用 `sha256-v2`。
+- **新增/持续风险**：R-030 监控 Parser/Tesseract/PDFium 平台漂移；
+  R-015 的复杂企业文档代表性仍未关闭。
+- **下一门禁**：Phase 06 预规划草案必须基于 schema v2、Citation bbox、
+  现有 Elasticsearch BM25/KNN/RRF 和统一 SearchPort 复审；不得创建第二套
+  检索主链路。

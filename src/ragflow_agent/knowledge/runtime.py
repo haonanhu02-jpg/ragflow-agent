@@ -1,4 +1,4 @@
-"""Production wiring for the Phase 04 minimum RAG profile."""
+"""Production wiring for the Phase 05 multi-format minimum RAG profile."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from ragflow_agent.infrastructure.database import (
     create_database_engine,
     create_session_factory,
 )
+from ragflow_agent.knowledge.application.chunker_registry import ChunkerRegistry
 from ragflow_agent.knowledge.application.fixed_rag import FixedRagService
 from ragflow_agent.knowledge.application.ingestion import (
     IngestionPipeline,
@@ -20,9 +21,10 @@ from ragflow_agent.knowledge.application.knowledge_service import (
     KnowledgeQueryService,
     KnowledgeService,
 )
+from ragflow_agent.knowledge.application.parser_registry import ParserRegistry
 from ragflow_agent.knowledge.application.permission_service import DefaultPermissionChecker
 from ragflow_agent.knowledge.application.upload import UploadService
-from ragflow_agent.knowledge.infrastructure.chunking import GeneralChunker
+from ragflow_agent.knowledge.infrastructure.chunking import GeneralChunker, ScenarioChunker
 from ragflow_agent.knowledge.infrastructure.database import (
     SqlAlchemyKnowledgeUnitOfWorkFactory,
 )
@@ -31,7 +33,8 @@ from ragflow_agent.knowledge.infrastructure.models import (
     build_embedding_adapter,
 )
 from ragflow_agent.knowledge.infrastructure.object_store import S3ObjectStorage
-from ragflow_agent.knowledge.infrastructure.parsers import BasicObjectParser
+from ragflow_agent.knowledge.infrastructure.ocr import TesseractOcrEngine
+from ragflow_agent.knowledge.infrastructure.parsers import build_default_binary_parsers
 from ragflow_agent.knowledge.infrastructure.queue import ArqIngestionQueue
 from ragflow_agent.knowledge.infrastructure.search import ElasticsearchSearchAdapter
 from ragflow_agent.knowledge.infrastructure.trace import LoggingKnowledgeTrace
@@ -82,16 +85,41 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
         embedding_model_id=settings.models.embedding_model,
         embedding_dimensions=settings.models.embedding_dimensions,
     )
-    parser = BasicObjectParser(
+    ocr = TesseractOcrEngine(command=settings.ingestion.tesseract_command)
+    parser = ParserRegistry(
+        parsers=build_default_binary_parsers(settings.ingestion, ocr=ocr),
         storage=storage,
         unit_of_work_factory=unit_of_work_factory,
         clock=clock,
         max_bytes=settings.ingestion.max_upload_bytes,
         timeout_seconds=settings.ingestion.parser_timeout_seconds,
+        ocr_language=settings.ingestion.ocr_languages,
     )
-    chunker = GeneralChunker(
+    general_chunker = GeneralChunker(
         max_tokens=settings.ingestion.chunk_max_tokens,
         overlap_tokens=settings.ingestion.chunk_overlap_tokens,
+    )
+    chunker = ChunkerRegistry(
+        chunkers=(
+            general_chunker,
+            *(
+                ScenarioChunker(
+                    strategy_id=strategy_id,
+                    max_tokens=settings.ingestion.chunk_max_tokens,
+                    overlap_tokens=settings.ingestion.chunk_overlap_tokens,
+                )
+                for strategy_id in (
+                    "paper",
+                    "book",
+                    "manual",
+                    "laws",
+                    "qa",
+                    "table",
+                    "resume",
+                    "picture",
+                )
+            ),
+        )
     )
     knowledge_service = KnowledgeService(
         unit_of_work_factory=unit_of_work_factory,
@@ -122,8 +150,8 @@ def build_minimum_rag_runtime(settings: AppSettings) -> MinimumRagRuntime:
         search=search,
         clock=clock,
         profile=IngestionProfile(
-            chunk_strategy_id=chunker.strategy_id,
-            chunk_strategy_version=chunker.strategy_version,
+            chunk_strategy_id="auto",
+            chunk_strategy_version="auto",
             chunk_max_tokens=settings.ingestion.chunk_max_tokens,
             embedding_model_id=settings.models.embedding_model,
         ),

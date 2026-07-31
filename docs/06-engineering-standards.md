@@ -240,12 +240,18 @@ Phase 01 已在本地验证全部命令并创建 GitHub Actions 工作流；远�
 ### 10.2 Chunk
 
 1. Chunker 输入统一 ParsedDocument。
-2. Chunk ID 稳定算法必须版本化；当前 v1 为 `sha256-v1`。
+2. Chunk ID 稳定算法必须版本化；General 的兼容算法为 `sha256-v1`，
+   Phase 05 场景策略算法为包含 strategy id/version 的 `sha256-v2`。
 3. 记录 source_block_ids。
 4. Token 上限、重叠、父子关系和表图上下文必须配置化。
 5. 自动关键词、自动问题、摘要、标题和 TOC 是独立增强步骤。
 6. 增强失败默认不破坏基础 Chunk；例外必须由策略明确。
 7. 每个 Chunk Method 有黄金样本和回归测试。
+8. Parser 必须同时校验 MIME 与扩展名；显式 override 不兼容时失败关闭。
+9. OOXML 条目/解压大小/压缩比、PDF 页数、图片像素和 XLSX
+   sheet/row/cell 上限由配置控制，禁止静默绕过。
+10. 本地无 Tesseract 可显式跳过真实 OCR 集成测试，但 CI 必须安装声明的
+    language packs 并设置 required 开关；Static/Fake OCR 只验证集成契约。
 
 ## 11. Embedding 与索引标准
 

@@ -10,6 +10,7 @@ from elasticsearch import AsyncElasticsearch, BadRequestError
 
 from ragflow_agent.config import SearchSettings
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
+from ragflow_agent.knowledge.domain.chunk import BoundingBox, CoordinateSpace
 from ragflow_agent.knowledge.domain.errors import (
     KnowledgeAuthorizationError,
     KnowledgeConflictError,
@@ -33,6 +34,22 @@ from ragflow_agent.knowledge.domain.retrieval import (
 from ragflow_agent.knowledge.ports.embedding import EmbeddingInput, EmbeddingPort, EmbeddingRequest
 
 _RRF_K = 60
+_PHASE05_METADATA_PROPERTIES: dict[str, dict[str, Any]] = {
+    "source_order_start": {"type": "integer"},
+    "source_order_end": {"type": "integer"},
+    "block_kinds": {"type": "keyword"},
+    "bbox_x0": {"type": "double"},
+    "bbox_y0": {"type": "double"},
+    "bbox_x1": {"type": "double"},
+    "bbox_y1": {"type": "double"},
+    "bbox_coordinate_space": {"type": "keyword"},
+    "contains_table": {"type": "boolean"},
+    "contains_image": {"type": "boolean"},
+    "parser_name": {"type": "keyword"},
+    "parser_version": {"type": "keyword"},
+    "chunk_strategy_id": {"type": "keyword"},
+    "chunk_strategy_version": {"type": "keyword"},
+}
 
 
 class ElasticsearchSearchAdapter:
@@ -64,6 +81,10 @@ class ElasticsearchSearchAdapter:
     async def ensure_index(self) -> None:
         if await self._client.indices.exists(index=self._index_name):
             await self._validate_index_mapping()
+            await self._client.indices.put_mapping(
+                index=self._index_name,
+                properties=_PHASE05_METADATA_PROPERTIES,
+            )
             return
         try:
             await self._client.indices.create(
@@ -87,6 +108,7 @@ class ElasticsearchSearchAdapter:
                         "page_start": {"type": "integer"},
                         "page_end": {"type": "integer"},
                         "language": {"type": "keyword"},
+                        **_PHASE05_METADATA_PROPERTIES,
                         "embedding": {
                             "type": "dense_vector",
                             "dims": self._dimensions,
@@ -433,6 +455,7 @@ class ElasticsearchSearchAdapter:
         source = hit.source
         quote = str(source["content"])
         page_number = source.get("page_start")
+        bounding_box = ElasticsearchSearchAdapter._bounding_box(source)
         citation = Citation(
             tenant_id=str(source["tenant_id"]),
             knowledge_base_id=str(source["knowledge_base_id"]),
@@ -441,6 +464,7 @@ class ElasticsearchSearchAdapter:
             chunk_id=str(source["chunk_id"]),
             quote=quote,
             page_number=int(page_number) if page_number is not None else None,
+            bounding_box=bounding_box,
             source_uri=(
                 f"documents/{source['document_id']}/versions/{source['document_version_id']}"
             ),
@@ -464,6 +488,7 @@ class ElasticsearchSearchAdapter:
 
     @staticmethod
     def _source(record: IndexRecord, *, active: bool) -> dict[str, Any]:
+        bounding_box = record.metadata.bounding_box
         return {
             "index_version_id": record.index_version_id,
             "tenant_id": record.tenant_id,
@@ -481,8 +506,49 @@ class ElasticsearchSearchAdapter:
             "page_start": record.metadata.page_start,
             "page_end": record.metadata.page_end,
             "language": record.metadata.language,
+            "source_order_start": record.metadata.source_order_start,
+            "source_order_end": record.metadata.source_order_end,
+            "block_kinds": [kind.value for kind in record.metadata.block_kinds],
+            "bbox_x0": bounding_box.x0 if bounding_box is not None else None,
+            "bbox_y0": bounding_box.y0 if bounding_box is not None else None,
+            "bbox_x1": bounding_box.x1 if bounding_box is not None else None,
+            "bbox_y1": bounding_box.y1 if bounding_box is not None else None,
+            "bbox_coordinate_space": (
+                bounding_box.coordinate_space.value
+                if bounding_box is not None
+                else None
+            ),
+            "contains_table": record.metadata.contains_table,
+            "contains_image": record.metadata.contains_image,
+            "parser_name": record.metadata.parser_name,
+            "parser_version": record.metadata.parser_version,
+            "chunk_strategy_id": record.metadata.chunk_strategy_id,
+            "chunk_strategy_version": record.metadata.chunk_strategy_version,
             "embedding": list(record.embedding),
         }
+
+    @staticmethod
+    def _bounding_box(source: dict[str, Any]) -> BoundingBox | None:
+        values = (
+            source.get("bbox_x0"),
+            source.get("bbox_y0"),
+            source.get("bbox_x1"),
+            source.get("bbox_y1"),
+            source.get("bbox_coordinate_space"),
+        )
+        if any(value is None for value in values):
+            return None
+        x0, y0, x1, y1, coordinate_space = values
+        try:
+            return BoundingBox(
+                x0=float(str(x0)),
+                y0=float(str(y0)),
+                x1=float(str(x1)),
+                y1=float(str(y1)),
+                coordinate_space=CoordinateSpace(str(coordinate_space)),
+            )
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def _document_key(record: IndexRecord) -> str:

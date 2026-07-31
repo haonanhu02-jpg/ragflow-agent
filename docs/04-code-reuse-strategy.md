@@ -196,11 +196,30 @@ tests:
 - **第三方依赖**：pypdf、ARQ/redis-py、Elasticsearch Client、LangChain OpenAI Adapter 和 boto3 按本项目依赖直接使用，不是从 RAGFlow 抽取。
 - **许可结论**：Phase 04 没有 RAGFlow 派生源码分发义务；后续首次复制或修改上游文件前，必须重新打开 O-004/许可证 ADR，登记精确文件、修改、NOTICE 和传递资源。
 
+### 6.3 Phase 05 实际复用审计
+
+- **直接复用**：0 个 RAGFlow 文件/类/函数。
+- **改造复用**：0 个 RAGFlow 文件/类/函数。
+- **参考范围**：`deepdoc/parser/{pdf,docx,ppt,excel}_parser.py`、
+  `deepdoc/vision/{ocr,layout_recognizer,table_structure_recognizer}.py`、
+  `chunk_builder.py::get_parser/run_chunking` 和
+  `rag/app/{naive,paper,book,manual,laws,qa,table,resume,picture}.py::chunk`
+  只用于职责、依赖图和行为目标核对。
+- **独立实现**：Parser/OCR/Chunk 代码全部位于本项目
+  `knowledge/{application,infrastructure,ports,domain}`；使用
+  python-docx、python-pptx、openpyxl、pdfplumber、pypdfium2、Pillow、
+  pytesseract、BeautifulSoup、markdown-it-py 等公开第三方接口。
+- **隔离层结论**：因为没有 RAGFlow 派生代码，本阶段不创建空的
+  `ragflow_adapters` 包；后续首次复制/修改上游代码时仍必须通过该隔离层并
+  重新打开 O-004。
+- **证据**：[Phase 05 许可与资源基线](./research/phase-05-parser-license-and-resource-baseline.md)、
+  [Phase 05 执行记录](./phases/phase-05-parser-and-chunk.md)。
+
 ## 7. 与能力和阶段的关系
 
 - Phase 00：完成源码、依赖和许可证登记，不做抽取实验，不合入业务实现。
 - Phase 04：已完成；只参考最小 RAG 闭环所需的 Parser/Chunk/检索行为，未引入 RAGFlow 源码。
-- Phase 05：集中处理 DeepDOC、OCR、多格式和场景化 Chunk Method。
+- Phase 05：已完成；研究 DeepDOC、OCR、多格式和场景化 Chunk Method，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
 - Phase 06：处理 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation。
 - Phase 08：只参考 Agent Retrieval Tool 和 Agentic RAG，不引入 Canvas。
 - Phase 09：处理 GraphRAG、RAPTOR 和多模态。

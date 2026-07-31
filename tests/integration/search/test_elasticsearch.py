@@ -10,7 +10,12 @@ from pydantic import SecretStr
 
 from ragflow_agent.config import SearchSettings
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext, Visibility
-from ragflow_agent.knowledge.domain.chunk import ChunkMetadata
+from ragflow_agent.knowledge.domain.chunk import (
+    BlockKind,
+    BoundingBox,
+    ChunkMetadata,
+    CoordinateSpace,
+)
 from ragflow_agent.knowledge.domain.retrieval import (
     EmbeddingMetadata,
     IndexRecord,
@@ -79,7 +84,25 @@ async def test_elasticsearch_full_text_vector_hybrid_and_tenant_filter() -> None
         media_type="text/markdown",
         created_at=datetime.now(UTC),
         embedding=embedding.vector(text),
-        metadata=ChunkMetadata(heading_path=("Recovery",), page_start=1, page_end=1),
+        metadata=ChunkMetadata(
+            heading_path=("Recovery",),
+            page_start=1,
+            page_end=1,
+            source_order_start=0,
+            source_order_end=0,
+            block_kinds=(BlockKind.TEXT,),
+            bounding_box=BoundingBox(
+                x0=10,
+                y0=20,
+                x1=200,
+                y1=80,
+                coordinate_space=CoordinateSpace.PAGE_POINTS,
+            ),
+            parser_name="integration-parser",
+            parser_version="2",
+            chunk_strategy_id="manual",
+            chunk_strategy_version="1",
+        ),
     )
     query = RetrievalQuery(
         tenant_id=owner.tenant_id,
@@ -107,6 +130,7 @@ async def test_elasticsearch_full_text_vector_hybrid_and_tenant_filter() -> None
             RetrievalStage.FUSION,
         }
         assert hybrid.citations[0].document_version_id == record.document_version_id
+        assert hybrid.citations[0].bounding_box == record.metadata.bounding_box
 
         other = AuthorizationContext(
             tenant_id=f"other-{suffix}",

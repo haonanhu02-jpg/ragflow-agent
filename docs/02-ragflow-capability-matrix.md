@@ -1,7 +1,7 @@
 ---
 document_id: RAGFLOW-CAPABILITY-MATRIX
 status: active
-last_updated_at: "2026-07-30"
+last_updated_at: "2026-07-31"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -18,7 +18,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 - RAGFlow 代码位置均相对于冻结 commit `cd846cc9d4e32a19e684c59a1f302601027ef976`。
 - “LangChain 能否承担”和“LangGraph 能否承担”描述框架原生或合理扩展能力，不代表项目已经实现。
 - 采用分类只能使用：`直接复用`、`改造复用`、`参考重写`、`自行开发`、`暂缓`。
-- 当前状态必须按已验证的阶段事实记录：Phase 03 已交付知识领域和端口契约，但真实 Parser、Embedding、Search、Ingestion 数据面和 RAG 仍是未实现。
+- 当前状态必须按已验证的阶段事实记录：Phase 00 至 Phase 05 已完成；Phase 06 及以后能力仍只能按实际前置实现标注。
 - 复用的具体源文件、依赖和改造办法见[代码复用策略](./04-code-reuse-strategy.md)。
 - 已实际核验的类、函数和调用关系集中登记在[源码证据地图](./research/ragflow-source-map.md)；矩阵中的路径不能脱离该冻结 commit 解释。
 
@@ -26,13 +26,13 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 | ID | 能力名称 | RAGFlow 是否具备 | RAGFlow 代码位置 | LangChain 能否承担 | LangGraph 能否承担 | 采用方式 | 复用分类 | 实施阶段 | 验收方法 | 当前状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| CAP-01 | 多格式文档解析 | 是 | `deepdoc/parser/{pdf,docx,excel,ppt}_parser.py`；`rag/app/naive.py::chunk`；`chunk_builder.py::get_parser` | 部分：标准 Loader | 否 | 统一 ParserPort；Phase 04 独立实现 TXT/MD/PDF，Phase 05 再审复杂 Parser | 自行开发（Phase 04）；Phase 05 待复审 | Phase 04 最小路径；Phase 05 完整 | PDF、DOCX、PPTX、XLSX、TXT、MD、HTML、图片黄金样本 | Phase 04 已实现并验收 UTF-8 TXT、Markdown heading 和 pypdf PDF 页级文本；OCR/版面/其余格式未实现 |
-| CAP-02 | OCR 与版面分析 | 是 | `deepdoc/vision/`；`deepdoc/parser/pdf_parser.py::RAGFlowPdfParser` | 否 | 否 | 隔离模型资源和全局 settings，输出统一 ParsedBlock | 改造复用 | Phase 05 | 扫描 PDF、复杂版面、表格和坐标黄金输出；资源上限测试 | 未实现；源码已定位 |
-| CAP-03 | 统一文档结构 | 部分 | DeepDOC sections、positions、tables、images 字段 | 部分：Document 类型不足 | 否 | 自定义 ParsedDocument/ParsedBlock，适配各 Parser 输出 | 自行开发 | Phase 03 契约；Phase 05 全 Parser 落地 | 所有 Parser 通过同一契约测试，保留页码、bbox、层级和来源顺序 | Phase 03 契约已实现并验收：schema v1、六类 Block、页码/bbox/层级/表图/顺序和 Chunk 来源；真实 Parser 待 Phase 05 |
-| CAP-04 | 场景化 Chunk Method | 是 | `rag/svr/task_executor_refactor/chunk_builder.py::get_parser/run_chunking`；`rag/app/{naive,paper,book,manual,laws,qa,table,resume,picture,audio,email}.py::chunk` | 部分：Text Splitter | 否 | 建立 ChunkerPort 和策略注册表；Phase 04 独立实现 General | 自行开发（Phase 04）；Phase 05 待复审 | Phase 04 General；Phase 05 完整 | 每种策略固定输入、黄金 Chunk、稳定 ID、Token 上限和重叠测试 | Phase 04 General 已实现并验收稳定 ID、重叠、来源和近似 token 上限；场景策略未实现 |
+| CAP-01 | 多格式文档解析 | 是 | `deepdoc/parser/{pdf,docx,excel,ppt}_parser.py`；`rag/app/naive.py::chunk`；`chunk_builder.py::get_parser` | 部分：标准 Loader | 否 | 统一 ParserPort；八类 Parser 均独立实现，不复制 RAGFlow | 自行开发 | Phase 04 最小路径；Phase 05 完整 | PDF、DOCX、PPTX、XLSX、TXT、MD、HTML、图片黄金样本 | 已实现并验收八类格式、确定性 MIME/扩展路由、结构黄金、资源门禁、内存与真实后端 E2E |
+| CAP-02 | OCR 与版面分析 | 是 | `deepdoc/vision/`；`deepdoc/parser/pdf_parser.py::RAGFlowPdfParser` | 否 | 否 | 自定义 OCR Port + 外部 Tesseract；格式原生/PDF/OCR bbox；不采用 RAGFlow Vision 模型 | 自行开发 | Phase 05 基线；复杂模型版面后续再决策 | 扫描 PDF、图片 OCR、坐标、语言包和资源上限测试 | 已实现 Tesseract CPU OCR、扫描页 fallback、word/line bbox、置信度与稳定错误；复杂多栏语义版面和模型表格识别未实现 |
+| CAP-03 | 统一文档结构 | 部分 | DeepDOC sections、positions、tables、images 字段 | 部分：Document 类型不足 | 否 | 自定义 ParsedDocument/ParsedBlock，适配各 Parser 输出 | 自行开发 | Phase 03 契约；Phase 05 全 Parser 落地 | 所有 Parser 通过同一契约测试，保留页码、bbox、层级和来源顺序 | schema v2 已在八类 Parser 落地：六类 Block、page/bbox/heading/table/image/source order/parser/source/warning；Elasticsearch/Citation 保留 bbox |
+| CAP-04 | 场景化 Chunk Method | 是 | `rag/svr/task_executor_refactor/chunk_builder.py::get_parser/run_chunking`；`rag/app/{naive,paper,book,manual,laws,qa,table,resume,picture,audio,email}.py::chunk` | 部分：Text Splitter | 否 | 建立 ChunkerPort/Registry 并独立实现九种策略 | 自行开发 | Phase 04 General；Phase 05 完整 | 每种策略固定输入、黄金 Chunk、稳定 ID、Token 上限和重叠测试 | General、Paper、Book、Manual、Laws、QA、Table、Resume、Picture 已逐项通过确定性、来源、稳定 ID、table/QA 边界验收；Audio/Email 不在 Phase 05 |
 | CAP-05 | Chunk 自动关键词 | 是 | `rag/svr/task_executor_refactor/chunk_service.py::build_chunks` → `chunk_post_processor.py::extract_keywords`；`rag/prompts/generator.py::keyword_extraction` | 是：模型、Prompt、结构化输出 | 否 | 重写应用流程并参考 Prompt/批处理 | 参考重写 | Phase 09 | 关键词数量、格式、可重复性、失败降级、成本和检索增益测试 | 未实现；冻结源码已核验 |
 | CAP-06 | Chunk 自动问题 | 是 | `rag/svr/task_executor_refactor/chunk_service.py::build_chunks` → `chunk_post_processor.py::generate_questions`；`rag/prompts/generator.py::question_proposal` | 是 | 否 | 重写应用流程并参考 Prompt | 参考重写 | Phase 09 | 问题格式、覆盖度、去重、失败降级、成本和检索增益测试 | 未实现；冻结源码已核验 |
-| CAP-07 | 摘要、标题与 TOC | 部分 | `ChunkService.insert_chunks/_create_mother_chunks`；`TaskHandler._build_toc`；`PostProcessor.insert_toc_chunk`；RAPTOR summary | 是 | 部分：可编排 | Phase 05 只保留解析得到的结构字段和增强扩展点；Phase 09 分离摘要、生成 TOC 和父子 Chunk 产物 | 参考重写 | Phase 05 结构契约；Phase 09 自动生成/父子/RAPTOR | 层级、页码、来源映射、忠实度、Token 预算、父子关系和重建测试 | 未实现；冻结源码已核验 |
+| CAP-07 | 摘要、标题与 TOC | 部分 | `ChunkService.insert_chunks/_create_mother_chunks`；`TaskHandler._build_toc`；`PostProcessor.insert_toc_chunk`；RAPTOR summary | 是 | 部分：可编排 | Phase 05 只保留解析得到的结构字段和增强扩展点；Phase 09 分离摘要、生成 TOC 和父子 Chunk 产物 | 参考重写 | Phase 05 结构契约；Phase 09 自动生成/父子/RAPTOR | 层级、页码、来源映射、忠实度、Token 预算、父子关系和重建测试 | Phase 05 已实现解析 heading path/page/source 元数据；自动摘要、生成式 TOC、父子 Chunk 和 RAPTOR 未实现 |
 | CAP-08 | Embedding 与索引写入 | 是 | `rag/svr/task_executor_refactor/embedding_service.py::EmbeddingService.embed_chunks`；`chunk_service.py::ChunkService.insert_chunks` | 是：Embeddings | 否 | LangChain Embeddings + 自研版本和 SearchIndexPort；参考字段构造 | 参考重写 | Phase 04 | 批处理、维度、模型版本、失败重试、索引可检索和重建测试 | Phase 04 已实现 BGE-M3 OpenAI-compatible Adapter、维度/模型/input 校验和 Elasticsearch bulk/版本激活；真实 BGE 服务未作为 CI 前置 |
 | CAP-09 | 全文检索 | 是 | `rag/nlp/query.py::FulltextQueryer.question`；`rag/nlp/search.py::Dealer.search` | 部分 | 否 | SearchPort 实现 BM25；参考 query/tokenizer | 参考重写 | Phase 04 基线；Phase 06 完整 | 关键词、短语、中文英文、过滤和排序评测 | Phase 04 Elasticsearch BM25 与 tenant/KB/权限过滤已通过真实后端；语言分析与完整评测留 Phase 06 |
 | CAP-10 | 向量检索 | 是 | `Dealer.get_vector/search/_knn_scores`；`MatchDenseExpr`；各 DocStore | 是：Retriever/VectorStore | 否 | LangChain Embeddings + SearchPort KNN | 参考重写 | Phase 04 基线；Phase 06 完整 | Recall@K、维度校验、阈值和过滤测试 | Phase 04 Elasticsearch KNN、维度兼容、权限过滤和 Recall@1 基线已通过；阈值/Reranker 留 Phase 06 |
@@ -46,7 +46,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 | CAP-18 | 候选清理与去重 | 是 | `Dealer._prune_deleted_chunks`；检索合并和 Chunk ID 去重 | 部分 | 否 | 自研统一 CandidateCleaner，参考孤儿 Chunk 防御 | 参考重写 | Phase 06 | 删除文档、旧版本、重复 Chunk、空文本和每文档限额测试 | 未实现；源码已定位 |
 | CAP-19 | Reranker | 是 | `Dealer.rerank_by_model`；`LLMBundle.similarity` | 是：Reranker 适配 | 否 | LangChain/供应商模型适配 + RerankerPort | 参考重写 | Phase 06 | NDCG/MRR 提升、批处理、超时和无模型降级 | 未实现；源码已定位 |
 | CAP-20 | 分数融合、阈值与 TopK/TopN | 是 | `Dealer._rerank_window/retrieval/rerank_by_model/rerank_with_knn`；Dialog 字段 | 部分 | 否 | 统一 ScoreBreakdown；复用融合算法思想 | 改造复用 | Phase 06 | 权重 0/1、阈值边界、分页、TopK/TopN 和排序稳定性 | 未实现；分数与截断顺序已核验 |
-| CAP-21 | 引用与来源定位 | 是 | `generator.py::kb_prompt/citation_prompt`；`Dealer.fetch_chunk_vectors/insert_citations`；`dialog_service.py::repair_bad_citation_formats` | 部分：Prompt | 否 | 参考引用职责，自研 Citation 并绑定 DocumentVersion | 参考重写 | Phase 04 基础；Phase 06 完整 | 引用存在性、页码、quote、版本、删除后行为和准确率 | Phase 04 已实现 tenant/KB/document/version/chunk/page/quote/source_uri 绑定并通过真实检索；引用格式修复、删除后行为和准确率留 Phase 06/07/10 |
+| CAP-21 | 引用与来源定位 | 是 | `generator.py::kb_prompt/citation_prompt`；`Dealer.fetch_chunk_vectors/insert_citations`；`dialog_service.py::repair_bad_citation_formats` | 部分：Prompt | 否 | 参考引用职责，自研 Citation 并绑定 DocumentVersion | 参考重写 | Phase 04 基础；Phase 06 完整 | 引用存在性、页码、quote、版本、删除后行为和准确率 | Phase 04 已实现 tenant/KB/document/version/chunk/page/quote/source_uri；Phase 05 已把 Parser bbox 保留到 Elasticsearch/Citation 并真实验证；格式修复、删除后行为和准确率留 Phase 06/07/10 |
 | CAP-22 | Retrieval Trace | 部分 | `Dealer.retrieval(trace_id)` 权重日志；`DialogService.async_chat` Langfuse LLM observation/耗时；无统一持久候选事件模型 | 部分：Callback | 部分：图 Trace | 自研查询变换、候选和分数全链路事件模型 | 自行开发 | Phase 04 基础；Phase 06 完整 | 单次查询可还原所有阶段、参数、模型、候选和延迟 | Phase 04 已实现 Authorization/FULL_TEXT/VECTOR/FUSION/SELECT 最小事件、候选数与耗时；查询变换、Rerank 和持久 Trace 留 Phase 06 |
 | CAP-23 | 文档上传与解析任务 | 是 | `document_api.py::upload_document/parse_documents` → `FileService.upload_document` → `DocumentService.run` → `TaskService.queue_tasks` | 否 | 部分：可编排 | FastAPI 持久化 tenant-scoped IngestionJob 后投递；独立 Worker 按 tenant_id + job_id 加载并执行 | 参考重写 | Phase 04 | 上传、哈希、tenant 隔离、任务、进度、失败和对象存储集成测试 | Phase 04 已实现上传/KB/Job API、SHA-256/S3、持久任务、Redis/ARQ 和 Worker pipeline；复杂批量/取消留 Phase 07 |
 | CAP-24 | 文档更新与重新解析 | 是 | `document_api.py::update_document/parse_documents`；`DocumentService.clear_chunk_num_when_rerun/run`；旧 Task/Nav/DocStore delete | 否 | 部分 | 自研 DocumentVersion 和候选索引激活 | 自行开发 | Phase 07 | 旧版本持续可查、新版本原子切换、失败保留旧版 | 未实现；RAGFlow 原地更新和先删后建已核验 |
@@ -64,7 +64,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 | CAP-36 | 模型注册与调用 | 是 | `LLMBundle`；`tenant_model_service.py`；`rag/llm/` | 是 | 否 | LangChain 模型接口；自研注册、密钥、配额、降级和审计 | 自行开发 | Phase 01 基础；Phase 04 最小可用；后续扩展 | 多供应商契约、流式、Token、超时、降级和密钥保护 | Phase 04 已实现 DeepSeek Chat 和 BGE-M3 OpenAI-compatible Provider Adapter、环境密钥和 Fake CI；真实调用、注册、配额、流式与降级未实现 |
 | CAP-37 | FastAPI 服务接口 | 否：RAGFlow 使用 Quart | `api/apps/` 仅作接口用例参考；`launch_backend_service.sh` 证明 API/Worker 可分进程 | 否 | 否 | 自研 FastAPI API 入口；与 Worker 同仓库共享应用/领域代码，不经内部 HTTP 调用 Worker | 自行开发 | Phase 01 基础；各阶段扩展 | OpenAPI、校验、错误、`AuthorizationContext`、流式、API/Worker 进程边界和集成测试 | Phase 04 已增加 KB 创建、文档上传、Job 查询和固定 RAG API；开发身份仅限非生产，生产 IdP/流式未实现 |
 | CAP-38 | 后台任务与 Ingestion 执行 | 是 | `TaskService.queue_tasks/get_task`；`RedisDB.queue_product/queue_consumer/get_unacked_iterator`；`task_executor.py::collect/handle_task`；`TaskManager.run_refactored_task`；`TaskHandler.handle_task`；`launch_backend_service.sh` | 否 | 部分：不承担数据面 Worker | 模块化单体 + 独立 Ingestion Worker；Redis/ARQ 隔离在 Queue Adapter | 参考重写 | Phase 04 基础；Phase 07 可靠化 | 独立启动、tenant-scoped 消息、ACK、重试、取消、崩溃恢复、幂等、进度和背压 | Phase 04 已实现真实 Redis/ARQ 消费入口、tenant envelope、进度、重试和终态；DLQ、取消、租约、批量、背压与恢复留 Phase 07 |
-| CAP-39 | 评测与回归门禁 | 部分：主要是性能 benchmark | `test/benchmark/dataset.py`；`metrics.py::summarize`；`report.py::{chat_report,retrieval_report}` | 部分：可接评测库 | 部分：图执行评测 | 自研检索、答案、引用、Agent、性能和回归体系 | 自行开发 | Phase 04 起建基线；Phase 10 完整门禁 | 固定数据集、Recall/MRR/NDCG、忠实度、引用正确率、Agent 成功率、性能阈值、基线对比和 CI 门禁 | Phase 01 仅完成工程测试/静态/迁移/容器 CI 门禁；RAG 质量评测未实现 |
+| CAP-39 | 评测与回归门禁 | 部分：主要是性能 benchmark | `test/benchmark/dataset.py`；`metrics.py::summarize`；`report.py::{chat_report,retrieval_report}` | 部分：可接评测库 | 部分：图执行评测 | 自研检索、答案、引用、Agent、性能和回归体系 | 自行开发 | Phase 04 起建基线；Phase 10 完整门禁 | 固定数据集、Recall/MRR/NDCG、忠实度、引用正确率、Agent 成功率、性能阈值、基线对比和 CI 门禁 | 已有工程门禁、最小检索指标，以及 Phase 05 八格式/九策略黄金、契约、攻击、并发、真实 OCR/后端门禁；完整 RAG 质量评测仍留 Phase 10 |
 | CAP-40 | 日志、指标与链路追踪 | 部分 | logging；`common/token_utils.py::token_usage_sink`；LLMBundle/Langfuse；Dealer `trace_id` 日志；Docker OTEL/Jaeger 配置 | 部分：Callbacks | 部分：LangGraph events | 自研统一 Trace/metric schema，接入标准观测后端 | 自行开发 | Phase 01 基础；Phase 10 完整 | 请求到任务、检索、模型、Agent 的关联；trace 传播、采样和敏感信息检查 | Phase 02 已实现 AgentEvent v1；Phase 03 已实现 Knowledge/Retrieval Trace v1 与 tenant/actor/request/resource 关联契约；持久后端、指标和外部观测未实现 |
 | CAP-41 | 权限与安全 | 部分 | `Tenant`、`UserTenant`、KB permission、`add_tenant_id_to_kwargs`、`check_team_permission.py`、API token、认证配置、Sandbox | 否 | 部分：Tool 审批 | 第一版自研 tenant 强隔离、owner/visibility、AuthorizationContext、PermissionChecker；复杂 RBAC、部门和动态规则后置 | 自行开发 | Phase 03 第一版边界；Phase 10 生产门禁；复杂规则另行决策 | 跨租户/owner/visibility 负向测试、密钥扫描、文件攻击、Tool 审批和审计 | Phase 03 已实现并验收 tenant/owner/private|tenant/AuthorizationContext/PermissionChecker、tenant-scoped Repository/Object key/Queue/Search/Citation/Trace 契约；复杂 ACL 与生产安全仍未实现 |
 | CAP-42 | 生产部署、备份与恢复 | 是：RAGFlow 有 Docker/Helm | `docker/launch_backend_service.sh`；`docker/docker-compose{,-base}.yml`；`helm/templates/ragflow.yaml`；`helm/values.yaml` | 否 | 否 | 第一版同一制品启动 FastAPI 与独立 Worker；自研配置、迁移、备份和恢复手册，不拆微服务 | 参考重写 | Phase 10 | API/Worker 独立健康检查和扩缩容、全新部署、升级、回滚、备份恢复和容量测试 | Phase 01 已实现同一非 root 镜像和开发 Compose 健康拓扑；生产部署、备份恢复未实现 |
@@ -74,15 +74,15 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 ### 3.1 改造复用
 
-`CAP-01`、`CAP-02`、`CAP-04`、`CAP-09`、`CAP-11`、`CAP-14`、`CAP-20`、`CAP-21`、`CAP-33`、`CAP-34`、`CAP-35`。
+`CAP-14`、`CAP-20`、`CAP-33`、`CAP-34`、`CAP-35`。
 
 ### 3.2 参考重写
 
-`CAP-05`、`CAP-06`、`CAP-07`、`CAP-08`、`CAP-10`、`CAP-12`、`CAP-13`、`CAP-15`、`CAP-18`、`CAP-19`、`CAP-23`、`CAP-27`、`CAP-28`、`CAP-38`、`CAP-42`。
+`CAP-05`、`CAP-06`、`CAP-07`、`CAP-08`、`CAP-09`、`CAP-10`、`CAP-12`、`CAP-13`、`CAP-15`、`CAP-18`、`CAP-19`、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-28`、`CAP-38`、`CAP-42`。
 
 ### 3.3 自行开发
 
-`CAP-03`、`CAP-16`、`CAP-17`、`CAP-22`、`CAP-24`、`CAP-25`、`CAP-26`、`CAP-29`、`CAP-30`、`CAP-31`、`CAP-32`、`CAP-36`、`CAP-37`、`CAP-39`、`CAP-40`、`CAP-41`、`CAP-43`。
+`CAP-01`、`CAP-02`、`CAP-03`、`CAP-04`、`CAP-11`、`CAP-16`、`CAP-17`、`CAP-22`、`CAP-24`、`CAP-25`、`CAP-26`、`CAP-29`、`CAP-30`、`CAP-31`、`CAP-32`、`CAP-36`、`CAP-37`、`CAP-39`、`CAP-40`、`CAP-41`、`CAP-43`。
 
 ### 3.4 直接复用与暂缓
 

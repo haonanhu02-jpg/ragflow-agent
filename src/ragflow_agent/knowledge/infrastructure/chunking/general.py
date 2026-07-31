@@ -6,9 +6,11 @@ import re
 
 from ragflow_agent.knowledge.domain.authorization import AuthorizationContext
 from ragflow_agent.knowledge.domain.chunk import (
+    BlockKind,
     ChunkMetadata,
     ChunkRecord,
     ParsedBlock,
+    ParsedDocument,
     derive_chunk_id,
 )
 from ragflow_agent.knowledge.domain.errors import KnowledgeAuthorizationError
@@ -62,7 +64,7 @@ class GeneralChunker:
                         content=content,
                         source_block_ids=source_ids,
                         token_count=token_count,
-                        metadata=self._metadata(block),
+                        metadata=self._metadata(document, block),
                     )
                 )
         return tuple(chunks)
@@ -86,10 +88,23 @@ class GeneralChunker:
             start = end - overlap
         return output
 
-    @staticmethod
-    def _metadata(block: ParsedBlock) -> ChunkMetadata:
+    def _metadata(
+        self,
+        document: ParsedDocument,
+        block: ParsedBlock,
+    ) -> ChunkMetadata:
         return ChunkMetadata(
             heading_path=block.heading_path,
             page_start=block.page_number,
             page_end=block.page_number,
+            source_order_start=block.order,
+            source_order_end=block.order,
+            block_kinds=(block.kind,),
+            bounding_box=block.bounding_box,
+            contains_table=block.kind is BlockKind.TABLE,
+            contains_image=block.kind is BlockKind.IMAGE,
+            parser_name=document.parser_name,
+            parser_version=document.parser_version,
+            chunk_strategy_id=self.strategy_id,
+            chunk_strategy_version=self.strategy_version,
         )

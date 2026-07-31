@@ -185,7 +185,7 @@ Agent 不接收搜索引擎原始 hit，不直接修改 Document，不直接持�
 - OpenSearch/其他 Search Adapter（后续可选，不在 Phase 04）
 - Redis/ARQ Queue Adapter
 - LangChain Model Adapter
-- RAGFlow Parser/Chunk/Retrieval Algorithm Adapter（后续候选；Phase 04 无实现）
+- RAGFlow Parser/Chunk/Retrieval Algorithm Adapter（后续候选；Phase 04/05 均无派生实现）
 - Observability Adapter
 
 SearchIndexPort 和 RetrieverPort 可以由同一搜索后端类实现，但写入和查询接口必须分开测试。
@@ -311,7 +311,11 @@ DocumentVersion
 
 Parser 输出 `ParsedDocument`，Chunker 输入 `ParsedDocument` 并输出 `ChunkRecord`。Parser 不直接写搜索引擎，Chunker 不调用 API Service。
 
-**[事实]** `ChunkRecord.id` v1 使用 `sha256-v1`，由 tenant、DocumentVersion、顺序、来源 Block ID 和内容摘要稳定生成；破坏性改变必须升级算法标识。
+**[事实]** Phase 05 已将 `ParsedDocument`/`ChunkRecord` 升级为 schema v2。
+General 为兼容 Phase 04 继续使用 `sha256-v1`；新增场景策略使用包含
+strategy id/version 的 `sha256-v2`。所有 Chunk 保留 source block/order、
+block kinds、page/bbox、table/image、parser 和 chunker 版本；破坏性改变仍
+必须升级 schema 或算法标识。
 
 ### 6.3 RetrievalCandidate 与 Citation
 
@@ -345,7 +349,12 @@ PermissionChecker
 
 ## 7. 离线链路设计
 
-**[事实]** Phase 04 已落地 `UploadService → S3ObjectStorage → PostgreSQL Job/Task → ArqIngestionQueue → IngestionPipeline → BasicObjectParser → GeneralChunker → EmbeddingPort → ElasticsearchSearchAdapter`。下图中的 `DocumentLifecycleService` 和完整候选索引补偿仍是 Phase 07 目标，不得误写为现状。
+**[事实]** Phase 04 已落地最小上传/队列/解析/分块/Embedding/索引链路；
+Phase 05 已把数据面扩展为
+`IngestionPipeline → ParserRegistry → BinaryParserPort → ChunkerRegistry → General/ScenarioChunker → EmbeddingPort → ElasticsearchSearchAdapter`。
+TXT、Markdown、HTML、DOCX、PPTX、XLSX、PDF、图片均通过相同 Worker
+链路；图片和扫描 PDF 只经内部 `OcrEnginePort` 调用外部 Tesseract。下图中的
+`DocumentLifecycleService` 和完整候选索引补偿仍是 Phase 07 目标，不得误写为现状。
 
 ```mermaid
 sequenceDiagram

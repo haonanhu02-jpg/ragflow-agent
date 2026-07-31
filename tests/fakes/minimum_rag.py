@@ -159,6 +159,7 @@ class MemoryHybridSearch:
                 chunk_id=record.chunk_id,
                 quote=record.content,
                 page_number=record.metadata.page_start,
+                bounding_box=record.metadata.bounding_box,
                 source_uri=(
                     f"documents/{record.document_id}/versions/{record.document_version_id}"
                 ),

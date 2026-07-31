@@ -2,9 +2,9 @@
 document_id: DEVELOPMENT-ROADMAP
 document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
-document_version: "0.4.0"
-last_updated_at: "2026-07-30"
-current_phase: Phase 04 completed; Phase 05 plan review gate
+document_version: "0.5.0"
+last_updated_at: "2026-07-31"
+current_phase: Phase 05 completed; Phase 06 plan review gate
 roadmap_range: Phase 00-10
 ---
 
@@ -25,9 +25,9 @@ roadmap_range: Phase 00-10
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00 至 Phase 04 已完成；Phase 05 至 Phase 10 未执行。Phase 04 使用真实 PostgreSQL、MinIO、Redis 和 Elasticsearch 验证了垂直切片；DeepSeek/BGE-M3 的真实外部服务调用未作为 CI 或阶段出口前提。
+- **[事实]** Phase 00 至 Phase 05 已完成；Phase 06 至 Phase 10 未执行。Phase 05 在 Phase 04 真实后端垂直切片上完成八格式 Parser、Tesseract OCR、统一 schema v2、九种 Chunk Method 和真实后端 E2E；DeepSeek/BGE-M3 的真实外部服务调用仍未作为 CI 或阶段出口前提。
 
-Phase 00 至 Phase 04 已按详细计划执行并通过验收；Phase 05 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 05 已按详细计划执行并通过验收；Phase 06 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
 
 ### 0.2 本次路线图校正
 
@@ -97,7 +97,7 @@ flowchart LR
 | Phase 02 | Agent基础 | Phase 01 | `CAP-29 LangGraph 状态、路由与循环`、`CAP-30 Checkpoint 与运行恢复`；CAP-31 仅复用前置 Checkpoint | 已确认 | 已完成 |
 | Phase 03 | 知识库统一接口 | Phase 02 | `CAP-03 统一文档结构`契约、`CAP-16 权限过滤`/`CAP-41 权限与安全`第一版边界、统一 Ports | 已确认 | 已完成 |
 | Phase 04 | 最小RAG闭环 | Phase 03 | `CAP-01`/`CAP-04`基础；`CAP-08`、`CAP-09`、`CAP-10`、`CAP-11`最小 RRF、`CAP-21`、`CAP-23`、`CAP-27`、`CAP-38`基础 | 已确认 | 已完成 |
-| Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 预规划草案 | 未执行 |
+| Phase 05 | Parser与Chunk | Phase 04 | `CAP-01` 至 `CAP-04`完整；`CAP-07`结构契约和高级增强扩展点 | 已确认 | 已完成 |
 | Phase 06 | 在线检索 | Phase 04、Phase 05 | `CAP-11` 至 `CAP-22` | 预规划草案 | 未执行 |
 | Phase 07 | 文档生命周期 | Phase 05、Phase 06 | `CAP-24`、`CAP-25`、`CAP-26`、`CAP-38`可靠化 | 预规划草案 | 未执行 |
 | Phase 08 | Agentic RAG | Phase 02、Phase 06 | `CAP-28`、`CAP-29` Agentic 扩展、`CAP-31`完整、`CAP-32`；SQL/API Tool 与记忆 | 预规划草案 | 未执行 |
@@ -401,9 +401,9 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 
 - **验收标准**：八类目标格式和每个目标策略有黄金输入/输出；页码/bbox/层级/表图来源可追溯；资源、超时和清理测试通过；Phase 09 扩展点不改变基础 Chunk；无越层导入。
 - **下一阶段进入条件**：Chunk/metadata/source 字段稳定；检索评测集包含多格式结果；Phase 06 详细计划已确认。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 04 实际结果复审。
-- **已知风险**：模型权重与原生库许可；CPU/GPU/内存压力；Parser 输出差异；外部解析器版本漂移；复杂样本不足。
-- **待确认技术决策**：首批默认 Parser/OCR/Vision；可选依赖分组；CPU/GPU Profile；哪些 RAGFlow 文件批准改造复用。
+- **当前状态**：已完成。P05-T01 至 P05-T12、八格式/九策略黄金与契约、资源攻击、内存 E2E、真实 PostgreSQL/MinIO/Redis/Elasticsearch E2E 和 GitHub Actions 门禁通过。
+- **已知风险**：复杂企业样本代表性、PDF 多栏/页眉页脚语义版面、Tesseract/PDFium 平台差异与真实模型性能仍需后续评测；不影响 Phase 06 计划复审准入。
+- **技术决策结果**：ADR-020 已实施：RAGFlow 直接/改造复用均为零；独立 Parser、外部 Tesseract CPU OCR、运行时解析依赖、生成式二进制样本、资源 Profile、schema v2 和策略版本化均已落地。
 
 ## 9. Phase 06：在线检索
 
@@ -686,9 +686,10 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 02：详细计划已确认，P02-T01 至 P02-T10 和阶段门禁已完成。
 - Phase 03：已确认并完成；P03-T01 至 P03-T11 和阶段验收通过。
 - Phase 04：已确认并完成；P04-T01 至 P04-T12、真实后端与阶段验收通过。
-- Phase 05 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
-- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、最小离线 ingestion、全文/向量/RRF 检索和固定 RAG；复杂 Parser/Chunk、完整在线检索、生命周期、Agentic RAG 和生产化尚未实现。
-- 下一步是依据 Phase 04 实际结果复审并确认 Phase 05；不得自动执行。
+- Phase 05：已确认并完成；P05-T01 至 P05-T12、八格式/九策略、真实后端和 CI 阶段验收通过。
+- Phase 06 至 Phase 10：详细计划已生成，状态“预规划草案/未执行”。
+- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、最小离线 ingestion、全文/向量/RRF 检索、固定 RAG、八格式 Parser 和九种 Chunk Method；完整在线检索、生命周期、Agentic RAG 和生产化尚未实现。
+- 下一步是依据 Phase 05 实际 metadata、Citation、Elasticsearch 与评测基线复审并确认 Phase 06；不得自动执行。
 
 ### 15.2 Phase 00 一致性债务处理
 
