@@ -25,8 +25,12 @@ def decide_release(
     quality_gate_passed: bool,
     security_gate_passed: bool,
     recovery_gate_passed: bool,
-    real_provider_validated: bool,
 ) -> ReleaseDecision:
+    """Decide whether the verified build is ready for local/self-managed deployment.
+
+    Model credentials and endpoints are supplied by the operator at runtime.  Their
+    absence from the source repository is deliberately not a release blocker.
+    """
     blockers = []
     if not quality_gate_passed:
         blockers.append("quality_gate")
@@ -34,8 +38,6 @@ def decide_release(
         blockers.append("security_gate")
     if not recovery_gate_passed:
         blockers.append("recovery_gate")
-    if not real_provider_validated:
-        blockers.append("real_provider_validation")
     return ReleaseDecision(
         allowed=not blockers,
         release_owner_role="release_owner",

@@ -5,8 +5,7 @@ FROM python@sha256:9d7f287598e1a5a978c015ee176d8216435aaf335ed69ac3c38dd1bbb10e8
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="ragflow-agent" \
       org.opencontainers.image.source="https://github.com/haonanhu02-jpg/ragflow-agent" \
-      org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.licenses="NOASSERTION"
+      org.opencontainers.image.revision="${VCS_REF}"
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \

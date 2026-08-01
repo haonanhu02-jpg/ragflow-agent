@@ -19,7 +19,7 @@ def test_operations_drill_covers_recovery_faults_and_capacity() -> None:
     assert performance["production_capacity_proven"] is False
 
 
-def test_release_report_is_fail_closed_without_external_production_evidence() -> None:
+def test_release_report_marks_verified_local_or_self_managed_scope_ready() -> None:
     operations = run_isolated_operations_drill()
     report = build_release_report(
         evaluation={"release_gate": {"passed": True}},
@@ -27,13 +27,21 @@ def test_release_report_is_fail_closed_without_external_production_evidence() ->
         operations=operations,
         commit="test-commit",
     )
-    assert report["production_exit"] == "not_allowed"
-    blockers = report["external_release_blockers"]
+    assert report["production_exit"] == "local_or_self_managed_ready"
+    assert report["completion_status"] == "completed"
+    blockers = report["decision_model_blockers"]
     assert isinstance(blockers, tuple)
-    assert "real_provider_validation" in blockers
-    assert "authenticated_image_vulnerability_scan" in blockers
+    assert blockers == ()
+    runtime_requirements = report["runtime_requirements"]
+    assert isinstance(runtime_requirements, tuple)
+    assert "user_supplied_chat_model_configuration" in runtime_requirements
+    optional_extensions = report["optional_future_extensions"]
+    assert isinstance(optional_extensions, tuple)
+    assert "authenticated_docker_scout_scan" in optional_extensions
+    assert report["intentional_scope_choices"] == ("project_top_level_license_absent",)
     assert report["scope"] == {
-        "backend_api_worker_evaluation_candidate": "implemented",
-        "ui_admin_console": "deferred_not_implemented",
-        "real_production_project": "not_complete",
+        "agent_rag_backend_source": "completed",
+        "local_or_self_managed_deployment": "ready",
+        "provider_runtime_configuration": "operator_supplied",
+        "ui_admin_console": "deferred_not_required",
     }

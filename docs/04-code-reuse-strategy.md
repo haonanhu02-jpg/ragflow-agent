@@ -253,7 +253,7 @@ tests:
 - **Phase 09 参考后自研**：关键词、问题、摘要、TOC、父子扩展、多模态、GraphRAG、RAPTOR、时序和兼容/生命周期全部位于 `src/ragflow_agent/knowledge/advanced/`。
 - **Phase 10 参考后自研**：只把上游 benchmark、部署拓扑、健康和观测接入点作为行为清单；评测、门禁、观测、Docker Compose、备份恢复和运行手册均为本项目实现。
 - **机器证据**：`reports/phase10/governance-scan.json` 记录 `ragflow_source_copied=false`、`third_party_source_vendored=false`；SBOM 和依赖审计单独记录运行时依赖。
-- **许可证边界**：项目所有者尚未正式声明本项目分发许可证，外部分发保持阻断；首次复制或修改 RAGFlow 源码仍必须重开 O-004 审查。
+- **许可证边界**：用户有意不为本项目设置顶层 LICENSE，该选择不影响本地或自有云运行；第三方依赖、数据集、模型和外部资源许可证记录必须保留。首次复制或修改 RAGFlow 源码仍必须重开 O-004 审查。
 - **证据**：[Phase 09](./phases/phase-09-advanced-rag.md)、[Phase 10](./phases/phase-10-evaluation-and-production.md)、ADR-024、ADR-025。
 
 ## 7. 与能力和阶段的关系

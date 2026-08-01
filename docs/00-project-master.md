@@ -28,7 +28,7 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 1. 读取本文件。
 2. 读取 [`docs/07-decisions-and-risks.md`](./07-decisions-and-risks.md)；独立 `docs/adr/` 文件当前尚未生成。
 3. 根据任务读取本文件第 18 节索引中的专项文档；未生成的文档不得被当成已有事实。
-4. 实施或维护某个能力前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 10 的规划内任务均已执行，真实生产发布仍受第 15.3 节门禁阻断。
+4. 实施或维护某个能力前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 10 的规划内任务均已执行，当前维护范围为本地或自有云 Agent + RAG 后端。
 5. 检查实际代码、数据库迁移和自动化测试，确认“已实现状态”没有与文档漂移。
 
 ### 0.1 状态标签
@@ -124,8 +124,8 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 - **[事实]** Phase 07 已实现不可变文档版本、更新/重解析、候选索引验证与原子发布、回滚、删除/恢复/回收、事务 Outbox、有限重试/死信、协作取消、批量任务和 tenant-scoped reconciliation；PostgreSQL 保持生命周期权威状态。
 - **[事实]** Phase 08 已实现直接 RAG 与 KnowledgeBaseTool 两条路径、查询规划/有限多轮检索、证据充分性、受控 SQL/API Tool、持久化 HITL、长期记忆治理、运行预算和 Agent Trace；单 Agent 基线满足首批场景，多 Agent 因无量化收益暂缓。
 - **[事实]** Phase 09 已实现九类默认关闭的高级能力与版本化派生物；确定性评测均为 no-go/off，视频未实现。
-- **[事实]** Phase 10 已实现评测/回归、可观测性、安全、Linux Docker Compose 生产候选、备份恢复和发布审查；本地候选门禁通过，但真实 DeepSeek/BGE/Vision/ASR、生产 IdP/凭据/网络、代表性业务数据、持续 SLO 与生产恢复/容量证据未完成。
-- **[事实]** Phase 00 至 Phase 10 的规划内任务已完成；机器发布报告明确 `production_exit=not_allowed`，不得把生产候选描述为真实生产上线完成。
+- **[事实]** Phase 10 已实现评测/回归、可观测性、安全、Linux Docker Compose、备份恢复和发布审查；本地或自有云质量、安全、恢复与部署门禁通过。
+- **[事实]** Phase 00至Phase 10以及当前约定的Agent＋RAG后端源码范围已经完成。项目已达到本地或自有云部署运行条件。企业系统接入、真实业务效果验证和长期运营指标属于后续使用或可选扩展，不属于当前项目完成阻断项。机器报告为 `production_exit=local_or_self_managed_ready`。
 
 ### 3.2 双基线定义
 
@@ -643,7 +643,7 @@ Phase 03 `IngestionJob/Task` v1 的 `PENDING -> RUNNING -> SUCCEEDED|FAILED|CANC
 
 ## 14. 开发阶段与阶段依赖
 
-Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真实生产发布；生产出口仍以 `reports/phase10/release-report.json` 为准。
+Phase 00 至 Phase 10 的规划内任务已完成，项目达到本地或自有云部署运行条件；机器结论以 `reports/phase10/release-report.json` 为准。
 
 | 阶段 | 名称 | 主要产出 | 依赖 | 当前状态 |
 |---|---|---|---|---|
@@ -657,7 +657,7 @@ Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真�
 | Phase 07 | 文档生命周期 | 更新、删除、重解析、索引版本、幂等、补偿和一致性 | Phase 05、Phase 06 | 已完成；P07-T01 至 P07-T11 验收通过 |
 | Phase 08 | Agentic RAG | KnowledgeBaseTool、查询规划、多次检索、Tool 选择、SQL/API Tool、HITL、记忆和预算 | Phase 02、Phase 06 | 已完成；P08-T01 至 P08-T13 验收通过，多 Agent 暂缓 |
 | Phase 09 | 高级RAG | 自动关键词、自动问题、摘要、TOC、父子 Chunk、多模态 RAG、GraphRAG、RAPTOR、时序 RAG、开关和索引兼容 | Phase 05、Phase 06、Phase 08 | 已完成；全部 experimental/off、no-go |
-| Phase 10 | 评测与生产化 | 质量/性能回归门禁、全链路观测、安全、部署、伸缩、备份恢复和运行手册 | Phase 07、Phase 08、Phase 09 | 已完成；生产候选完成，真实发布不允许 |
+| Phase 10 | 评测与生产化 | 质量/性能回归门禁、全链路观测、安全、部署、伸缩、备份恢复和运行手册 | Phase 07、Phase 08、Phase 09 | 已完成；本地或自有云部署运行就绪 |
 
 依赖原则：
 
@@ -707,7 +707,7 @@ Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真�
 18. **[事实]** 已生成 `docs/research/ragflow-baseline.md`、`project-baseline.md` 和 `ragflow-source-map.md`；源码结论固定到 commit `cd846cc9d4e32a19e684c59a1f302601027ef976`。
 19. **[事实]** P00-T12 原始跨文档一致性审计通过；14 个 Markdown 文件、当时 42 项能力、阶段编号、链接、表格和固定源码链接检查为零错误。
 20. **[事实]** 用户随后确认 Phase 00 出口；ADR-013 将“研究阶段完成”和“下一阶段执行准入”分离，Phase 00 已完成。
-21. **[事实]** Phase 01 至 Phase 10 详细计划均已生成并执行；Phase 10 的“任务完成”与“真实生产发布获准”是两个独立状态。
+21. **[事实]** Phase 01 至 Phase 10 详细计划均已生成并执行；Phase 10 已按当前本地或自有云范围完成。
 22. **[事实]** 用户最新明确要求 Phase 09 规划时序 RAG；能力矩阵新增 `CAP-43`，不追溯改变 Phase 00 原始 42 项验收快照。
 23. **[决策]** ADR-016 已解决 O-001 与 O-012：冻结项目/包/服务命名、Git 仓库、GitHub Actions 和 `mypy`；这些 Phase 01 工程配置现已落地。
 24. **[事实]** Phase 01 已建立可安装包、类型化配置、日志/Trace、端口边界、可逆空迁移、FastAPI/Worker 空壳、Docker 开发环境和 CI 质量门禁。
@@ -732,16 +732,16 @@ Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真�
 43. **[决策]** ADR-024 关闭 O-009/O-011：高级能力默认关闭，不引入图/时序数据库，多模态首批仅图片、图表和音频；视频不实现。
 44. **[事实]** Phase 09 的九类能力、数据集、开关、版本/权限/生命周期与独立评测已落地；没有复制、抽取或改写 RAGFlow 源码。
 45. **[决策]** ADR-025 冻结 Linux Docker Compose、同镜像 API/Worker、OTel/Prometheus、SLO、RPO/RTO、发布角色与 UI Deferred。
-46. **[事实]** Phase 10 已生成版本化数据集、质量门禁、SBOM/依赖/治理报告、隔离运维证据与最终 release report；本地候选完成，但真实生产项目尚未完成。
+46. **[事实]** Phase 10 已生成版本化数据集、质量门禁、SBOM/依赖/治理报告、隔离运维证据与最终 release report；本地或自有云 Agent + RAG 后端完成。
 
 ### 15.3 下一步
 
-路线图没有 Phase 11。下一步是满足真实生产外部门禁，而不是继续扩大代码范围：
+路线图没有 Phase 11。以下是用户实际运行或未来可选扩展，不是当前项目完成阻断项：
 
-1. 由项目所有者确认项目分发许可证并完成生产 IdP、Secret、TLS 证书和受控网络出口接入。
-2. 在授权隔离环境运行真实 DeepSeek、BGE-M3、BGE Reranker、Vision/ASR smoke 与小型评测，并使用代表性脱敏业务数据校准阈值。
-3. 在目标生产规模执行容量、耐久、成本、备份恢复、发布回滚和持续 SLO 观测；所有严重安全违规必须保持为 0。
-4. 只有 `release-report.json` 的全部外部阻断项关闭并经 `release_owner`、`security_approver` 和 `ops_oncall` 批准，才能改变“不允许发布”结论。
+1. 用户在运行环境配置自己的 Chat、Embedding，以及启用时的 Reranker，不向仓库提交密钥。
+2. 需要真实业务效果时，在授权隔离环境使用脱敏数据校准模型与阈值。
+3. 企业 SSO/OA/ERP/CRM、长期 SLO、正式值班审批、Kubernetes、ARM64、私有镜像仓库和 UI 由后续 ADR/路线图另行授权。
+4. 项目有意不设置顶层 `LICENSE`；第三方依赖、数据集、模型和外部资源的许可证记录继续保留。
 
 ---
 
@@ -786,14 +786,14 @@ Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真�
 | O-006 | 已由 D-019/ADR-019 解决：Redis + ARQ 最小可靠任务链路 |
 | O-007 | Phase 04 已由 D-019/ADR-019 解决：DeepSeek + BGE-M3；Reranker/OCR/Vision 后续另审 |
 
-### 16.3 仍待外部确认或接入
+### 16.3 运行时输入与可选扩展
 
-| 项目 | 未满足前的处理 |
+| 项目 | 当前处理 |
 |---|---|
-| 项目分发许可证 | 禁止把容器 label 当成所有者的法律确认；外部分发保持阻断 |
-| 生产 IdP、凭据、证书和网络出口 | 业务接口真实生产发布保持阻断 |
-| 真实 Provider 与代表性业务数据 | Fake/Stub 分数不得用于生产阈值或效果声明 |
-| 持续 SLO、生产恢复、容量和安全证据 | `production_exit` 保持 `not_allowed` |
+| 项目顶层许可证 | 用户有意不设置；不生成替代 LICENSE，不影响本地或自有云运行 |
+| 模型配置 | 用户在运行环境提供 Chat/Embedding，按需提供 Reranker；缺少仓库密钥不是代码缺陷 |
+| 企业身份与系统接入 | SSO/IdP、OA/ERP/CRM、部门 UAT 为未来可选扩展 |
+| 长期运营证据 | 月度 SLO、正式值班审批、真实规模容量/恢复属于运行期治理，不阻止当前源码范围完成 |
 
 ### 16.4 主要风险
 
@@ -999,4 +999,5 @@ Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真�
 | 2026-07-31 | 1.0.0 | 完成 Phase 07：文档版本、候选索引原子发布、删除/恢复/回收、Outbox、重试/取消/死信、批量和对账；进入 Phase 08 计划复审门禁 |
 | 2026-07-31 | 1.1.0 | 完成 Phase 08：直接 RAG/Tool RAG、Evidence、受控 SQL/API、HITL、长期记忆、预算、Trace 和 Agent 评测；多 Agent 暂缓，进入 Phase 09 计划复审门禁 |
 | 2026-08-01 | 1.2.0 | 完成 Phase 09：九类默认关闭高级能力、版本化派生物、GraphRAG/RAPTOR、多模态和事件/数值时序、独立 no-go 评测及兼容/生命周期门禁；进入 Phase 10 执行 |
-| 2026-08-01 | 1.3.0 | 完成 Phase 10 规划内代码与生产候选：评测/门禁、观测、安全、Docker、恢复/演练和 release report；真实生产出口保持不允许 |
+| 2026-08-01 | 1.3.0 | 完成 Phase 10 规划内代码与生产候选：评测/门禁、观测、安全、Docker、恢复/演练和 release report |
+| 2026-08-01 | 1.3.1 | 依据 ADR-026 校正完成范围：本地或自有云 Agent + RAG 后端完成；模型为用户运行时配置；Scout、ARM64、企业接入、长期 SLO、UI 和顶层 LICENSE 不再作为完成阻断项 |

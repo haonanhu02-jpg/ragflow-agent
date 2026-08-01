@@ -3,7 +3,7 @@ document_id: PHASE-STATUS-INDEX
 document_role: 阶段计划与执行状态入口
 status: active
 last_updated_at: "2026-08-01"
-current_phase: Phase 10 completed; production release blocked
+current_phase: Phase 10 completed; local/self-managed deployment ready
 ---
 
 # 阶段状态索引
@@ -17,7 +17,7 @@ current_phase: Phase 10 completed; production release blocked
 - “计划状态”只说明详细计划文件是否存在并通过检查，不代表阶段已经执行。
 - “执行状态”只有在代码、文档、验证命令和验收结果满足阶段 DoD 后才能改为“已完成”。
 - 当前项目已完成最小 Agent Runtime、知识领域/Ports/权限/统一查询契约、Phase 04 最小 RAG、Phase 05 Parser/Chunk、Phase 06 在线检索和 Phase 07 文档生命周期；项目 Git 根目录为 `D:/download/ragflow-agent`。
-- Phase 01 至 Phase 10 计划状态为“已确认”且规划内任务执行完成；真实生产发布仍未获准。
+- Phase 01 至 Phase 10 计划状态为“已确认”且规划内任务执行完成；本地或自有云 Agent + RAG 后端部署运行就绪。
 - 阶段名称、依赖和门禁以[开发路线图](../05-development-roadmap.md)为准。
 
 ## 阶段状态
@@ -34,7 +34,7 @@ current_phase: Phase 10 completed; production release blocked
 | Phase 07：文档生命周期 | [`phase-07-document-lifecycle.md`](./phase-07-document-lifecycle.md) | 已确认 | 已完成 | Phase 05、Phase 06 | 已满足：两阶段完成；ADR-022 冻结版本/任务/回收/补偿语义 | 已满足：P07-T01 至 P07-T11，版本/幂等/补偿/故障恢复和隔离四后端门禁通过 |
 | Phase 08：Agentic RAG | [`phase-08-agentic-rag.md`](./phase-08-agentic-rag.md) | 已确认 | 已完成 | Phase 02、Phase 06 | 已满足：两阶段完成；ADR-023 冻结 Tool/预算/安全/记忆范围 | 已满足：P08-T01 至 P08-T13，两条 RAG 路径、KB/SQL/API Tool、HITL、记忆、预算、评测及多 Agent 暂缓决策通过 |
 | Phase 09：高级RAG | [`phase-09-advanced-rag.md`](./phase-09-advanced-rag.md) | 已确认 | 已完成 | Phase 05、Phase 06、Phase 08 | 已满足：ADR-024、数据集/预算/存储/兼容冻结 | 已满足：P09-T01 至 P09-T12，九类能力和兼容/生命周期门禁通过 |
-| Phase 10：评测与生产化 | [`phase-10-evaluation-and-production.md`](./phase-10-evaluation-and-production.md) | 已确认 | 已完成 | Phase 07、Phase 08、Phase 09 | 已满足：ADR-025 冻结平台/SLO/RPO/RTO/安全 | 已满足：P10-T01 至 P10-T13 与本地生产候选门禁完成；最终生产出口为不允许发布 |
+| Phase 10：评测与生产化 | [`phase-10-evaluation-and-production.md`](./phase-10-evaluation-and-production.md) | 已确认 | 已完成 | Phase 07、Phase 08、Phase 09 | 已满足：ADR-025 冻结平台/SLO/RPO/RTO/安全 | 已满足：P10-T01 至 P10-T13 与本地或自有云门禁完成；出口为 `local_or_self_managed_ready` |
 
 ## 当前准入结论
 
@@ -46,7 +46,7 @@ current_phase: Phase 10 completed; production release blocked
 - P06-T01 至 P06-T12 已完成；双路召回、RRF、Provider 隔离 Reranker、有限安全降级和内容最小化持久 Trace 已通过真实 Elasticsearch/PostgreSQL 与完整质量门禁。
 - P07-T01 至 P07-T11 已完成；不可变版本、候选索引/alias + CAS 激活、删除/恢复/回收、Outbox、重试/死信、取消、批量和 reconciliation 已通过完整质量门禁与隔离四后端测试；实现提交 `71f15d5` 的 [GitHub Actions](https://github.com/haonanhu02-jpg/ragflow-agent/actions/runs/30634884467) 成功。
 - P08-T01 至 P08-T13 已完成；直接 RAG/Tool RAG、规划/有限检索、Evidence、Tool Registry、SQL/API 安全、持久 HITL、长期记忆、预算和 Trace 已通过完整质量门禁；多 Agent 因无量化收益暂缓。
-- Phase 09 和 Phase 10 均已完成规划内任务。高级能力保持 experimental/off；真实 Provider、生产接入、业务数据、持续 SLO 和生产恢复证据缺失，不能把本地/Fake 结果描述为真实生产完成。
+- Phase 09 和 Phase 10 均已完成规划内任务。高级能力保持 experimental/off；真实 Provider 由用户运行时配置，企业接入、业务效果和长期运营证据属于后续使用或可选扩展。
 - ADR-017 至 ADR-023 分别记录 Phase 02 至 Phase 08 的执行基线；Phase 00 旧一致性审计仍记录当时 42 项基线事实。
 
 ## 2026-07-30 计划生成一致性检查

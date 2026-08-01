@@ -32,6 +32,6 @@ uv run pytest tests/unit/evaluation tests/evaluation -q
 
 ## 发布阈值
 
-确定性回归要求 `Recall@10 >= 0.90`、answer faithfulness `>= 0.90`、Citation recall `>= 0.95`、内部错误率 `< 1%`，且跨 tenant、严重安全和恢复失败全部为 0。生产发布还必须获得真实 Provider、小规模业务数据、生产凭据/网络、隔离恢复和持续运营证据；这些门禁当前不可由 Fake 报告替代。
+确定性回归要求 `Recall@10 >= 0.90`、answer faithfulness `>= 0.90`、Citation recall `>= 0.95`、内部错误率 `< 1%`，且跨 tenant、严重安全和恢复失败全部为 0。本地或自有云完成门禁已通过；真实 Provider 与业务数据效果、月度 SLO 和真实规模运营证据必须单独报告，Fake 结果不能冒充这些运行期证据。
 
 导航：[项目总纲](./00-project-master.md) · [决策与风险](./07-decisions-and-risks.md) · [生产运行手册](./10-production-runbook.md) · [Phase 09](./phases/phase-09-advanced-rag.md) · [Phase 10](./phases/phase-10-evaluation-and-production.md)

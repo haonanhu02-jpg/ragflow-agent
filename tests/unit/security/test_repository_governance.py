@@ -10,9 +10,11 @@ scan_repository = cast(
 )
 
 
-def test_repository_governance_scan_passes_and_discloses_license_boundary() -> None:
+def test_repository_governance_scan_passes_and_records_intentional_license_absence() -> None:
     report = scan_repository(Path.cwd())
     assert report["passed"] is True
     assert report["ragflow_source_copied"] is False
     assert report["third_party_source_vendored"] is False
-    assert report["project_license_declared"] is False
+    assert report["project_license_policy"] == "intentionally_absent"
+    assert report["project_license_required_for_completion"] is False
+    assert report["project_license_file_present"] is False

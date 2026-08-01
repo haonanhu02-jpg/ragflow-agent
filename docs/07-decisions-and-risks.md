@@ -695,11 +695,53 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 **Consequences and verification**
 
 - 生产 Compose、观测配置、版本化评测集、确定性指标/质量门禁、备份恢复/故障/发布工具和运行手册进入仓库。
-- 缺少真实 DeepSeek/BGE/Vision/ASR、真实生产凭据、持续 SLO 和真实生产恢复证据时，最终发布结论必须为“不允许发布”，即使代码门禁通过。
+- 本条原定的真实生产外部阻断边界已由 ADR-026 校正；ADR-025 的部署、观测、安全、SLO 目标和恢复技术基线继续有效。
 
 **References**
 
 [`phase-10-evaluation-and-production.md`](./phases/phase-10-evaluation-and-production.md)；[生产运行手册](./10-production-runbook.md)；[`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml)
+
+### ADR-026：本地/自有云完成边界、运行时 Provider 与项目许可证策略
+
+- **Status**：Accepted and implemented
+- **Date**：2026-08-01
+- **Scope**：完成定义、发布报告、Provider 配置、Docker Scout、项目顶层 LICENSE
+- **Adjusts**：ADR-025 的最终完成与外部阻断口径；不撤销其质量、安全、观测、恢复和部署实现
+
+**Context**
+
+项目目标是让用户在本地电脑或自行租用、管理的普通 Linux 云服务器上运行完整的
+LangChain + LangGraph Agent + RAG 后端，而不是交付企业托管服务。此前 release report
+把生产 IdP、长期 SLO、Docker Scout 账号、ARM64、企业 UAT、真实业务数据和项目许可证
+误列为代码项目完成阻断项，超出了当前范围。
+
+**Decision**
+
+1. Phase 00 至 Phase 10、API/Worker、离线/在线 RAG、Agent 使用知识库、测试、配置和
+   Docker Compose 构成本轮完成范围。质量、安全与隔离恢复仍是 fail-closed 硬门禁。
+2. Chat、Embedding 和启用时的 Reranker 由用户通过现有 Provider Adapter 和环境变量在
+   运行时配置；仓库不保存真实密钥。没有当前环境凭据只表示真实 smoke 未执行，不表示
+   代码未完成。
+3. Docker Scout 是需要外部账号的可选扫描。Compose 构建/配置/启动、依赖审计、SBOM、
+   Secret 和 provenance 检查才是当前运行门禁。
+4. 用户明确选择不给本项目设置顶层开源许可证；仓库不创建替代 LICENSE，OCI 镜像不写
+   `NOASSERTION` 项目许可证标签。第三方依赖、数据集、模型和外部资源许可证继续保留。
+5. 企业 SSO/IdP、OA/ERP/CRM、部门 UAT、长期月度 SLO、正式运维组织、私有镜像仓库、
+   Kubernetes、ARM64、前端/管理控制台和真实业务效果验证属于运行期或未来可选扩展。
+6. 当前机器出口使用 `production_exit=local_or_self_managed_ready`；Provider 端点/密钥和
+   基础设施 Secret 作为运行时输入列出，不再作为源码完成 blocker。
+
+**Consequences**
+
+- README 必须给出安装、配置模型、启动 API/Worker、上传、构建知识库、固定 RAG 和
+  Agentic RAG 的完整步骤。
+- 不得把 Fake/Stub 指标描述为真实模型效果，也不得把短时验证描述为月度 SLO 证明。
+- 未来若改变分发策略、引入企业托管服务或 UI，必须新增 ADR 和下一轮路线图。
+
+**Verification**
+
+受影响 Unit/Integration/E2E、Ruff、mypy、包构建、Compose config、治理扫描和机器 release
+report 必须通过；顶层 `LICENSE` 不存在且 Docker/包元数据不声明项目许可证。
 
 ## 3. 开放与已解决的待决策事项
 
@@ -863,11 +905,11 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 | R-036 | 生产 SQL/API catalog、只读账号、网络出口和凭据轮换尚未验证 | 中 | 严重 | allowlist 配错、数据越权、SSRF 或凭据泄漏 | 默认不注册；独立只读账号、固定网络目标、Secret Provider、上线前隔离集成/渗透测试 | Phase 08/10 | Open |
 | R-037 | 高风险外部副作用在执行成功但结果持久化前崩溃，仍可能被重试 | 低 | 严重 | Tool 端已生效但 Agent 未记录 succeeded | Tool 必须接受幂等键并提供结果查询/幂等合同；生产写 Tool 在 Phase 10 前保持禁用 | Phase 08/10 | Open |
 | R-038 | 长期记忆物理清理调度或积压没有生产 SLO | 中 | 高 | 撤回记录超过 24 小时仍物理存在 | 查询立即屏蔽；Worker 清理可执行；Phase 10 增加跨 tenant 调度、积压指标、告警和故障演练 | Phase 08/10 | Open |
-| R-039 | 本地/Fake 生产候选证据被误报为真实上线完成 | 高 | 严重 | 用短时合成报告宣称月度 SLO、真实模型效果或生产恢复 | 证据分层；fail-closed release report；外部阻断项未关闭前不允许发布 | 生产接入 | Open |
-| R-040 | 生产 IdP、Secret、TLS 或出口策略尚未接入 | 高 | 严重 | 业务接口无可信身份、凭据泄漏或任意网络出口 | internal 网络、TLS/限流配置、环境注入；真实接入和安全审批前保持阻断 | 生产接入 | Open |
-| R-041 | 项目自身分发许可证尚未由所有者确认 | 中 | 严重 | 对外分发镜像/源码但仓库无正式 LICENSE | SBOM/provenance 分离；由所有者选择并提交 LICENSE 后重新审查 | 发布治理 | Open |
-| R-042 | 生产容量、耐久、费用与月度 SLO 未由代表性负载证明 | 高 | 高 | 合成短测通过但真实峰值、积压或费用超限 | 目标环境阶梯/耐久测试、持续监控和有期限容量审批 | 生产接入 | Open |
-| R-043 | 生产备份恢复、索引重建和回滚未用真实规模演练 | 中 | 严重 | 恢复超 RTO、权限/Citation 漂移或迁移无法回退 | 隔离生产快照演练、双人审批、恢复后安全与评测门禁 | 生产接入 | Open |
+| R-039 | 本地/Fake 证据被误报为真实模型效果或长期运营证明 | 高 | 高 | 用短时合成报告宣称月度 SLO、真实模型效果或真实规模恢复 | 证据分层；本地/自有云完成结论与真实模型/运营证据分别报告 | 运行期 | Monitoring |
+| R-040 | 自有云若暴露公网但未接入可信身份、Secret、TLS 或出口策略 | 高 | 严重 | 业务接口无可信身份、凭据泄漏或任意网络出口 | 默认本地身份仅开发使用；公网部署按运行手册接入受信网关、TLS、Secret 和 allowlist | 可选部署强化 | Monitoring |
+| R-041 | 项目顶层许可证策略与所有者意图漂移 | 低 | 中 | 自动工具重新创建 LICENSE 或把缺少 LICENSE 误报为缺陷 | ADR-026 明确有意不设置；治理扫描只保留第三方/数据/模型许可证 | 发布治理 | Resolved |
+| R-042 | 真实负载容量、耐久、费用与月度 SLO 未由代表性使用证明 | 高 | 高 | 合成短测通过但实际峰值、积压或费用超限 | 用户上线后执行阶梯/耐久测试和持续监控；不作为当前代码完成阻断 | 运行期 | Monitoring |
+| R-043 | 真实规模备份恢复、索引重建和回滚尚未演练 | 中 | 严重 | 实际恢复超 RTO、权限/Citation 漂移或迁移无法回退 | 当前隔离恢复门禁保留；实际部署后按规模演练 | 运行期 | Monitoring |
 
 ## 5. 风险处理规则
 
@@ -1032,15 +1074,15 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 - **实现边界**：实现版本化派生物、关键词/问题/三层摘要/TOC/父子扩展、多模态、GraphRAG、RAPTOR、事件与数值时序、兼容回退和生命周期清理；RAGFlow 复制/抽取/改写为零。
 - **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `324 passed, 1 skipped`，skip 为本机无 Tesseract；Alembic `0005 -> 0006 -> 0005 -> 0006`、Ruff、strict mypy、锁文件和专项评测通过。
 - **go/no-go**：九项机器结果安全违规为 0，但因没有真实 DeepSeek/BGE/Vision/ASR 增益证据全部为 no-go，代码和负面报告保留，开关保持 off。
-- **下一门禁**：Phase 10 已由 ADR-025 批准；生产发布仍受真实 Provider、生产凭据/网络、业务数据、持续 SLO 和真实恢复证据阻断。
+- **下一门禁**：Phase 10 已由 ADR-025 批准；后续完成口径已由 ADR-026 校正。
 
 ## 17. Phase 10 出口审查记录
 
 ### 2026-08-01 / P10-T13
 
-- **结论**：P10-T01 至 P10-T13 的规划内代码、数据集、测试、部署候选和文档已完成；机器报告结论为 `production_exit=not_allowed`。
+- **结论**：P10-T01 至 P10-T13 的规划内代码、数据集、测试、部署候选和文档已完成；ADR-026 校正后的机器结论为 `production_exit=local_or_self_managed_ready`。
 - **实施事实**：版本化评测与不可豁免门禁、JSON/OTel/Prometheus/Grafana、Linux Docker Compose、同镜像 API/Worker、one-shot 迁移、TLS/限流配置、SBOM/依赖/Secret/provenance 扫描、内容 hash 备份恢复和隔离故障演练已落地。
 - **实测边界**：Linux/amd64 镜像、PostgreSQL/Redis/MinIO/Elasticsearch、API/Worker 与本地观测栈实测；Fake/Stub 与真实基础设施分开报告。未运行的 arm64、真实 Provider、生产 IdP/凭据/业务数据、持续 SLO 和生产恢复/容量不标记通过。
-- **许可证**：RAGFlow 源码复制/抽取/改写继续为零；依赖 SBOM 和审计已生成。项目自身分发 LICENSE 尚待所有者确认，记录为 R-041。
-- **阻断项**：R-039 至 R-043 及真实 Provider/业务数据验证全部关闭前，`release_owner`、`security_approver`、`ops_oncall` 不得批准真实生产发布。
+- **许可证**：RAGFlow 源码复制/抽取/改写继续为零；依赖 SBOM 和审计已生成。用户有意不设置项目顶层 LICENSE，R-041 已按 ADR-026 解决。
+- **范围校正**：真实 Provider/业务数据、企业系统/IdP、长期 SLO、Docker Scout、ARM64 和正式运营组织是运行时输入或未来可选扩展，不阻止本地或自有云后端完成。
 - **范围**：UI/管理控制台继续 Deferred；路线图没有 Phase 11，新增能力只能通过新 ADR 和下一轮路线图提出。

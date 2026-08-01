@@ -61,8 +61,9 @@ def scan_repository(root: Path) -> dict[str, object]:
         "datasets": datasets,
         "ragflow_source_copied": False,
         "third_party_source_vendored": False,
-        "project_license_declared": (root / "LICENSE").is_file(),
-        "project_license_note": "Requires owner confirmation before external distribution",
+        "project_license_policy": "intentionally_absent",
+        "project_license_required_for_completion": False,
+        "project_license_file_present": (root / "LICENSE").is_file(),
     }
 
 

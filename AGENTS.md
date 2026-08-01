@@ -6,7 +6,7 @@
 2. 确认当前阶段后，读取对应的 `docs/phases/phase-xx-xxx.md`；当前任务还应读取该文件引用的专项文档。
 3. 检查 Git 状态和当前源码，不能只相信文档。仓库存在 Git 元数据时执行 `git status --short`；不存在时明确记录并直接检查实际文件。
 4. 修改前确认当前任务编号、依赖任务、阶段范围、允许修改的文件和验收标准。没有任务编号时，不得擅自归入其他任务或阶段。
-5. Phase 00 至 Phase 10 的规划内任务已完成；生产相关工作还必须读取 `reports/phase10/release-report.json` 和 `docs/10-production-runbook.md`。路线图没有 Phase 11，新增范围先写 ADR 和下一轮路线图。
+5. Phase 00 至 Phase 10 及当前本地/自有云 Agent + RAG 后端范围已完成；部署相关工作还必须读取 `reports/phase10/release-report.json` 和 `docs/10-production-runbook.md`。路线图没有 Phase 11，新增范围先写 ADR 和下一轮路线图。
 
 ## 实施规则
 

@@ -1,40 +1,50 @@
 {
   "artifacts": {
-    "application_image": "ragflow-agent:production-candidate@working-tree",
+    "application_image": "ragflow-agent:production-candidate@scope-correction-working-tree",
     "configuration_version": "production-candidate-v1",
     "database_revision": "20260801_0006",
     "index_version": "phase09-v1"
   },
-  "decision_model_blockers": [
-    "real_provider_validation"
+  "completion_status": "completed",
+  "decision_model_blockers": [],
+  "intentional_scope_choices": [
+    "project_top_level_license_absent"
   ],
-  "external_release_blockers": [
-    "real_provider_validation",
-    "project_license_declaration",
-    "authenticated_image_vulnerability_scan",
-    "production_credentials_and_idp",
-    "representative_business_data_evaluation",
-    "authorized_production_deployment",
-    "sustained_monthly_slo_evidence",
-    "isolated_production_backup_restore_evidence",
-    "production_security_and_capacity_validation"
-  ],
-  "local_production_candidate_gates": {
+  "local_or_self_managed_gates": {
     "isolated_recovery": true,
     "quality": true,
     "security": true
   },
+  "optional_future_extensions": [
+    "enterprise_system_integrations",
+    "enterprise_sso_or_external_idp",
+    "representative_business_effect_evaluation",
+    "sustained_monthly_slo_evidence",
+    "formal_operations_and_release_organization",
+    "authenticated_docker_scout_scan",
+    "private_image_registry",
+    "kubernetes",
+    "linux_arm64_validation",
+    "ui_admin_console"
+  ],
   "phase": "10",
-  "production_exit": "not_allowed",
+  "production_exit": "local_or_self_managed_ready",
   "roles": {
     "ops_oncall": "ops_oncall",
     "release_owner": "release_owner",
     "security_approver": "security_approver"
   },
-  "schema_version": 1,
+  "runtime_requirements": [
+    "user_supplied_chat_model_configuration",
+    "user_supplied_embedding_model_configuration",
+    "user_supplied_reranker_configuration_when_enabled",
+    "operator_supplied_infrastructure_secrets"
+  ],
+  "schema_version": 2,
   "scope": {
-    "backend_api_worker_evaluation_candidate": "implemented",
-    "real_production_project": "not_complete",
-    "ui_admin_console": "deferred_not_implemented"
+    "agent_rag_backend_source": "completed",
+    "local_or_self_managed_deployment": "ready",
+    "provider_runtime_configuration": "operator_supplied",
+    "ui_admin_console": "deferred_not_required"
   }
 }

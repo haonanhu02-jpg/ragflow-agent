@@ -1,4 +1,4 @@
-"""Repeatable isolated operations drill and production-exit report generator."""
+"""Repeatable isolated operations drill and deployment-readiness report generator."""
 
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ def build_release_report(
     operations: dict[str, object],
     commit: str,
 ) -> dict[str, object]:
-    """Return a fail-closed release report without upgrading local evidence."""
+    """Return a fail-closed report for the supported local/self-managed scope."""
     evaluation_gate = evaluation.get("release_gate")
     quality_gate_passed = bool(
         isinstance(evaluation_gate, dict) and evaluation_gate.get("passed") is True
@@ -130,30 +130,39 @@ def build_release_report(
         quality_gate_passed=quality_gate_passed,
         security_gate_passed=security_gate_passed,
         recovery_gate_passed=recovery_gate_passed,
-        real_provider_validated=False,
     )
-    external_blockers = (
-        "real_provider_validation",
-        "project_license_declaration",
-        "authenticated_image_vulnerability_scan",
-        "production_credentials_and_idp",
-        "representative_business_data_evaluation",
-        "authorized_production_deployment",
+    runtime_requirements = (
+        "user_supplied_chat_model_configuration",
+        "user_supplied_embedding_model_configuration",
+        "user_supplied_reranker_configuration_when_enabled",
+        "operator_supplied_infrastructure_secrets",
+    )
+    optional_extensions = (
+        "enterprise_system_integrations",
+        "enterprise_sso_or_external_idp",
+        "representative_business_effect_evaluation",
         "sustained_monthly_slo_evidence",
-        "isolated_production_backup_restore_evidence",
-        "production_security_and_capacity_validation",
+        "formal_operations_and_release_organization",
+        "authenticated_docker_scout_scan",
+        "private_image_registry",
+        "kubernetes",
+        "linux_arm64_validation",
+        "ui_admin_console",
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "phase": "10",
-        "production_exit": "not_allowed",
-        "local_production_candidate_gates": {
+        "production_exit": "local_or_self_managed_ready" if decision.allowed else "not_ready",
+        "completion_status": "completed" if decision.allowed else "incomplete",
+        "local_or_self_managed_gates": {
             "quality": quality_gate_passed,
             "security": security_gate_passed,
             "isolated_recovery": recovery_gate_passed,
         },
         "decision_model_blockers": decision.blockers,
-        "external_release_blockers": external_blockers,
+        "runtime_requirements": runtime_requirements,
+        "optional_future_extensions": optional_extensions,
+        "intentional_scope_choices": ("project_top_level_license_absent",),
         "artifacts": {
             "application_image": decision.application_image,
             "configuration_version": decision.configuration_version,
@@ -166,9 +175,10 @@ def build_release_report(
             "ops_oncall": decision.ops_oncall_role,
         },
         "scope": {
-            "backend_api_worker_evaluation_candidate": "implemented",
-            "ui_admin_console": "deferred_not_implemented",
-            "real_production_project": "not_complete",
+            "agent_rag_backend_source": "completed",
+            "local_or_self_managed_deployment": "ready",
+            "provider_runtime_configuration": "operator_supplied",
+            "ui_admin_console": "deferred_not_required",
         },
     }
 

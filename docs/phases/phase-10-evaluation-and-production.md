@@ -15,7 +15,7 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ## 0. 状态与导航
 
 - **计划状态**：已批准并冻结（ADR-025）。
-- **执行状态**：已完成；生产出口结论为“不允许发布”，不等于真实生产上线完成。
+- **执行状态**：已完成；ADR-026 校正后出口为 `local_or_self_managed_ready`。
 - 本阶段按当前代码、Phase 09 产物和生产候选环境执行；未运行的真实 Provider、真实业务数据和持续 SLO 不得由 Fake 或短时测试替代。
 - 导航：[阶段索引](./README.md) · [Phase 09](./phase-09-advanced-rag.md) · [路线图](../05-development-roadmap.md) · [工程标准](../06-engineering-standards.md)
 
@@ -105,7 +105,7 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **风险和回滚方法**：不明确则保持未生产，不猜测阈值。
 - **实际执行结果**：见第 9 节 P10-T01。
 - **实际验证结果**：ADR-025、配置和运行手册一致性通过。
-- **计划偏差**：无架构偏差；真实生产证据保留为发布阻断项。
+- **计划偏差**：无架构偏差；ADR-026 将企业外部条件从完成阻断项调整为运行时要求或可选扩展。
 
 ### P10-T02：建立版本化评测数据集
 
@@ -245,7 +245,7 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **风险和回滚方法**：严重问题阻止发布并关闭相关能力。
 - **实际执行结果**：见第 9 节 P10-T08。
 - **实际验证结果**：全仓安全负向测试、Secret/大文件/数据集/provenance 和依赖扫描通过。
-- **计划偏差**：生产 IdP、外部证书、受控出口与项目许可证声明尚未完成，生产发布保持阻断。
+- **计划偏差**：企业 IdP、外部证书和受控出口属于公网部署强化；项目有意不设置顶层 LICENSE，均不阻止本地或自有云范围完成。
 
 ### P10-T09：执行性能、并发、容量与成本测试
 
@@ -325,7 +325,7 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **风险和回滚方法**：预演/staging/停止条件；生产演练需授权。
 - **实际执行结果**：见第 9 节 P10-T12。
 - **实际验证结果**：隔离 Compose 依赖/网络/Worker 演练与 Provider/Checkpoint/DLQ 安全故障注入通过。
-- **计划偏差**：未在真实生产环境执行发布、流量切换或不可逆迁移；生产发布因此未获准。
+- **计划偏差**：未操作真实用户数据或不可逆迁移；隔离发布/回滚已验证，真实环境操作由用户部署时执行。
 
 ### P10-T13：执行最终生产出口审查
 
@@ -343,9 +343,9 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：使用 P10-T06/P10-T08/P10-T09/P10-T11/P10-T12 的已确认门禁命令。
 - **验收标准**：所有硬门禁通过；例外有批准/期限；无计划项误标。
 - **风险和回滚方法**：任何严重缺陷结论为不发布。
-- **实际执行结果**：机器报告明确 `production_exit=not_allowed`。
-- **实际验证结果**：本地候选门禁通过；外部生产硬证据缺失项完整列出。
-- **计划偏差**：阶段任务完成并不提升为真实生产完成。
+- **实际执行结果**：ADR-026 校正后的机器报告明确 `production_exit=local_or_self_managed_ready`。
+- **实际验证结果**：本地或自有云质量、安全、隔离恢复、Compose 与源码门禁通过；模型由用户运行时配置。
+- **计划偏差**：企业接入、长期 SLO 和真实业务效果改列为后续使用或可选扩展。
 
 ## 8. 阶段验收、DoD、风险和后续
 
@@ -358,7 +358,7 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 | Trace 泄密 | 最小化、脱敏、访问/保留 |
 | 恢复仅停留文档 | 定期 restore/GameDay 硬门禁 |
 | 高级能力复杂度 | 按 Phase 09 独立 go/no-go 和 flag |
-| 真实生产证据未满足 | 保持 `production_exit=not_allowed`，不以本地/Fake 结果豁免 |
+| 真实模型或长期运营证据未执行 | 如实标为运行时/运营期未验证，不降低当前质量、安全和恢复硬门禁 |
 
 阶段结束更新 `AGENTS.md`、总纲、架构、矩阵、复用、路线图、标准、风险、阶段索引、运行/评测文档和本文件。路线图没有 Phase 11；通过后进入版本运营或经新 ADR 修订下一轮路线图。
 
@@ -373,18 +373,18 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 | P10-T05 | Agent 与九项高级能力独立报告 | Fake/纯算法；九项高级能力全部 no-go/off |
 | P10-T06 | 不可豁免门禁、故意退化测试、Phase 10 CI | 本地门禁通过；真实 Provider 层未运行 |
 | P10-T07 | JSON 日志、Trace context、OTLP、Prometheus、Dashboard、告警 | 本地 Collector/Prometheus/Grafana 启动；实际通知与保留期未证明 |
-| P10-T08 | tenant/ACL/Tool/SQL/API/SSRF/密钥/供应链负向测试与治理扫描 | 严重违规 0；依赖审计通过；Docker Scout 因无登录凭据未完成，生产 IdP、证书、出口和项目许可证仍阻断 |
+| P10-T08 | tenant/ACL/Tool/SQL/API/SSRF/密钥/供应链负向测试与治理扫描 | 严重违规 0；依赖审计通过；Docker Scout 为可选外部扫描，项目顶层 LICENSE 有意不设置 |
 | P10-T09 | 本地延迟/并发/背压/成本状态报告 | 100 合成样本、32 并发；不代表生产容量或供应商费用 |
 | P10-T10 | 多阶段 non-root 镜像、API/Worker、一次性迁移、独立卷、TLS/限流配置 | amd64 实测；arm64 因 Docker Hub token 端点拒绝连接而未完成构建验证 |
 | P10-T11 | 内容寻址备份/恢复、篡改拒绝、索引重建顺序、迁移往返 | 合成 authority 数据；没有生产备份恢复证据 |
 | P10-T12 | PostgreSQL/Redis/MinIO/Elasticsearch/Worker/网络实栈演练与 Provider/Checkpoint/DLQ 故障注入 | 隔离环境；未触碰生产数据或真实外部写操作 |
-| P10-T13 | `reports/phase10/release-report.json` | 生产出口：不允许发布 |
+| P10-T13 | `reports/phase10/release-report.json` | 出口：`local_or_self_managed_ready` |
 
 关键机器产物：`reports/phase10/evaluation.json`、`operations.json`、`governance-scan.json`、`dependency-audit.json`、`sbom.json`、`image-scan.json`、`deployment-verification.json` 与 `release-report.json`。
 
 计划偏差：断点前已提前生成部分 Phase 10 基线文件，并随 Phase 09 checkpoint 提交 `38b48ba` 一并提交；恢复后未重做已完成实现，只完成验证、缺口修复和正式记录。外部观测镜像首次拉取遇到 TLS timeout，重试后成功。Docker Desktop 对隔离 Compose 的宿主端口存在 HostConfig 已配置但 NetworkSettings 未发布的本机异常，因此 API/观测健康以容器内部真实请求验证；arm64 构建在重复尝试时均被 Docker Hub token 网络拒绝，未标记为已验证。详细证据见 `reports/phase10/deployment-verification.json`。
 
-最终结论：本阶段规划内代码与生产候选建设完成；由于真实 Provider、生产凭据/IdP、代表性业务数据、授权生产部署、持续 SLO、生产恢复/容量/安全证据和项目许可证声明缺失，真实生产发布不获准。
+最终结论：Phase 00 至 Phase 10 以及当前约定的 Agent + RAG 后端源码范围已经完成。项目已达到本地或自有云部署运行条件。企业系统接入、真实业务效果验证和长期运营指标属于后续使用或可选扩展，不属于当前项目完成阻断项。
 
 ## 10. 最终验证记录
 
@@ -397,15 +397,35 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 | 故意退化与 fail-closed 发布门禁 | 5 项定向测试通过；降级指标、跨租户违规、Citation 退化均会阻止发布 |
 | Alembic | 隔离 PostgreSQL `20260801_0006 -> 20260731_0005 -> 20260801_0006` 通过；全新 Compose 迁移 Job 退出码 0 |
 | 数据集与评测 runner | Phase 09/10 manifest、hash、split、许可、脱敏验证通过；机器报告可重复生成 |
-| Secret/大小/provenance 治理 | 扫描 494 个文件时无密钥命中、无超大文件、无 RAGFlow/第三方源码复制；项目自身 LICENSE 未声明 |
+| Secret/大小/provenance 治理 | 无密钥命中、无超大文件、无 RAGFlow/第三方源码复制；项目顶层 LICENSE 有意不设置，第三方/数据集许可记录保留 |
 | `pip-audit`（OSV） | 真实联网审计完成，0 个已知漏洞 |
 | CycloneDX SBOM | 可复现生成并通过 schema 验证 |
-| Docker Scout | 已尝试；缺少 Docker ID/PAT，未完成镜像漏洞扫描，作为发布阻断而非通过 |
-| Linux amd64 镜像 | 构建通过；`USER=ragflow-agent`、license label=`NOASSERTION`，API/Worker bootstrap 通过 |
+| Docker Scout | 已尝试；缺少 Docker ID/PAT，作为可选外部扫描未执行，不是 Compose 运行阻断项 |
+| Linux amd64 镜像 | 构建通过；`USER=ragflow-agent`，不声明项目 license label，API/Worker bootstrap 通过 |
 | Linux arm64 镜像 | 两次构建均在 Docker Hub anonymous token 连接处失败；未验证 |
 | Docker Compose 生产候选 | 全新隔离栈 PostgreSQL/Redis/MinIO/Elasticsearch healthy，迁移成功，API/Worker healthy；Collector 接收 spans，Prometheus ready，Grafana database ok |
 | Compose 宿主访问 | Docker Desktop 本机端口转发异常；容器内部 HTTP 和健康检查通过，不记作宿主/生产入口验证 |
 | 故障与恢复 | PostgreSQL、Redis、MinIO、Elasticsearch、Worker、网络执行隔离实栈注入；Provider/Checkpoint/DLQ 使用确定性安全注入；Worker kill 的自动重启未证明 |
 | 备份恢复、性能与容量 | 合成 authority 内容 hash 恢复通过；100 个合成延迟样本、32 并发、0 错误，只证明本地机制，不证明生产规模/RTO/SLO |
 
-机器报告的最终发布判定为 `production_exit=not_allowed`。GitHub Actions 以提交后的最终 `main` workflow 结果作为仓库级门禁，运行链接在交付汇报中记录。
+机器报告的最终判定为 `production_exit=local_or_self_managed_ready`。GitHub Actions 以提交后的最终 `main` workflow 结果作为仓库级门禁，运行链接在交付汇报中记录。
+
+## 11. ADR-026 完成范围校正记录
+
+2026-08-01 按用户最终完成定义执行独立校正：仓库根目录实际不存在本项目 `LICENSE`，
+`pyproject.toml` 也没有项目许可证字段；已移除 Dockerfile 的 `NOASSERTION` 项目许可证标签，
+并把治理扫描改为记录 `project_license_policy=intentionally_absent`。第三方依赖、数据集、模型和
+外部资源的许可证/provenance 未删除。
+
+发布判定只把质量、安全和隔离恢复作为本地或自有云硬门禁；真实 Provider、基础设施 Secret
+作为用户运行时输入，Docker Scout、ARM64、企业系统/IdP、真实业务效果、长期 SLO、正式运维
+组织、Kubernetes、私有仓库和 UI 作为可选扩展。`release-report.json` schema v2 的结论为
+`local_or_self_managed_ready`，无 decision blocker。
+
+本次实际验证：受影响的 8 项发布/治理/安全测试通过；更新后全仓 `312 passed, 19 skipped`，
+Ruff 通过，mypy 408 个源文件通过；`uv lock --check`、`uv sync --frozen --all-groups`、
+`uv pip check`、wheel/sdist 构建、开发与生产 Compose config 均通过。19 个 skip 均因本轮未注入
+隔离后端或本机 Tesseract；Phase 10 既有隔离实栈结果继续作为对应证据，不将 Fake 或未运行的
+真实模型测试改写为真实效果。
+
+最终结论：Phase 00至Phase 10以及当前约定的Agent＋RAG后端源码范围已经完成。项目已达到本地或自有云部署运行条件。企业系统接入、真实业务效果验证和长期运营指标属于后续使用或可选扩展，不属于当前项目完成阻断项。
