@@ -1,6 +1,8 @@
 """SQLAlchemy knowledge persistence adapters."""
 
 from ragflow_agent.knowledge.infrastructure.database.models import (
+    AdvancedArtifactRow,
+    AdvancedBuildRow,
     DocumentRow,
     DocumentVersionRow,
     IngestionJobRow,
@@ -20,6 +22,8 @@ from ragflow_agent.knowledge.infrastructure.database.uow import (
 )
 
 __all__ = [
+    "AdvancedArtifactRow",
+    "AdvancedBuildRow",
     "DocumentRow",
     "DocumentVersionRow",
     "IngestionJobRow",

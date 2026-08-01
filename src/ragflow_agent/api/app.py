@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from prometheus_client import make_asgi_app
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -19,7 +20,11 @@ from ragflow_agent.api.routes.knowledge import build_knowledge_router
 from ragflow_agent.api.security import DevelopmentIdentityMiddleware
 from ragflow_agent.config import AppSettings
 from ragflow_agent.infrastructure.database import create_database_engine
-from ragflow_agent.observability import current_trace_context
+from ragflow_agent.observability import (
+    MetricsMiddleware,
+    build_tracer_provider,
+    current_trace_context,
+)
 from ragflow_agent.shared import AppError
 
 if TYPE_CHECKING:
@@ -58,6 +63,10 @@ def create_app(
         )
         app.state.database_engine = engine
         app.state.settings = settings
+        app.state.tracer_provider = build_tracer_provider(
+            settings.observability,
+            service_name=settings.api.service_name,
+        )
         async with AsyncExitStack() as stack:
             if minimum_rag_runtime is not None:
                 app.state.minimum_rag_runtime = minimum_rag_runtime
@@ -73,6 +82,7 @@ def create_app(
                     )
             else:
                 stack.push_async_callback(engine.dispose)
+            stack.callback(app.state.tracer_provider.shutdown)
             yield
 
     app = FastAPI(
@@ -84,6 +94,9 @@ def create_app(
         TraceContextMiddleware,
         service_name=settings.api.service_name,
     )
+    if settings.observability.metrics_enabled:
+        app.add_middleware(MetricsMiddleware)
+        app.mount("/metrics", make_asgi_app())
     app.add_middleware(
         DevelopmentIdentityMiddleware,
         enabled=settings.environment != "production",

@@ -1,0 +1,118 @@
+{
+  "capabilities": [
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "keywords",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "questions",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "summaries",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "toc",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "parent_child",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "multimodal",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "graphrag",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "raptor",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    },
+    {
+      "active_runtime_ms": 0.0,
+      "capability": "temporal",
+      "dataset_version": "phase09-v1",
+      "decision": "no-go",
+      "generated_tokens": 0,
+      "provider_calls": 0,
+      "quality_score": 1.0,
+      "reason": "deterministic protocol validation only; keep default-off until real-provider gain",
+      "sample_count": 1,
+      "security_violations": 0
+    }
+  ],
+  "dataset_version": "phase09-v1",
+  "overall_security_violations": 0,
+  "phase": "09",
+  "production_model_validated": false,
+  "schema_version": 1,
+  "test_mode": "deterministic_fake"
+}

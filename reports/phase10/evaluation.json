@@ -1,0 +1,32 @@
+{
+  "dataset_version": "phase10-v1",
+  "metrics": {
+    "answer_correctness": 1.0,
+    "answer_faithfulness": 1.0,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "critical_security_violations": 0,
+    "cross_tenant_violations": 0,
+    "internal_error_rate": 0.0,
+    "mrr": 1.0,
+    "ndcg_at_2": 1.0,
+    "recovery_failures": 0,
+    "retrieval_precision_at_2": 0.5,
+    "retrieval_recall_at_10": 1.0
+  },
+  "monthly_slo_proven": false,
+  "phase": "10",
+  "real_provider_validation": {
+    "asr": false,
+    "bge_m3": false,
+    "bge_reranker": false,
+    "deepseek": false,
+    "vision": false
+  },
+  "release_gate": {
+    "failures": [],
+    "passed": true
+  },
+  "schema_version": 1,
+  "test_mode": "deterministic_fake_and_isolated_local"
+}

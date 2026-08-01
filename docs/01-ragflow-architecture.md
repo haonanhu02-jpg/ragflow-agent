@@ -1,7 +1,7 @@
 ---
 document_id: RAGFLOW-ARCHITECTURE
 status: active
-last_updated_at: "2026-07-31"
+last_updated_at: "2026-08-01"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 scope: RAGFlow Python
 ---

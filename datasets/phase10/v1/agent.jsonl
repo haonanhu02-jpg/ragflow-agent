@@ -1,0 +1,3 @@
+{"id":"agent-dev-1","split":"development","scenario":"direct_rag","expected_status":"completed","license":"CC0-1.0"}
+{"id":"agent-validation-1","split":"validation","scenario":"tool_rag_hitl","expected_status":"approval_required","license":"CC0-1.0"}
+{"id":"agent-regression-1","split":"regression","scenario":"budget_exhausted","expected_status":"budget_exhausted","license":"CC0-1.0"}

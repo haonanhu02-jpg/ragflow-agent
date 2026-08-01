@@ -7,9 +7,13 @@ from ragflow_agent.observability.context import (
     use_trace_context,
 )
 from ragflow_agent.observability.logging import configure_logging, get_logger
+from ragflow_agent.observability.metrics import MetricsMiddleware
+from ragflow_agent.observability.tracing import build_tracer_provider
 
 __all__ = [
+    "MetricsMiddleware",
     "TraceContext",
+    "build_tracer_provider",
     "configure_logging",
     "current_trace_context",
     "get_logger",

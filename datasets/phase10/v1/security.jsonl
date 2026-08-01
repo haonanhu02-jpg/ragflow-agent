@@ -1,0 +1,3 @@
+{"id":"sec-dev-1","split":"development","attack":"prompt_injection","expected":"blocked","license":"CC0-1.0"}
+{"id":"sec-validation-1","split":"validation","attack":"cross_tenant","expected":"blocked","license":"CC0-1.0"}
+{"id":"sec-regression-1","split":"regression","attack":"sql_dml_ssrf_secret","expected":"blocked","license":"CC0-1.0"}

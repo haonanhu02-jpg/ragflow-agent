@@ -204,3 +204,47 @@ class LifecycleBatchRow(Base):
             unique=True,
         ),
     )
+
+
+class AdvancedArtifactRow(Base):
+    """Versioned advanced artifact with explicit tenant and source-version indexes."""
+
+    __tablename__ = "knowledge_advanced_artifacts"
+
+    tenant_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    knowledge_base_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    document_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    document_version_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    capability: Mapped[str] = mapped_column(String(32), nullable=False)
+    build_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    __table_args__ = (
+        Index(
+            "ix_advanced_artifacts_tenant_version",
+            "tenant_id",
+            "document_version_id",
+            "capability",
+        ),
+    )
+
+
+class AdvancedBuildRow(Base):
+    """Idempotent, cancellable and resumable advanced build state."""
+
+    __tablename__ = "knowledge_advanced_builds"
+
+    tenant_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    knowledge_base_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    capability: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(256), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    __table_args__ = (
+        Index("uq_advanced_builds_tenant_idempotency", "tenant_id", "idempotency_key", unique=True),
+        Index("ix_advanced_builds_status_updated", "status", "updated_at"),
+    )

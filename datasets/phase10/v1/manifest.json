@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "dataset_version": "phase10-v1",
+  "license": "CC0-1.0",
+  "source": "Synthetic rail-maintenance and adversarial scenarios authored for ragflow-agent",
+  "contains_sensitive_data": false,
+  "redaction": "Synthetic-only; no production or user data",
+  "splits": ["development", "validation", "regression"],
+  "files": [
+    {"path":"retrieval.jsonl","sha256":"58a52ac3ce381c0de4c51536f75da1e819e783049cccbc16fca4c62507160fc9"},
+    {"path":"answers.jsonl","sha256":"afdec6847820222c01435e07e9e9c122975341a3993e2f44266ecd75a2cba957"},
+    {"path":"agent.jsonl","sha256":"3395f856962c7d10ca9473427fb711d5cf6c31bb008b68ae95463f83bb85845d"},
+    {"path":"security.jsonl","sha256":"bc4af7c7adf08560e1a138da3a32bd9101f93827ba4717e58e6f84fe79c28feb"},
+    {"path":"advanced.jsonl","sha256":"27c0fae4f4be686a67cc2f75fb2cdda30e082152599468a8783bc9bdd26adb00"}
+  ]
+}

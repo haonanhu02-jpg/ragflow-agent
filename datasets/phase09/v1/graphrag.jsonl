@@ -1,0 +1,2 @@
+{"id":"graph-dev-1","split":"development","documents":["Train A has Brake Controller B.","Controller B triggered Alarm C."],"question":"Which alarm is connected to Train A?","license":"CC0-1.0"}
+{"id":"graph-validation-1","split":"validation","documents":["Depot North maintains Train A.","Engineer Li owns work order W1."],"question":"Which relationships are directly evidenced?","license":"CC0-1.0"}

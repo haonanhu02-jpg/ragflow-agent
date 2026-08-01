@@ -165,14 +165,10 @@ class AgenticRagRuntime:
                 update={
                     "budget_usage": ledger.usage,
                     "final_status": (
-                        AgenticRunStatus.BUDGET_EXHAUSTED
-                        if timed_out
-                        else state.final_status
+                        AgenticRunStatus.BUDGET_EXHAUSTED if timed_out else state.final_status
                     ),
                     "stop_reason": (
-                        "active_runtime_budget_exhausted"
-                        if timed_out
-                        else state.stop_reason
+                        "active_runtime_budget_exhausted" if timed_out else state.stop_reason
                     ),
                 }
             )

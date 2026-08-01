@@ -188,8 +188,7 @@ def validate_and_scope_sql(statement: str, *, allowlist: SqlAllowlist) -> str:
                 details={"function": name},
             )
     aliases = {
-        table.alias_or_name.lower(): set(allowed_tables[table.name.lower()])
-        for table in tables
+        table.alias_or_name.lower(): set(allowed_tables[table.name.lower()]) for table in tables
     }
     for column in query.find_all(exp.Column):
         if column.table:
@@ -209,8 +208,7 @@ def validate_and_scope_sql(statement: str, *, allowlist: SqlAllowlist) -> str:
         physical_table = table.copy()
         physical_table.set("alias", None)
         scoped_query = sqlglot.parse_one(
-            f"SELECT * FROM {physical_table.sql()} "
-            f'WHERE "{tenant_column}" = :_agent_tenant_id',
+            f'SELECT * FROM {physical_table.sql()} WHERE "{tenant_column}" = :_agent_tenant_id',
             read="postgres",
         )
         alias = exp.TableAlias(this=exp.to_identifier(table.alias_or_name, quoted=True))

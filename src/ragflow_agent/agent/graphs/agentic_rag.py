@@ -88,9 +88,7 @@ class AgenticRagNodes:
             )
         route = "direct_rag" if plan.is_simple else "agent"
         return _wrap(
-            state.model_copy(
-                update={"plan": plan, "route": route, "budget_usage": ledger.usage}
-            )
+            state.model_copy(update={"plan": plan, "route": route, "budget_usage": ledger.usage})
         )
 
     async def direct_rag(self, raw: AgenticGraphState) -> AgenticGraphState:

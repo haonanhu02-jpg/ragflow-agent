@@ -2,9 +2,9 @@
 document_id: DEVELOPMENT-ROADMAP
 document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
-document_version: "0.8.0"
-last_updated_at: "2026-07-31"
-current_phase: Phase 08 completed; Phase 09 review gate
+document_version: "0.9.0"
+last_updated_at: "2026-08-01"
+current_phase: Phase 09 completed; Phase 10 in progress
 roadmap_range: Phase 00-10
 ---
 
@@ -595,16 +595,16 @@ RAGFlow 的关系模型和 Peewee Service 只提供用例证据；目标领域�
 |---|---|
 | LangChain | LLM/Embedding/Vision/ASR 模型适配和 Prompt |
 | LangGraph | 高级构建/查询路由与 Agent 使用条件编排 |
-| RAGFlow | 改造复用 GraphRAG、RAPTOR、多模态算法候选 |
+| RAGFlow | 冻结源码只作公开行为与职责证据；本阶段复制/抽取/改造复用为零 |
 | 自研 | 统一版本/权限/索引接入、资源治理、删除重建、降级和评测门禁 |
 
 ### 验收、后续与状态
 
 - **验收标准**：每项能力与 Phase 06 基线对比；构建/查询/删除/重建绑定版本；权限条件不丢失；资源和失败可控；无收益能力默认关闭。
-- **下一阶段进入条件**：高级能力有稳定开关、基线和运行数据；Phase 10 详细计划已确认。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 05、Phase 06 和 Phase 08 实际结果复审。
-- **已知风险**：成本高、构建慢、图质量不稳定、模型许可不清、多模态引用不准确、复杂度无收益。
-- **待确认技术决策**：`O-009` GraphRAG/RAPTOR 范围；多模态首批模态/模型；高级索引存储；启用阈值和资源预算。
+- **下一阶段进入条件**：已满足；ADR-024、版本化数据集、开关、预算、普通路径回退和逐项报告均已落地。
+- **当前状态**：已完成；P09-T01 至 P09-T12 通过隔离四后端全仓 324 passed/1 个本机 Tesseract 条件 skip及迁移往返。
+- **已知风险**：真实模型质量/成本、真实企业数据规模和高级检索增益未验证；因此九类 capability 全部保持 experimental/off。
+- **技术决策结果**：O-009/O-011 由 ADR-024 关闭；不引入图/时序数据库，图片/图表/音频为首批多模态，视频不实现，硬资源预算由服务端控制。
 
 ## 13. Phase 10：评测与生产化
 
@@ -654,9 +654,9 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 
 - **验收标准**：固定数据集和指标阈值版本化；回归门禁可执行；跨租户/owner/visibility 负向测试通过；API/Worker 可独立健康和扩缩；升级/回滚及备份恢复演练成功；敏感信息检查通过；高级 RAG 仅在有收益时启用。
 - **下一阶段进入条件**：本路线图没有 Phase 11；满足发布门禁后进入版本发布、运营和下一轮 ADR/路线图，而非自动扩展范围。
-- **当前状态**：预规划草案已生成，未执行；执行前必须根据 Phase 07、Phase 08 和 Phase 09 实际结果复审。
+- **当前状态**：已批准并执行中；生产平台/SLO/RPO/RTO/安全和 UI Deferred 已由 ADR-025 冻结。
 - **已知风险**：评测数据偏差；线上/离线指标不一致；Trace 泄密；恢复演练不完整；供应商/模型漂移；生产复杂度提前。
-- **待确认技术决策**：部署平台；观测后端；SLO/保留策略；`O-010` UI；复杂 RBAC/部门/动态规则是否形成独立需求；备份 RPO/RTO。
+- **技术决策结果**：Linux Docker Compose、JSON+OTel+Prometheus、99.5% SLO 目标、RPO 24h/RTO 4h、O-010 UI Deferred 已由 ADR-025 关闭；复杂 RBAC 仍属下一轮范围。
 
 ## 14. 跨阶段门禁
 
@@ -691,9 +691,9 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 06：已确认并完成；P06-T01 至 P06-T12、真实 Elasticsearch/PostgreSQL、评测和阶段验收通过。
 - Phase 07：已确认并完成；P07-T01 至 P07-T11、真实四后端、迁移和故障门禁通过。
 - Phase 08：已确认并完成；P08-T01 至 P08-T13、两条 RAG 路径、Tool/SQL/API/HITL/Memory/Budget、持久恢复和 28 场景评测门禁通过；多 Agent 暂缓。
-- Phase 09 至 Phase 10：详细计划为“预规划草案/未执行”。
+- Phase 09：已批准并完成；Phase 10：已批准并执行中。
 - 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、离线 ingestion、八格式 Parser、九种 Chunk Method、完整在线检索与固定 RAG、版本化生命周期，以及 Agentic RAG 的直接/Tool 双路径、Evidence、受控 Tool、HITL、长期记忆、预算和 Trace；高级 RAG、真实模型效果验证和生产化尚未实现。
-- 下一步是依据 Phase 05、Phase 06 和 Phase 08 的实际契约复审 Phase 09 并解决 O-009/O-011；不得自动执行。
+- 下一步是连续完成 Phase 10 评测、生产候选、恢复和最终发布审查；不得创建 Phase 11。
 
 ### 15.2 Phase 00 一致性债务处理
 

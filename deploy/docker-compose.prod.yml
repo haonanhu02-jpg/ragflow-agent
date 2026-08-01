@@ -1,0 +1,109 @@
+name: ragflow-agent-production-candidate
+
+x-app-environment: &app-environment
+  RAGFLOW_AGENT_ENVIRONMENT: production
+  RAGFLOW_AGENT_DATABASE__URL: ${RAGFLOW_AGENT_DATABASE_URL:?set RAGFLOW_AGENT_DATABASE_URL}
+  RAGFLOW_AGENT_QUEUE__URL: ${RAGFLOW_AGENT_REDIS_URL:?set RAGFLOW_AGENT_REDIS_URL}
+  RAGFLOW_AGENT_OBJECT_STORE__ENDPOINT_URL: ${RAGFLOW_AGENT_S3_ENDPOINT_URL:?set RAGFLOW_AGENT_S3_ENDPOINT_URL}
+  RAGFLOW_AGENT_OBJECT_STORE__BUCKET: ${RAGFLOW_AGENT_S3_BUCKET:-ragflow-agent}
+  RAGFLOW_AGENT_OBJECT_STORE__ACCESS_KEY: ${RAGFLOW_AGENT_S3_ACCESS_KEY:?set RAGFLOW_AGENT_S3_ACCESS_KEY}
+  RAGFLOW_AGENT_OBJECT_STORE__SECRET_KEY: ${RAGFLOW_AGENT_S3_SECRET_KEY:?set RAGFLOW_AGENT_S3_SECRET_KEY}
+  RAGFLOW_AGENT_SEARCH__URL: ${RAGFLOW_AGENT_ELASTICSEARCH_URL:?set RAGFLOW_AGENT_ELASTICSEARCH_URL}
+  RAGFLOW_AGENT_MODELS__CHAT_API_KEY: ${RAGFLOW_AGENT_DEEPSEEK_API_KEY:-}
+  RAGFLOW_AGENT_MODELS__EMBEDDING_BASE_URL: ${RAGFLOW_AGENT_BGE_M3_BASE_URL:-http://host.docker.internal:8080/v1}
+  RAGFLOW_AGENT_MODELS__EMBEDDING_API_KEY: ${RAGFLOW_AGENT_BGE_M3_API_KEY:-}
+  RAGFLOW_AGENT_OBSERVABILITY__OTEL_ENABLED: "true"
+  RAGFLOW_AGENT_OBSERVABILITY__OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+
+x-app: &app
+  image: ${RAGFLOW_AGENT_IMAGE:-ragflow-agent:production-candidate}
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    args:
+      VCS_REF: ${RAGFLOW_AGENT_VCS_REF:-unknown}
+  restart: unless-stopped
+  environment: *app-environment
+  read_only: true
+  tmpfs:
+    - /tmp:size=128m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - app
+    - observability
+
+services:
+  migrate:
+    <<: *app
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+    healthcheck:
+      disable: true
+
+  api:
+    <<: *app
+    command: ["python", "-m", "ragflow_agent.bootstrap.api"]
+    ports:
+      - "${RAGFLOW_AGENT_API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "ragflow_agent.bootstrap.ingestion_worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.132.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    networks:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=90d"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${RAGFLOW_AGENT_GRAFANA_ADMIN_PASSWORD:?set RAGFLOW_AGENT_GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana-provisioning:/etc/grafana/provisioning:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - observability
+
+networks:
+  app:
+    internal: true
+  observability:
+
+volumes:
+  prometheus-data:
+  grafana-data:

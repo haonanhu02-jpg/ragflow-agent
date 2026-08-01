@@ -1,0 +1,17 @@
+groups:
+  - name: ragflow-agent-production-candidate
+    rules:
+      - alert: RagflowAgentBacklogStale
+        expr: ragflow_agent_work_backlog_seconds > 300
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Outbox, DLQ, cleanup, or memory backlog is older than five minutes"}
+      - alert: RagflowAgentDependencyFailure
+        expr: increase(ragflow_agent_dependency_failures_total[5m]) > 0
+        labels: {severity: warning}
+        annotations: {summary: "A dependency failed; inspect structured error and trace IDs"}
+      - alert: RagflowAgentHighInternalErrorRate
+        expr: sum(rate(ragflow_agent_http_requests_total{status=~"5.."}[5m])) / sum(rate(ragflow_agent_http_requests_total[5m])) >= 0.01
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: "Internal request error rate is at least one percent"}

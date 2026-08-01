@@ -100,8 +100,12 @@ class KnowledgeCitation(AgenticModel):
     chunk_id: str
     quote: str
     page_number: int | None = None
-    bounding_box: dict[str, float] | None = None
+    bounding_box: dict[str, object] | None = None
     source_uri: str | None = None
+    media_kind: str | None = None
+    time_start_seconds: float | None = Field(default=None, ge=0)
+    time_end_seconds: float | None = Field(default=None, ge=0)
+    observed_at: datetime | None = None
 
 
 class DirectRagAnswer(AgenticModel):

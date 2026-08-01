@@ -1,7 +1,7 @@
 ---
 document_id: DECISIONS-AND-RISKS
 status: active
-last_updated_at: "2026-07-31"
+last_updated_at: "2026-08-01"
 adr_mode: registry
 ---
 
@@ -647,6 +647,60 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 
 [`phase-08-agentic-rag.md`](./phases/phase-08-agentic-rag.md)；[Agentic RAG运行时](./10-agentic-rag.md)；[目标架构](./03-target-architecture.md)
 
+### ADR-024：Phase 09 高级 RAG、时序、多模态与兼容基线
+
+- **Status**：Accepted; implemented in Phase 09
+- **Date**：2026-08-01
+
+**Context**
+
+高级派生索引若默认启用或脱离 Phase 06/07 的权限、版本和生命周期边界，会造成越权、残留和不可恢复的数据分叉。GraphRAG、RAPTOR、Vision、ASR 与时序能力还没有真实 Provider 增益证据。
+
+**Decision**
+
+1. 九类高级 capability 按 tenant、knowledge base 和 capability 使用服务端开关，全部默认关闭。普通问题继续走 Phase 06；缺失、损坏、过期或不兼容的高级 manifest 自动回退，且不得放宽 tenant、ACL、知识库、活动版本、删除状态、Evidence、Agent Budget 或 Tool Policy。
+2. GraphRAG/RAPTOR 构建异步语义为幂等、可取消、可恢复、可重建并绑定文档版本；PostgreSQL 保存权威元数据，S3/MinIO 保存构建产物，Elasticsearch 保存可检索派生记录，不引入图数据库。节点、边、社区和树节点必须保留源 Chunk、tenant、知识库、文档/构建版本与 provenance。
+3. 时序同时覆盖事件时间线和连续数值窗口；不引入专用时序数据库。以 UTC 计算并保留原始时区，确定性服务处理乱序、缺失、窗口、统计、趋势、事件对齐和相似历史窗口；LLM 不负责数值计算。
+4. 多模态首批只覆盖图片、图表/页面 Figure 及 Vision 描述，以及音频转写片段；Citation 保留 page/bbox 或时间段。视频明确不实现。Vision/ASR 只经 Provider Port，Fake 与真实报告分离。
+5. 提交数据集必须合成或脱敏、授权、版本化、带 Schema/hash/source/license，并分 development/validation/regression。Phase 09 使用服务端硬预算：5000 Chunk、900 秒、500 Provider call、300000 生成 Token、图 20000 实体/50000 边、RAPTOR 4 层、图片 20MB/2500 万像素、音频 30 分钟、时序 100 万点；客户端和模型不能提高。
+6. 不复制、抽取或改写 RAGFlow 源码；首次复制仍须重新许可审查。第三方算法必须经 Adapter、许可证和 provenance 登记。
+
+**Consequences and verification**
+
+- 新增 `knowledge/advanced` 独立能力包、统一 `AdvancedArtifact/AdvancedBuild/Manifest`、Alembic `20260801_0006` 和 Phase 07 清理 hook；高级候选仍转换成既有 `RetrievalCandidate/Citation` 并经 `KnowledgeQueryService` 权威校验。
+- 确定性专项验证覆盖九类能力、默认关闭、scope/version、构建幂等/取消、RAPTOR 收敛、时区/缺失/乱序和生命周期清理。机器报告把九项全部判为 `no-go`，原因是没有真实模型增益证据；代码与负面结果保留。
+
+**References**
+
+[`phase-09-advanced-rag.md`](./phases/phase-09-advanced-rag.md)；[目标架构](./03-target-architecture.md)；[`datasets/phase09/v1/manifest.json`](../datasets/phase09/v1/manifest.json)
+
+### ADR-025：Phase 10 生产候选、SLO、可观测性、恢复和发布基线
+
+- **Status**：Accepted; implemented as a production candidate in Phase 10
+- **Date**：2026-08-01
+
+**Context**
+
+代码和短时隔离测试不能证明月度 SLO 或真实生产上线。最终阶段必须形成可重复制品、供应商中立观测、硬安全门禁、隔离恢复证据与明确的发布结论。
+
+**Decision**
+
+1. 第一版平台为 Linux Docker Compose；保持模块化单体，同一不可变镜像以 API/Worker 命令运行，迁移为独立 one-shot Job。不拆微服务、不引入 Kubernetes。linux/amd64 为主要目标，arm64 仅在实际构建验证后报告。镜像多阶段、non-root、固定基础镜像、无默认密钥并生成 SBOM。
+2. 采用 JSON 日志、OpenTelemetry/OTLP、Prometheus、OTel Collector 与 Grafana。观测故障不阻断业务；完整 Prompt/文档/SQL/API 响应、密码、Token、密钥和高敏字段禁止进入日志与 Trace。
+3. SLO 目标为月度 99.5% 可用性、readiness p95 500ms、非 LLM API p95 1s、检索 p95 2s、固定 RAG p95 20s、内部错误率低于 1%、跨租户/严重安全违规为 0；积压超过 5 分钟告警。日志/Trace 默认 30 天，指标 90 天。短时测试只作为回归基线，不声称证明月度 SLO。
+4. RPO 24 小时、RTO 4 小时，每日备份 PostgreSQL、对象存储、配置和必要 Secret 元数据，默认保留 30 天；搜索索引可重建。恢复只在隔离空环境演练，不覆盖唯一备份或生产数据。
+5. 发布职责使用 `release_owner`、`security_approver`、`ops_oncall` 三种角色。TLS 终止、Secret 注入、出口限制、只读账号、依赖/镜像扫描、审计、速率限制和最小权限是生产门禁。
+6. O-010 关闭为 Deferred：当前路线图只交付后端 API、Worker、评测和生产候选；UI/管理控制台不属于完成标准，后续必须由新 ADR 和新路线图授权。
+
+**Consequences and verification**
+
+- 生产 Compose、观测配置、版本化评测集、确定性指标/质量门禁、备份恢复/故障/发布工具和运行手册进入仓库。
+- 缺少真实 DeepSeek/BGE/Vision/ASR、真实生产凭据、持续 SLO 和真实生产恢复证据时，最终发布结论必须为“不允许发布”，即使代码门禁通过。
+
+**References**
+
+[`phase-10-evaluation-and-production.md`](./phases/phase-10-evaluation-and-production.md)；[生产运行手册](./10-production-runbook.md)；[`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml)
+
 ## 3. 开放与已解决的待决策事项
 
 ### O-001：项目正式名称和 Python 包名
@@ -727,7 +781,8 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 
 ### O-009：GraphRAG 和 RAPTOR 默认范围
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-024
 - **Decision deadline**：Phase 09
 - **Question**：哪些知识库启用、构建触发、资源预算和查询路由？
 - **Current handling**：能力保留但不默认启用。
@@ -735,14 +790,16 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 
 ### O-010：前端或管理控制台
 
-- **Status**：Deferred
+- **Status**：Resolved as Deferred scope
+- **Resolution**：ADR-025
 - **Decision deadline**：Phase 10 结束后另行修订路线图，或更早出现明确展示需求时
 - **Question**：是否建设 UI，覆盖知识库、任务、检索 Trace、Agent 和评测中的哪些页面？
 - **Current handling**：只规划 FastAPI，不假定 UI。
 
 ### O-011：时序 RAG 数据模型、存储与查询边界
 
-- **Status**：Deferred
+- **Status**：Resolved
+- **Resolution**：ADR-024
 - **Decision deadline**：Phase 09 开始前
 - **Question**：首版只覆盖事件时间线，还是同时覆盖连续数值指标；是否引入专用时序存储；窗口、聚合、缺失值、时间对齐和文本证据融合采用什么协议？
 - **Current handling**：Phase 09 只定义端口、数据集和对照实验，不预选 TimescaleDB、InfluxDB 或其他后端。
@@ -817,9 +874,9 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 
 ## 6. 当前决策摘要
 
-- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-022。
+- Accepted：ADR-001 至 ADR-005、ADR-007 至 ADR-025。
 - Resolved：O-001 → ADR-016；O-002/O-006 → ADR-019；O-007 → ADR-019/020/021；O-003 → ADR-011；O-004（Phase 04–07 不抽取）→ ADR-019/020/021/022；O-005 → ADR-012；O-008 → ADR-021；O-012 → ADR-016。
-- Deferred：O-009、O-010、O-011。
+- Resolved：O-009/O-011 → ADR-024；O-010 → ADR-025（UI 继续为范围外 Deferred）。
 - Rejected：RAGFlow 运行时依赖、Go 复现、RAGFlow Canvas 作为 Agent 核心。
 - Superseded：ADR-006 → ADR-014。
 - 当前没有通过待决策事项擅自形成的实现。
@@ -960,3 +1017,14 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 - **计划偏差**：节点保持在内聚图文件，安全/故障测试沿用现有测试层级；P08-T12 依据无额外收益的单 Agent 基线暂缓多 Agent；真实模型和生产外部系统没有被 Fake 验证冒充。
 - **新增风险**：R-035 至 R-038 分别记录真实模型评测、生产 SQL/API、外部副作用幂等和长期记忆清理 SLO 的剩余风险。
 - **下一门禁**：Phase 09 的代码依赖已满足；正式执行前仍须复审计划并解决 O-009、O-011、数据集/资源预算和高级/普通索引兼容策略。
+
+## 16. Phase 09 出口审查记录
+
+### 2026-08-01 / P09-T12
+
+- **结论**：P09-T01 至 P09-T12 已完成并通过本地阶段验收；按用户连续执行授权进入 Phase 10。
+- **决策**：ADR-024 关闭 O-009/O-011；九类高级 capability 默认关闭，无 Neo4j/专用时序库，图片/图表/音频为多模态首批范围，视频不实现。
+- **实现边界**：实现版本化派生物、关键词/问题/三层摘要/TOC/父子扩展、多模态、GraphRAG、RAPTOR、事件与数值时序、兼容回退和生命周期清理；RAGFlow 复制/抽取/改写为零。
+- **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `324 passed, 1 skipped`，skip 为本机无 Tesseract；Alembic `0005 -> 0006 -> 0005 -> 0006`、Ruff、strict mypy、锁文件和专项评测通过。
+- **go/no-go**：九项机器结果安全违规为 0，但因没有真实 DeepSeek/BGE/Vision/ASR 增益证据全部为 no-go，代码和负面报告保留，开关保持 off。
+- **下一门禁**：Phase 10 已由 ADR-025 批准；生产发布仍受真实 Provider、生产凭据/网络、业务数据、持续 SLO 和真实恢复证据阻断。

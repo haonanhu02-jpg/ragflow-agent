@@ -2,11 +2,11 @@
 document_id: PROJECT-MASTER
 document_role: Codex 项目首要入口与范围事实源
 status: active
-document_version: "1.1.0"
+document_version: "1.2.0"
 created_at: "2026-07-27"
-last_updated_at: "2026-07-31"
+last_updated_at: "2026-08-01"
 project_root: "D:/download/ragflow-agent"
-project_code_status: phase_08_agentic_rag
+project_code_status: phase_09_advanced_rag_completed
 project_repository: "https://github.com/haonanhu02-jpg/ragflow-agent"
 project_default_branch: main
 project_phase_00_baseline_commit: "5c015405e4c25346999cbb21736c61a87d5f8cbe"
@@ -902,7 +902,7 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 | [`docs/phases/phase-06-online-retrieval.md`](./phases/phase-06-online-retrieval.md) | Phase 06 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-07-document-lifecycle.md`](./phases/phase-07-document-lifecycle.md) | Phase 07 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-08-agentic-rag.md`](./phases/phase-08-agentic-rag.md) | Phase 08 详细规划与执行记录 | 已完成 |
-| [`docs/phases/phase-09-advanced-rag.md`](./phases/phase-09-advanced-rag.md) | Phase 09 详细规划 | 预规划草案/未执行 |
+| [`docs/phases/phase-09-advanced-rag.md`](./phases/phase-09-advanced-rag.md) | Phase 09 详细规划与执行事实 | 已完成 |
 | [`docs/phases/phase-10-evaluation-and-production.md`](./phases/phase-10-evaluation-and-production.md) | Phase 10 详细规划 | 预规划草案/未执行 |
 
 ---
@@ -993,3 +993,4 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 | 2026-07-31 | 0.9.0 | 完成 Phase 06：查询变体、Filter AST、真实 Elasticsearch 双路检索、RRF/Reranker 回退、安全降级、PostgreSQL Trace 和评测；进入 Phase 07 计划复审门禁 |
 | 2026-07-31 | 1.0.0 | 完成 Phase 07：文档版本、候选索引原子发布、删除/恢复/回收、Outbox、重试/取消/死信、批量和对账；进入 Phase 08 计划复审门禁 |
 | 2026-07-31 | 1.1.0 | 完成 Phase 08：直接 RAG/Tool RAG、Evidence、受控 SQL/API、HITL、长期记忆、预算、Trace 和 Agent 评测；多 Agent 暂缓，进入 Phase 09 计划复审门禁 |
+| 2026-08-01 | 1.2.0 | 完成 Phase 09：九类默认关闭高级能力、版本化派生物、GraphRAG/RAPTOR、多模态和事件/数值时序、独立 no-go 评测及兼容/生命周期门禁；进入 Phase 10 执行 |

@@ -1,6 +1,7 @@
 """Typed application configuration."""
 
 from ragflow_agent.config.settings import (
+    AdvancedRagSettings,
     AgenticRagSettings,
     ApiSettings,
     AppSettings,
@@ -10,6 +11,7 @@ from ragflow_agent.config.settings import (
     ModelSettings,
     ObjectStoreSettings,
     ObservabilitySettings,
+    ProductionSettings,
     QueueSettings,
     SearchSettings,
     WorkerSettings,
@@ -17,6 +19,7 @@ from ragflow_agent.config.settings import (
 )
 
 __all__ = [
+    "AdvancedRagSettings",
     "AgenticRagSettings",
     "ApiSettings",
     "AppSettings",
@@ -26,6 +29,7 @@ __all__ = [
     "ModelSettings",
     "ObjectStoreSettings",
     "ObservabilitySettings",
+    "ProductionSettings",
     "QueueSettings",
     "SearchSettings",
     "WorkerSettings",

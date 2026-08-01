@@ -1,0 +1,2 @@
+{"id":"temporal-dev-1","split":"development","timezone":"Asia/Shanghai","series_id":"train-1-temperature","points":[["2026-01-01T00:00:00+08:00",20.0],["2026-01-01T00:01:00+08:00",null],["2026-01-01T00:02:00+08:00",24.0]],"events":[["2026-01-01T00:01:30+08:00","alarm opened"],["2026-01-01T00:03:00+08:00","work order created"]],"license":"CC0-1.0"}
+{"id":"temporal-validation-1","split":"validation","timezone":"UTC","series_id":"train-2-vibration","points":[["2026-01-02T00:02:00Z",3.0],["2026-01-02T00:00:00Z",1.0],["2026-01-02T00:01:00Z",2.0]],"events":[],"license":"CC0-1.0"}

@@ -1,0 +1,3 @@
+{"id":"ret-dev-1","split":"development","query":"Which valve follows a brake pressure alarm?","relevant_chunk_ids":["chunk-brake-1"],"tenant_id":"tenant-a","license":"CC0-1.0"}
+{"id":"ret-validation-1","split":"validation","query":"Compare Train A and Train B inspection intervals.","relevant_chunk_ids":["chunk-train-a","chunk-train-b"],"tenant_id":"tenant-a","license":"CC0-1.0"}
+{"id":"ret-regression-1","split":"regression","query":"Return tenant B secret.","relevant_chunk_ids":[],"tenant_id":"tenant-a","expected_status":"no_evidence","license":"CC0-1.0"}

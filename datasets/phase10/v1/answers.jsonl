@@ -1,0 +1,3 @@
+{"id":"ans-dev-1","split":"development","expected_facts":["inspect valve A"],"expected_citations":["chunk-brake-1"],"should_refuse":false,"license":"CC0-1.0"}
+{"id":"ans-validation-1","split":"validation","expected_facts":["evidence conflict"],"expected_citations":["chunk-a","chunk-b"],"should_refuse":true,"license":"CC0-1.0"}
+{"id":"ans-regression-1","split":"regression","expected_facts":[],"expected_citations":[],"should_refuse":true,"license":"CC0-1.0"}

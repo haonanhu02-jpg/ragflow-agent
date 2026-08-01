@@ -339,9 +339,7 @@ async def test_real_lifecycle_update_publish_delete_and_purge() -> None:
             )
         await client.indices.delete(index=index_name, ignore_unavailable=True)
         if "generation" in locals():
-            await client.indices.delete(
-                index=generation.physical_index, ignore_unavailable=True
-            )
+            await client.indices.delete(index=generation.physical_index, ignore_unavailable=True)
         await queue.close()
         redis = Redis.from_url(environment["RAGFLOW_AGENT_TEST_REDIS_URL"])
         await redis.delete(

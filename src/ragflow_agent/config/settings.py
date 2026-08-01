@@ -191,12 +191,8 @@ class AgenticRagSettings(FrozenSettingsModel):
     model_timeout_seconds: float = Field(default=45, gt=0, le=600)
     tool_timeout_seconds: float = Field(default=15, gt=0, le=300)
     max_known_cost_usd: float = Field(default=0.50, ge=0, le=1_000)
-    model_input_cost_per_million_tokens_usd: float | None = Field(
-        default=None, ge=0, le=100_000
-    )
-    model_output_cost_per_million_tokens_usd: float | None = Field(
-        default=None, ge=0, le=100_000
-    )
+    model_input_cost_per_million_tokens_usd: float | None = Field(default=None, ge=0, le=100_000)
+    model_output_cost_per_million_tokens_usd: float | None = Field(default=None, ge=0, le=100_000)
     approval_ttl_minutes: int = Field(default=30, ge=1, le=1_440)
     memory_ttl_days: int = Field(default=90, ge=1, le=365)
     memory_cleanup_hours: int = Field(default=24, ge=1, le=168)
@@ -269,10 +265,63 @@ class IngestionSettings(FrozenSettingsModel):
 
 
 class ObservabilitySettings(FrozenSettingsModel):
-    """Logging and trace settings."""
+    """Vendor-neutral logging, metrics, and OpenTelemetry settings."""
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     json_logs: bool = True
+    metrics_enabled: bool = True
+    otel_enabled: bool = False
+    otlp_endpoint: str | None = None
+    trace_retention_days: int = Field(default=30, ge=1, le=365)
+    metrics_retention_days: int = Field(default=90, ge=1, le=3_650)
+
+
+class AdvancedRagSettings(FrozenSettingsModel):
+    """Server-owned Phase 09 feature flags and hard resource ceilings."""
+
+    keywords_enabled: bool = False
+    questions_enabled: bool = False
+    summaries_enabled: bool = False
+    toc_enabled: bool = False
+    parent_child_enabled: bool = False
+    multimodal_enabled: bool = False
+    graphrag_enabled: bool = False
+    raptor_enabled: bool = False
+    temporal_enabled: bool = False
+    max_source_chunks: int = Field(default=5_000, ge=1, le=5_000)
+    max_active_runtime_seconds: int = Field(default=900, ge=1, le=900)
+    max_provider_calls: int = Field(default=500, ge=1, le=500)
+    max_generated_tokens: int = Field(default=300_000, ge=1, le=300_000)
+    max_keywords_per_chunk: int = Field(default=10, ge=1, le=10)
+    max_questions_per_chunk: int = Field(default=5, ge=1, le=5)
+    max_chunk_summary_tokens: int = Field(default=512, ge=1, le=512)
+    max_document_summary_tokens: int = Field(default=1_500, ge=1, le=1_500)
+    max_parent_context_tokens: int = Field(default=6_000, ge=1, le=6_000)
+    max_graph_entities: int = Field(default=20_000, ge=1, le=20_000)
+    max_graph_edges: int = Field(default=50_000, ge=1, le=50_000)
+    max_raptor_levels: int = Field(default=4, ge=1, le=4)
+    max_image_bytes: int = Field(default=20 * 1024 * 1024, ge=1, le=20 * 1024 * 1024)
+    max_image_pixels: int = Field(default=25_000_000, ge=1, le=25_000_000)
+    max_audio_seconds: int = Field(default=30 * 60, ge=1, le=30 * 60)
+    max_timeseries_points: int = Field(default=1_000_000, ge=1, le=1_000_000)
+
+
+class ProductionSettings(FrozenSettingsModel):
+    """Phase 10 production-candidate SLO and recovery objectives."""
+
+    availability_target: float = Field(default=0.995, ge=0, le=1)
+    readiness_p95_ms: int = Field(default=500, ge=1)
+    non_llm_api_p95_ms: int = Field(default=1_000, ge=1)
+    retrieval_p95_ms: int = Field(default=2_000, ge=1)
+    fixed_rag_p95_ms: int = Field(default=20_000, ge=1)
+    internal_error_rate_target: float = Field(default=0.01, ge=0, le=1)
+    backlog_alert_seconds: int = Field(default=300, ge=1)
+    rpo_hours: int = Field(default=24, ge=1)
+    rto_hours: int = Field(default=4, ge=1)
+    backup_retention_days: int = Field(default=30, ge=1)
+    release_owner_role: str = "release_owner"
+    security_approver_role: str = "security_approver"
+    ops_oncall_role: str = "ops_oncall"
 
 
 class AppSettings(BaseSettings):
@@ -299,6 +348,8 @@ class AppSettings(BaseSettings):
     retrieval_trace: RetrievalTraceSettings = Field(default_factory=RetrievalTraceSettings)
     lifecycle: LifecycleSettings = Field(default_factory=LifecycleSettings)
     agentic_rag: AgenticRagSettings = Field(default_factory=AgenticRagSettings)
+    advanced_rag: AdvancedRagSettings = Field(default_factory=AdvancedRagSettings)
+    production: ProductionSettings = Field(default_factory=ProductionSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     def redacted_dict(self) -> dict[str, object]:

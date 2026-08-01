@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "dataset_version": "phase09-v1",
+  "license": "CC0-1.0",
+  "source": "Synthetic rail-maintenance scenarios authored for ragflow-agent",
+  "contains_sensitive_data": false,
+  "splits": ["development", "validation", "regression"],
+  "files": [
+    {"path":"enrichment.jsonl","sha256":"2827590228a3b5b166cd39f6672343802d83ae7a8b7eaed4115ea2d9eacdb0bc"},
+    {"path":"multimodal.jsonl","sha256":"94194c40e45ddccbac25362ac3c89dbf7e62249576e447e51175c28c6006de78"},
+    {"path":"graphrag.jsonl","sha256":"b04943bf608ff369afaafd38a2c82f06c6c58324ff75f7739f71eec5c8f089f8"},
+    {"path":"raptor.jsonl","sha256":"764c477bff1b88d9c99d6d7e50051851b72de4d1e7dd5877d4b5acdf36d5a6c2"},
+    {"path":"temporal.jsonl","sha256":"352f7852e2f08f00a0ef760d386918ced3de35f242e3753d736fcb76997e8d4a"}
+  ],
+  "capabilities": [
+    "keywords",
+    "questions",
+    "summaries",
+    "toc",
+    "parent_child",
+    "multimodal",
+    "graphrag",
+    "raptor",
+    "temporal"
+  ]
+}

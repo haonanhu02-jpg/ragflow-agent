@@ -1,7 +1,7 @@
 ---
 document_id: TARGET-ARCHITECTURE
 status: active
-last_updated_at: "2026-07-31"
+last_updated_at: "2026-08-01"
 architecture_status: partially_implemented
 ---
 
@@ -532,6 +532,14 @@ RAGFlow 的 `timeline.yaml → compile_structure_from_text/merge_compiled_struct
 7. 模型密钥通过配置/密钥系统注入，不进入 AgentState 或 Trace。
 8. Citation 不泄露无权限 Document 的元数据。
 9. 第一版实现 tenant/owner/visibility；复杂 RBAC、部门权限和动态数据规则后续扩展。
+
+## 12.5 Phase 09 高级派生层实际边界
+
+**[事实]** `src/ragflow_agent/knowledge/advanced/` 已实现九类默认关闭 capability。PostgreSQL 的 `knowledge_advanced_artifacts/builds` 保存权威派生物和构建状态，S3/MinIO 是构建产物端口目标，Elasticsearch 高级候选必须转换成现有 `RetrievalCandidate/Citation`；任何候选仍由 `KnowledgeQueryService` 复核 tenant、知识库、文档活动状态和 current version。
+
+**[事实]** GraphRAG/RAPTOR 不引入平行数据库；时序采用 PostgreSQL/S3/Elasticsearch 既有边界；图片、图表和音频经 Vision/ASR Provider Port。缺失、损坏、旧版本或关闭的 manifest 回退 Phase 06，且不改变 Evidence、Budget 或 Tool Policy。
+
+**[限制]** 当前只有确定性/Fake 质量证据，九类 capability 全部 experimental/off；视频、真实模型质量、真实企业规模和专用图/时序数据库未实现或未采用。
 
 ## 13. 第一版物理运行拓扑
 

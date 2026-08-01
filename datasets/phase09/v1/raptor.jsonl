@@ -1,0 +1,2 @@
+{"id":"raptor-dev-1","split":"development","sections":["Safety overview","Brake subsystem","Inspection steps","Recovery procedure","Acceptance criteria"],"question":"Summarize the full procedure.","license":"CC0-1.0"}
+{"id":"raptor-regression-1","split":"regression","sections":["Alarm context","Diagnosis","Repair","Verification"],"question":"Give a cross-section summary.","license":"CC0-1.0"}

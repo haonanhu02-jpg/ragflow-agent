@@ -1,12 +1,12 @@
 ---
 document_id: PHASE-09-ADVANCED-RAG
 document_role: Phase 09 预规划详细计划
-status: draft
+status: completed
 phase: Phase 09
 phase_name: 高级RAG
-plan_status: 预规划草案
-execution_status: 未执行
-last_updated_at: "2026-07-30"
+plan_status: 已批准
+execution_status: 已完成
+last_updated_at: "2026-08-01"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -117,7 +117,7 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 
 ### P09-T01：复审高级能力扩展、开关与索引兼容
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：冻结 FeatureFlag/AdvancedIndex/AdvancedRetriever 接口、普通索引兼容和每项资源预算。
 - **为什么需要**：高级能力必须可插拔、可降级、可独立重建。
 - **输入**：Phase 05/06/08 验收、O-009/O-011、生命周期端口。
@@ -131,13 +131,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/contract/advanced/test_feature_flags.py -q`
 - **验收标准**：普通检索不依赖高级索引；所有能力默认关闭。
 - **风险和回滚方法**：关闭 flag 即回退 Phase 06 路径。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T02：实现自动关键词
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：为 Chunk 生成版本化关键词并可选择写入索引。
 - **为什么需要**：可改善术语/稀疏检索，但可能引入噪声。
 - **输入**：P09-T01、Chunk、模型/Prompt。
@@ -151,13 +151,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_keywords.py -q`
 - **验收标准**：独立指标/增益有报告；失败不破坏基础 Chunk。
 - **风险和回滚方法**：无增益保持关闭并移除索引权重。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T03：实现自动问题
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：生成与 Chunk 可回答内容一致的问题候选。
 - **为什么需要**：可支持问题索引/检索扩展，但易生成幻觉问题。
 - **输入**：P09-T01、Chunk、模型。
@@ -171,13 +171,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_questions.py -q`
 - **验收标准**：每个问题绑定 source chunk；幻觉率在门限内。
 - **风险和回滚方法**：不合格问题不入主索引；能力可关闭。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T04：实现摘要
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：分别生成 Chunk 摘要、文档摘要和层级摘要。
 - **为什么需要**：长文档检索/展示/后续 RAPTOR 需要，但必须忠实。
 - **输入**：P09-T01、Chunk/DocumentVersion。
@@ -191,13 +191,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_summaries.py -q`
 - **验收标准**：摘要不可脱离来源；类型/版本明确。
 - **风险和回滚方法**：低忠实度摘要不参与检索。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T05：实现 TOC
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：从解析标题/页码和必要的模型补全生成可导航 TOC。
 - **为什么需要**：结构化文档需要章节路由和来源定位。
 - **输入**：P09-T01、P09-T04、Phase 05 heading metadata。
@@ -211,13 +211,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/golden/advanced/test_toc.py -q`
 - **验收标准**：节点可追溯到 block/chunk；结构黄金通过。
 - **风险和回滚方法**：模型补全失败保留确定性 TOC。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T06：实现父子 Chunk
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：建立 child retrieval 与 parent context 的版本化关系。
 - **为什么需要**：兼顾召回粒度与上下文完整性。
 - **输入**：P09-T01、P09-T04、Phase 05 Chunk。
@@ -231,13 +231,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_parent_child.py -q`
 - **验收标准**：父/子版本一致；上下文不越权/超预算。
 - **风险和回滚方法**：关闭 expansion 回退 child-only。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T07：实现多模态 RAG
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：支持图片、图表和按批准范围的音频/视频派生文本/向量检索与引用。
 - **为什么需要**：企业资料包含非文本证据。
 - **输入**：P09-T01、Phase 05 图片/OCR、Vision/ASR 模型和数据集。
@@ -251,13 +251,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_multimodal.py -q`
 - **验收标准**：每种实际纳入模态独立通过；未纳入模态不标实现。
 - **风险和回滚方法**：按模态 flag 关闭；模型/权重许可阻止分发。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T08：实现 GraphRAG
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：构建版本化实体/关系/社区派生图并提供受权限约束的图检索。
 - **为什么需要**：跨文档实体关系问题可能超出普通检索。
 - **输入**：P09-T01、图数据集、模型/存储/预算。
@@ -271,13 +271,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_graphrag.py tests/fault/advanced/test_graphrag_recovery.py -q`
 - **验收标准**：相对 Phase 06 有量化结果；失败/删除可恢复。
 - **风险和回滚方法**：默认关闭；保留普通索引；构建限额。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T09：实现 RAPTOR
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：构建层级聚类摘要树并保持叶 Chunk 来源。
 - **为什么需要**：长文档多层抽象问题可能受益。
 - **输入**：P09-T01、P09-T04、聚类/模型预算。
@@ -291,13 +291,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_raptor.py -q`
 - **验收标准**：来源完整；无收益默认关闭。
 - **风险和回滚方法**：层级/成本硬上限；回退普通 Chunk。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T10：实现时序 RAG 实验能力
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：在 O-011 明确后实现事件时间线及获批范围的数值时序查询/文本证据融合。
 - **为什么需要**：告警、工单和运行指标具有时间顺序、窗口和关联需求。
 - **输入**：P09-T01、O-011、脱敏时间数据、普通检索/Citation。
@@ -311,13 +311,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced/test_temporal_rag.py -q`
 - **验收标准**：事件/数值范围按 O-011 明确；时间答案可追溯；普通路径无回归。
 - **风险和回滚方法**：P3 实验/默认关闭；不确定时只交付事件时间线，不擅自引入新后端。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T11：执行逐项独立评测与优先级决策
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：对 P09-T02 至 P09-T10 分别做质量、成本、资源和安全评测。
 - **为什么需要**：高级能力不能以整体报告掩盖单项无收益。
 - **输入**：P09-T02 至 P09-T10。
@@ -331,13 +331,13 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/evaluation/advanced -q`
 - **验收标准**：每项都有独立结论；无“高级 RAG 整体通过”替代。
 - **风险和回滚方法**：无收益项保持关闭，不删除负面结果。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ### P09-T12：验证兼容/生命周期并执行阶段验收
 
-- **状态**：未开始
+- **状态**：已完成
 - **目标**：验证高级/普通索引兼容、开关、版本、权限、取消、删除、重建和降级。
 - **为什么需要**：高级派生物不能破坏知识库生命周期。
 - **输入**：P09-T01 至 P09-T11、Phase 07 清理端口（若并行推进则等待其稳定接口）。
@@ -351,9 +351,9 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 - **验证命令**：`uv run pytest tests/**/advanced -q`
 - **验收标准**：每项状态真实；CAP-33/34/35/43 与 CAP-05/06/07 的高级部分按证据更新。
 - **风险和回滚方法**：任何兼容/权限/删除失败阻止启用。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：已完成；具体产出见第 10 节执行记录。
+- **实际验证结果**：对应专项和阶段门禁已通过；具体命令与结果见第 10 节。
+- **计划偏差**：已记录于第 10 节；未用 Fake 结果冒充真实 Provider 效果。
 
 ## 9. 阶段验收、DoD、风险与后续
 
@@ -370,9 +370,23 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 
 阶段结束更新总纲、架构、矩阵、复用、路线图、标准、风险、阶段索引和本文件。Phase 10 使用逐项实际结果作为生产启用门禁。
 
-## 10. 实际执行结果预留
+## 10. 实际执行结果
 
-- 每项能力实际状态/开关/优先级：待执行。
-- 独立评测、资源和安全结果：待执行。
-- 复用 provenance/计划偏差/新增 ADR：待执行。
-- 阶段出口结论：待执行。
+| 任务 | 实际产出 | 验证与结论 |
+|---|---|---|
+| P09-T01 | ADR-024、`AdvancedArtifact/AdvancedBuild/Manifest`、默认关闭开关、硬预算、统一降级 | 默认关闭；缺失、损坏、跨 tenant、旧版本均回退 Phase 06 |
+| P09-T02 | 有界、去重、稳定排序、源 Chunk 绑定的关键词 | 确定性评测通过；真实 Provider 未运行，off/no-go |
+| P09-T03 | 最多 5 项、去重和源绑定的问题派生物 | 确定性评测通过；真实可回答性未验证，off/no-go |
+| P09-T04 | Chunk、文档、层级三类摘要和 token 上限 | 三层来源完整；仅提取式基线，off/no-go |
+| P09-T05 | 确定性 heading tree，page/block/chunk 链接 | 顺序、层级、无环黄金测试通过；模型补全未运行 |
+| P09-T06 | child hit 后 parent/neighbor 扩展 | 跨 tenant/旧版本/Token 预算测试通过；opt-in/off |
+| P09-T07 | 图片、图表 Vision 描述与音频时间片段 | Fake Vision/ASR、page/bbox/time 通过；视频未实现，真实模型未验证 |
+| P09-T08 | 版本化实体/边/社区、幂等构建、取消/恢复状态 | scope、来源、重复和取消通过；无 Neo4j，off/no-go |
+| P09-T09 | 最多 4 层、严格收敛、叶来源完整的 RAPTOR 树 | 5 叶节点收敛通过；真实摘要增益未验证，off/no-go |
+| P09-T10 | 事件时间线、UTC 数值窗口、缺失/乱序、统计/趋势和相似窗口 | 时区、排序、缺失、scope 通过；不引入时序数据库，experimental/off |
+| P09-T11 | CC0 合成版本数据集与九类独立机器报告 | `reports/phase09/advanced-evaluation.json`：9 项、0 安全违规、全部 no-go |
+| P09-T12 | `20260801_0006`、生命周期清理 hook、统一 Citation 字段和全阶段回归 | 隔离四后端 `324 passed, 1 skipped`；skip 为本机无 Tesseract；Alembic `0005 -> 0006 -> 0005 -> 0006` 通过 |
+
+专项高级套件 13 passed；Ruff、strict mypy、`uv lock --check`、`uv sync --frozen --all-groups` 和 `uv pip check` 通过。Citation 新字段首次造成 Agent 边界回归，已扩展 `KnowledgeCitation` 并以 12 项直接/Tool RAG 回归验证。RAGFlow 源码复制、抽取和改写仍为零。
+
+**阶段出口**：Phase 09 完成。九类高级业务能力有真实代码、数据集、开关、版本/权限/生命周期和独立评测，但全部保持 experimental/off；没有真实 DeepSeek、BGE-M3、BGE Reranker、Vision 或 ASR 质量证据。

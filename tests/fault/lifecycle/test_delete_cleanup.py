@@ -60,9 +60,7 @@ async def test_soft_delete_is_immediate_and_physical_purge_is_idempotent() -> No
         search=search,
         storage=storage,
         permission_checker=DefaultPermissionChecker(),
-        id_generator=SequenceIdGenerator(
-            ["delete-op", "restore-op", "delete-op-2", "purge-op"]
-        ),
+        id_generator=SequenceIdGenerator(["delete-op", "restore-op", "delete-op-2", "purge-op"]),
         clock=clock,
         retention_days=30,
     )

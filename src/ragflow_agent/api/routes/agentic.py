@@ -74,9 +74,7 @@ def build_agentic_router() -> APIRouter:
                 ),
                 question=body.question,
                 budget_limits=_budget_limits(settings),
-                model_provider_ids=(
-                    f"chat:{request.app.state.settings.models.chat_model}",
-                ),
+                model_provider_ids=(f"chat:{request.app.state.settings.models.chat_model}",),
             )
         )
 
@@ -177,9 +175,7 @@ def _budget_limits(settings: AgenticRagSettings) -> BudgetLimits:
         finalization_token_reserve=settings.finalization_token_reserve,
         max_active_runtime_seconds=settings.max_active_runtime_seconds,
         max_known_cost_usd=settings.max_known_cost_usd,
-        model_input_cost_per_million_tokens_usd=(
-            settings.model_input_cost_per_million_tokens_usd
-        ),
+        model_input_cost_per_million_tokens_usd=(settings.model_input_cost_per_million_tokens_usd),
         model_output_cost_per_million_tokens_usd=(
             settings.model_output_cost_per_million_tokens_usd
         ),

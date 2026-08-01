@@ -215,9 +215,7 @@ class SecureToolExecutionService:
         if error_code is not None:
             failed = ToolExecutionOutcome(
                 status="failed",
-                summary=summary.model_copy(
-                    update={"status": "failed", "error_code": error_code}
-                ),
+                summary=summary.model_copy(update={"status": "failed", "error_code": error_code}),
             )
             self._completed[completed_key] = failed
             return failed

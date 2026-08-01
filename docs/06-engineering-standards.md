@@ -1,7 +1,7 @@
 ---
 document_id: ENGINEERING-STANDARDS
 status: active
-last_updated_at: "2026-07-31"
+last_updated_at: "2026-08-01"
 applies_to: D:/download/ragflow-agent
 ---
 
@@ -13,7 +13,7 @@ applies_to: D:/download/ragflow-agent
 
 ## 1. 适用范围
 
-本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目已完成 Phase 01 至 Phase 08 的工程、RAG、生命周期和 Agentic RAG 能力；Phase 09/10 仍是规划，后续实现继续受本文件约束。
+本标准适用于源码、测试、数据库迁移、配置、Prompt、评测数据、部署文件和文档。当前项目已完成 Phase 01 至 Phase 09；Phase 10 生产候选实施继续受本文件约束。
 
 冲突处理：
 

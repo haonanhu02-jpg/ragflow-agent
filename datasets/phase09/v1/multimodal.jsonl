@@ -1,0 +1,3 @@
+{"id":"image-dev-1","split":"development","media_kind":"image","media_type":"image/svg+xml","synthetic_payload":"<svg><text>brake chart</text></svg>","page":2,"bbox":[0.1,0.1,0.9,0.8],"license":"CC0-1.0"}
+{"id":"chart-validation-1","split":"validation","media_kind":"chart","media_type":"image/svg+xml","synthetic_payload":"<svg><text>temperature trend</text></svg>","page":3,"bbox":[0.1,0.2,0.8,0.7],"license":"CC0-1.0"}
+{"id":"audio-regression-1","split":"regression","media_kind":"audio","media_type":"audio/wav","synthetic_transcript":["alarm started","maintenance completed"],"duration_seconds":10,"license":"CC0-1.0"}

@@ -1,7 +1,7 @@
 ---
 document_id: CODE-REUSE-STRATEGY
 status: active
-last_updated_at: "2026-07-31"
+last_updated_at: "2026-08-01"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -255,6 +255,6 @@ tests:
 - Phase 06：已完成；研究 FulltextQueryer、Dealer、Prompt、过滤、融合、Rerank 和 Citation，但实际 RAGFlow 直接/改造复用均为零，全部独立实现。
 - Phase 07：已完成；研究更新/重解析/删除/任务取消与 ACK 缺口，版本、一致性和可靠任务能力全部独立实现。
 - Phase 08：已完成；只参考 Agent Retrieval Tool、Agentic RAG 和 Canvas 人工输入用例，未引入 Canvas 或任何 RAGFlow 源码。
-- Phase 09：处理 GraphRAG、RAPTOR 和多模态。
+- Phase 09：GraphRAG、RAPTOR、多模态和时序均已独立实现；RAGFlow 直接/改造复用代码为零，冻结源码只作公开行为与架构证据。
 
 阶段依赖和验收门禁见[开发路线图](./05-development-roadmap.md)。

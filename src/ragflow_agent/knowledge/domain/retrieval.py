@@ -160,11 +160,25 @@ class Citation(KnowledgeModel):
     page_number: int | None = Field(default=None, ge=1)
     bounding_box: BoundingBox | None = None
     source_uri: str | None = None
+    media_kind: str | None = None
+    time_start_seconds: float | None = Field(default=None, ge=0)
+    time_end_seconds: float | None = Field(default=None, ge=0)
+    observed_at: datetime | None = None
 
     @model_validator(mode="after")
     def bounding_box_requires_page(self) -> Citation:
         if self.bounding_box is not None and self.page_number is None:
             raise ValueError("citation bounding_box requires page_number")
+        if (self.time_start_seconds is None) != (self.time_end_seconds is None):
+            raise ValueError("citation time range requires both endpoints")
+        if (
+            self.time_start_seconds is not None
+            and self.time_end_seconds is not None
+            and self.time_end_seconds <= self.time_start_seconds
+        ):
+            raise ValueError("citation time range must have positive duration")
+        if self.observed_at is not None and self.observed_at.utcoffset() is None:
+            raise ValueError("citation observed_at must be timezone-aware")
         return self
 
 

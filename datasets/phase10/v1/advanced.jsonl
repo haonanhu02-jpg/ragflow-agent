@@ -1,0 +1,3 @@
+{"id":"advanced-dev-1","split":"development","capability":"keywords","expected_default_enabled":false,"license":"CC0-1.0"}
+{"id":"advanced-validation-1","split":"validation","capability":"graphrag","expected_default_enabled":false,"license":"CC0-1.0"}
+{"id":"advanced-regression-1","split":"regression","capability":"temporal","expected_default_enabled":false,"license":"CC0-1.0"}
