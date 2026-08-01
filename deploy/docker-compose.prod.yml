@@ -36,10 +36,122 @@ x-app: &app
     - observability
 
 services:
+  edge:
+    image: nginx:1.29-alpine
+    profiles: ["edge"]
+    restart: unless-stopped
+    ports:
+      - "${RAGFLOW_AGENT_TLS_PORT:-8443}:8443"
+    volumes:
+      - ./edge/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${RAGFLOW_AGENT_TLS_CERT_PATH:-/secure/tls.crt}:/run/secrets/tls.crt:ro
+      - ${RAGFLOW_AGENT_TLS_KEY_PATH:-/secure/tls.key}:/run/secrets/tls.key:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=32m
+      - /var/run:size=1m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    networks:
+      - app
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ragflow_agent
+      POSTGRES_USER: ragflow_agent
+      POSTGRES_PASSWORD: ${RAGFLOW_AGENT_POSTGRES_PASSWORD:?set RAGFLOW_AGENT_POSTGRES_PASSWORD}
+    ports:
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ragflow_agent -d ragflow_agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - app
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${RAGFLOW_AGENT_REDIS_PASSWORD:?set RAGFLOW_AGENT_REDIS_PASSWORD}"]
+    ports:
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$RAGFLOW_AGENT_REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      RAGFLOW_AGENT_REDIS_PASSWORD: ${RAGFLOW_AGENT_REDIS_PASSWORD:?set RAGFLOW_AGENT_REDIS_PASSWORD}
+    networks:
+      - app
+
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${RAGFLOW_AGENT_MINIO_ROOT_USER:?set RAGFLOW_AGENT_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${RAGFLOW_AGENT_MINIO_ROOT_PASSWORD:?set RAGFLOW_AGENT_MINIO_ROOT_PASSWORD}
+    ports:
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_MINIO_PORT:-9000}:9000"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - app
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.3
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: ${RAGFLOW_AGENT_ELASTIC_PASSWORD:?set RAGFLOW_AGENT_ELASTIC_PASSWORD}
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health?wait_for_status=yellow"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - app
+
   migrate:
     <<: *app
-    command: ["python", "-m", "alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
     restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     healthcheck:
       disable: true
 
@@ -47,7 +159,7 @@ services:
     <<: *app
     command: ["python", "-m", "ragflow_agent.bootstrap.api"]
     ports:
-      - "${RAGFLOW_AGENT_API_PORT:-8000}:8000"
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_API_PORT:-8000}:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -84,6 +196,8 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
+    ports:
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_PROMETHEUS_PORT:-9090}:9090"
     networks:
       - observability
 
@@ -96,6 +210,8 @@ services:
       - ./observability/grafana-provisioning:/etc/grafana/provisioning:ro
       - ./observability/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
+    ports:
+      - "${RAGFLOW_AGENT_BIND_ADDRESS:-127.0.0.1}:${RAGFLOW_AGENT_GRAFANA_PORT:-3000}:3000"
     networks:
       - observability
 
@@ -103,7 +219,12 @@ networks:
   app:
     internal: true
   observability:
+    internal: true
 
 volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  elasticsearch-data:
   prometheus-data:
   grafana-data:

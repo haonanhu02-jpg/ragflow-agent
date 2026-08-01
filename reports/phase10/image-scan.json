@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "image": "ragflow-agent:production-candidate",
+  "scanner": "docker-scout-v1.21.0",
+  "attempted": true,
+  "completed": false,
+  "result": "not_validated",
+  "reason": "Docker Scout requires a Docker ID or access token; no repository or production credential was available",
+  "production_gate": "blocked"
+}

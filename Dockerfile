@@ -6,7 +6,7 @@ ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="ragflow-agent" \
       org.opencontainers.image.source="https://github.com/haonanhu02-jpg/ragflow-agent" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.licenses="Apache-2.0"
+      org.opencontainers.image.licenses="NOASSERTION"
 
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \

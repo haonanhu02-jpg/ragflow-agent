@@ -541,6 +541,16 @@ RAGFlow 的 `timeline.yaml → compile_structure_from_text/merge_compiled_struct
 
 **[限制]** 当前只有确定性/Fake 质量证据，九类 capability 全部 experimental/off；视频、真实模型质量、真实企业规模和专用图/时序数据库未实现或未采用。
 
+## 12.6 Phase 10 生产候选实际边界
+
+**[事实]** 第一版生产候选保持模块化单体：同一 multi-stage、non-root 镜像分别运行 FastAPI API 和 Ingestion Worker；Alembic 迁移是独立 one-shot Job。PostgreSQL、Redis、MinIO、Elasticsearch 使用独立持久卷，应用网络默认 internal。
+
+**[事实]** 观测采用 JSON 日志、OpenTelemetry/OTLP、Prometheus 和 Grafana；统一低基数 component 覆盖 API、Job、Parser、Embedding、Search、LLM、Agent、Tool、Checkpoint 和高级构建。观测后端失败不改变业务错误或 Evidence 语义。
+
+**[事实]** `evaluation`、`operations` 与 `reports/phase10` 提供版本化数据集、质量门禁、SBOM/依赖/治理扫描、备份恢复/故障注入和 fail-closed 发布报告。Linux/amd64 镜像与隔离 Compose 已验证；其他平台只按实际执行证据声明。
+
+**[限制]** 生产 IdP、正式 Secret/TLS、受控 Provider 出口、真实模型、代表性业务数据、持续 SLO 和生产恢复/容量/安全证据尚未完成，因此该拓扑是生产候选，不是获准上线的生产系统。
+
 ## 13. 第一版物理运行拓扑
 
 已接受拓扑：

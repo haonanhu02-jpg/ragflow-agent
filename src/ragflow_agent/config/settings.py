@@ -352,6 +352,15 @@ class AppSettings(BaseSettings):
     production: ProductionSettings = Field(default_factory=ProductionSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
+    @model_validator(mode="after")
+    def production_infrastructure_secrets_are_explicit(self) -> Self:
+        """Fail fast when a production process lacks required object credentials."""
+        if self.environment == "production" and (
+            self.object_store.access_key is None or self.object_store.secret_key is None
+        ):
+            raise ValueError("production object store credentials must be configured")
+        return self
+
     def redacted_dict(self) -> dict[str, object]:
         """Return a JSON-compatible view where SecretStr values stay redacted."""
         return cast(dict[str, object], self.model_dump(mode="json"))

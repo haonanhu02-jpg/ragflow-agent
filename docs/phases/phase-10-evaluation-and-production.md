@@ -1,12 +1,12 @@
 ---
 document_id: PHASE-10-EVALUATION-AND-PRODUCTION
-document_role: Phase 10 预规划详细计划
-status: draft
+document_role: Phase 10 计划与执行记录
+status: completed
 phase: Phase 10
 phase_name: 评测与生产化
-plan_status: 预规划草案
-execution_status: 未执行
-last_updated_at: "2026-07-30"
+plan_status: 已批准
+execution_status: 已完成
+last_updated_at: "2026-08-01"
 ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 ---
 
@@ -14,9 +14,9 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 ## 0. 状态与导航
 
-- **计划状态**：预规划草案。
-- **执行状态**：未执行。
-- Phase 07、08、09 完成后必须按真实系统、部署环境、安全要求和指标重审。
+- **计划状态**：已批准并冻结（ADR-025）。
+- **执行状态**：已完成；生产出口结论为“不允许发布”，不等于真实生产上线完成。
+- 本阶段按当前代码、Phase 09 产物和生产候选环境执行；未运行的真实 Provider、真实业务数据和持续 SLO 不得由 Fake 或短时测试替代。
 - 导航：[阶段索引](./README.md) · [Phase 09](./phase-09-advanced-rag.md) · [路线图](../05-development-roadmap.md) · [工程标准](../06-engineering-standards.md)
 
 ## 1. 目标、必要性与 Phase 00 依据
@@ -71,25 +71,25 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 
 | 任务 | 名称 | 状态 | 前置 |
 |---|---|---|---|
-| P10-T01 | 复审生产目标、SLO、RPO/RTO 与发布门禁 | 未开始 | Phase 07、08、09 |
-| P10-T02 | 建立版本化评测数据集 | 未开始 | P10-T01 |
-| P10-T03 | 建立检索评测 | 未开始 | P10-T02 |
-| P10-T04 | 建立答案与引用评测 | 未开始 | P10-T02、P10-T03 |
-| P10-T05 | 建立 Agent 与高级能力评测 | 未开始 | P10-T02、P10-T04 |
-| P10-T06 | 建立回归和发布质量门禁 | 未开始 | P10-T03 至 P10-T05 |
-| P10-T07 | 完善日志、Trace、指标和告警 | 未开始 | P10-T01 |
-| P10-T08 | 完成多租户、ACL 与安全门禁 | 未开始 | P10-T01、P10-T07 |
-| P10-T09 | 执行性能、并发、容量与成本测试 | 未开始 | P10-T06、P10-T07 |
-| P10-T10 | 建立 Docker 生产部署与配置管理 | 未开始 | P10-T01、P10-T07 |
-| P10-T11 | 实现备份、恢复与迁移验证 | 未开始 | P10-T10 |
-| P10-T12 | 执行故障演练、发布与回滚 | 未开始 | P10-T08 至 P10-T11 |
-| P10-T13 | 执行最终生产出口审查 | 未开始 | P10-T01 至 P10-T12 |
+| P10-T01 | 复审生产目标、SLO、RPO/RTO 与发布门禁 | 完成 | Phase 07、08、09 |
+| P10-T02 | 建立版本化评测数据集 | 完成 | P10-T01 |
+| P10-T03 | 建立检索评测 | 完成 | P10-T02 |
+| P10-T04 | 建立答案与引用评测 | 完成 | P10-T02、P10-T03 |
+| P10-T05 | 建立 Agent 与高级能力评测 | 完成 | P10-T02、P10-T04 |
+| P10-T06 | 建立回归和发布质量门禁 | 完成 | P10-T03 至 P10-T05 |
+| P10-T07 | 完善日志、Trace、指标和告警 | 完成 | P10-T01 |
+| P10-T08 | 完成多租户、ACL 与安全门禁 | 完成 | P10-T01、P10-T07 |
+| P10-T09 | 执行性能、并发、容量与成本测试 | 完成 | P10-T06、P10-T07 |
+| P10-T10 | 建立 Docker 生产部署与配置管理 | 完成 | P10-T01、P10-T07 |
+| P10-T11 | 实现备份、恢复与迁移验证 | 完成 | P10-T10 |
+| P10-T12 | 执行故障演练、发布与回滚 | 完成 | P10-T08 至 P10-T11 |
+| P10-T13 | 执行最终生产出口审查 | 完成 | P10-T01 至 P10-T12 |
 
 ## 7. 具体任务
 
 ### P10-T01：复审生产目标、SLO、RPO/RTO 与发布门禁
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：冻结环境、流量、数据规模、SLO、告警、RPO/RTO、安全和发布责任。
 - **为什么需要**：无目标值无法验收生产化。
 - **输入**：Phase 07/08/09 验收、风险、部署需求。
@@ -103,13 +103,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：按实际环境 probe 记录。
 - **验收标准**：所有阈值、责任和例外有批准。
 - **风险和回滚方法**：不明确则保持未生产，不猜测阈值。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T01。
+- **实际验证结果**：ADR-025、配置和运行手册一致性通过。
+- **计划偏差**：无架构偏差；真实生产证据保留为发布阻断项。
 
 ### P10-T02：建立版本化评测数据集
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：构建开发/验证/回归分离的脱敏、授权数据集和标注 Schema。
 - **为什么需要**：所有质量结论需要稳定数据事实。
 - **输入**：P10-T01、各阶段样本和失败案例。
@@ -123,13 +123,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run <dataset-validator>`
 - **验收标准**：来源/许可/脱敏/版本/划分清楚。
 - **风险和回滚方法**：问题样本隔离，不修改历史版本。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T02。
+- **实际验证结果**：manifest、hash、许可、脱敏和三个 split 校验通过。
+- **计划偏差**：使用 `datasets/phase10/v1` 代替草案路径。
 
 ### P10-T03：建立检索评测
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：统一 Recall@K、Precision@K、MRR、NDCG、过滤/权限和延迟评测。
 - **为什么需要**：比较全文/向量/混合/Rerank/高级检索。
 - **输入**：P10-T02、RetrievalTrace。
@@ -143,13 +143,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run pytest tests/unit/evaluation/test_retrieval_metrics.py -q`; `uv run <retrieval-eval>`
 - **验收标准**：指标正确、可重复、可对比基线。
 - **风险和回滚方法**：门限变化必须版本/审批。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T03。
+- **实际验证结果**：手算单元测试与确定性 runner 通过。
+- **计划偏差**：未声明真实业务显著性或置信区间结论。
 
 ### P10-T04：建立答案与引用评测
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：评测正确性、忠实度、相关性、拒答、Citation precision/recall/quote/source。
 - **为什么需要**：高召回不保证答案可信。
 - **输入**：P10-T02、P10-T03、答案/Citation。
@@ -163,13 +163,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run pytest tests/unit/evaluation/test_answer_citation_metrics.py -q`; `uv run <answer-eval>`
 - **验收标准**：judge 可追溯；引用错误不能被平均指标掩盖。
 - **风险和回滚方法**：LLM judge 漂移用固定版本+人工校准。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T04。
+- **实际验证结果**：正确性、忠实度、拒答和 Citation precision/recall 单元测试通过。
+- **计划偏差**：未运行真实 LLM Judge，确定性规则与真实模型结果分开报告。
 
 ### P10-T05：建立 Agent 与高级能力评测
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：评测 Agent success、Tool accuracy、步骤/循环、恢复/HITL、成本及每项高级 RAG 增益。
 - **为什么需要**：复杂链路必须独立证明收益。
 - **输入**：P10-T02、P10-T04、Phase 08/09 报告。
@@ -183,13 +183,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run <agent-eval>`; `uv run <advanced-eval>`
 - **验收标准**：每项能力独立结果；无收益不默认启用。
 - **风险和回滚方法**：成本失控按预算中止并记录失败。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T05。
+- **实际验证结果**：Agent 确定性报告与九项高级能力独立报告通过 Schema/安全门禁。
+- **计划偏差**：九项高级能力因无真实模型增益证据全部保持 no-go/off。
 
 ### P10-T06：建立回归和发布质量门禁
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：将单元/集成/E2E/评测基线纳入 CI/发布决策。
 - **为什么需要**：防止模型、Prompt、Parser、索引和代码变更静默降质。
 - **输入**：P10-T03 至 P10-T05。
@@ -203,13 +203,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run <regression-gate> --baseline <version>`
 - **验收标准**：严重权限/引用/恢复指标不能被例外自动忽略。
 - **风险和回滚方法**：例外有期限/责任人；门禁配置版本化。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T06。
+- **实际验证结果**：正常报告通过；故意退化报告确定性失败；CI 门禁已更新。
+- **计划偏差**：真实 Provider 测试为可选层且本次未运行。
 
 ### P10-T07：完善日志、Trace、指标和告警
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：关联 API→Job→Parser→Embedding→Search→LLM→Agent/Tool 的观测链路。
 - **为什么需要**：生产故障必须定位且不泄密。
 - **输入**：P10-T01、各阶段 event/Trace。
@@ -223,13 +223,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run pytest tests/integration/observability -q`
 - **验收标准**：关键路径可关联；禁止字段不入日志/Trace。
 - **风险和回滚方法**：观测后端故障不阻断核心业务但产生健康告警。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T07。
+- **实际验证结果**：JSON 日志、OTel、Prometheus、Dashboard/告警配置和实际本地栈启动通过。
+- **计划偏差**：月度保留和真实告警通知通道未由短时本地运行证明。
 
 ### P10-T08：完成多租户、ACL 与安全门禁
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：验证 tenant/owner/visibility、ACL 扩展接口、数据权限和安全全链路。
 - **为什么需要**：任何越权都是生产阻断。
 - **输入**：P10-T01、AuthorizationContext/PermissionChecker、Tool/生命周期。
@@ -243,13 +243,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run pytest tests/security -q`; 按实际扫描器记录命令。
 - **验收标准**：跨租户零容忍；复杂 RBAC 未实现部分明确。
 - **风险和回滚方法**：严重问题阻止发布并关闭相关能力。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T08。
+- **实际验证结果**：全仓安全负向测试、Secret/大文件/数据集/provenance 和依赖扫描通过。
+- **计划偏差**：生产 IdP、外部证书、受控出口与项目许可证声明尚未完成，生产发布保持阻断。
 
 ### P10-T09：执行性能、并发、容量与成本测试
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：测 API/Worker/检索/模型/Agent 的延迟、吞吐、队列、资源和成本。
 - **为什么需要**：确定扩容、上限和 SLO。
 - **输入**：P10-T06、P10-T07、生产数据规模模型。
@@ -263,13 +263,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`uv run <load-test> --profile production-candidate`
 - **验收标准**：达到 P10-T01 阈值；瓶颈和扩容规则明确。
 - **风险和回滚方法**：隔离环境/限额；不对外部供应商造成非授权压力。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T09。
+- **实际验证结果**：本地确定性延迟、32 并发、背压和 local/unknown 成本边界测试通过。
+- **计划偏差**：短时合成测试不证明生产容量、外部 Provider 成本或月度 SLO。
 
 ### P10-T10：建立 Docker 生产部署与配置管理
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：同一制品以 API/Worker 两入口部署，具备健康、配置、迁移和扩缩容。
 - **为什么需要**：第一版生产拓扑必须可重复。
 - **输入**：P10-T01、P10-T07、Phase 01 Docker。
@@ -283,13 +283,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：`docker build ...`; `docker compose -f deploy/docker/... config`; 平台验证按决策记录。
 - **验收标准**：API/Worker 独立运行；不拆微服务；无默认密钥/root。
 - **风险和回滚方法**：镜像版本不可变；保留前版制品。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T10。
+- **实际验证结果**：Linux/amd64 多阶段 non-root 镜像、Compose 配置、一次性迁移、API/Worker 独立健康和观测栈通过。
+- **计划偏差**：arm64 与真实 TLS/IdP/出口环境按实际验证结果记录，不做推断。
 
 ### P10-T11：实现备份、恢复与迁移验证
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：覆盖 PostgreSQL、对象存储、搜索可重建数据、队列/Checkpoint/配置和密钥元数据。
 - **为什么需要**：生产必须达到 RPO/RTO。
 - **输入**：P10-T10、P10-T01 RPO/RTO。
@@ -303,13 +303,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：按选定平台执行并记录 restore drill 命令。
 - **验收标准**：RPO/RTO 达标；恢复后评测/权限通过。
 - **风险和回滚方法**：不覆盖唯一备份；恢复环境隔离。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T11。
+- **实际验证结果**：内容 hash、空目标、篡改拒绝、恢复相等与 `0005 -> 0006` 往返通过。
+- **计划偏差**：没有生产快照和对象量级，RPO/RTO 仅是目标而非生产证明。
 
 ### P10-T12：执行故障演练、发布与回滚
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：演练依赖/Worker/模型/搜索/数据库故障及版本发布回滚。
 - **为什么需要**：Runbook 必须被实际验证。
 - **输入**：P10-T08 至 P10-T11。
@@ -323,13 +323,13 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：按实际平台记录，不预填成功。
 - **验收标准**：告警及时、恢复达标、回滚完整、无越权/数据损坏。
 - **风险和回滚方法**：预演/staging/停止条件；生产演练需授权。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：见第 9 节 P10-T12。
+- **实际验证结果**：隔离 Compose 依赖/网络/Worker 演练与 Provider/Checkpoint/DLQ 安全故障注入通过。
+- **计划偏差**：未在真实生产环境执行发布、流量切换或不可逆迁移；生产发布因此未获准。
 
 ### P10-T13：执行最终生产出口审查
 
-- **状态**：未开始
+- **状态**：完成
 - **目标**：综合质量、安全、性能、部署、恢复和文档决定是否发布。
 - **为什么需要**：路线图没有 Phase 11，必须形成明确生产准入。
 - **输入**：P10-T01 至 P10-T12。
@@ -343,9 +343,9 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 - **验证命令**：使用 P10-T06/P10-T08/P10-T09/P10-T11/P10-T12 的已确认门禁命令。
 - **验收标准**：所有硬门禁通过；例外有批准/期限；无计划项误标。
 - **风险和回滚方法**：任何严重缺陷结论为不发布。
-- **实际执行结果**：待执行。
-- **实际验证结果**：待执行。
-- **计划偏差**：待记录。
+- **实际执行结果**：机器报告明确 `production_exit=not_allowed`。
+- **实际验证结果**：本地候选门禁通过；外部生产硬证据缺失项完整列出。
+- **计划偏差**：阶段任务完成并不提升为真实生产完成。
 
 ## 8. 阶段验收、DoD、风险和后续
 
@@ -358,14 +358,54 @@ docs/{09-evaluation-and-observability,10-production-runbook}.md
 | Trace 泄密 | 最小化、脱敏、访问/保留 |
 | 恢复仅停留文档 | 定期 restore/GameDay 硬门禁 |
 | 高级能力复杂度 | 按 Phase 09 独立 go/no-go 和 flag |
-| 生产平台未定 | P10-T01 阻塞执行，不擅自选型 |
+| 真实生产证据未满足 | 保持 `production_exit=not_allowed`，不以本地/Fake 结果豁免 |
 
 阶段结束更新 `AGENTS.md`、总纲、架构、矩阵、复用、路线图、标准、风险、阶段索引、运行/评测文档和本文件。路线图没有 Phase 11；通过后进入版本运营或经新 ADR 修订下一轮路线图。
 
-## 9. 实际执行结果预留
+## 9. 实际执行结果
 
-- 实际环境/SLO/RPO/RTO/平台：待执行。
-- 实际质量/安全/性能/恢复结果：待执行。
-- 实际发布/回滚/偏差/例外：待执行。
-- 最终生产准入结论：待执行。
+| 任务 | 实际产出 | 证据边界 |
+|---|---|---|
+| P10-T01 | ADR-025 冻结 Linux Docker Compose、SLO、RPO/RTO、角色和 UI Deferred | 目标已冻结，月度 SLO 尚未被短时测试证明 |
+| P10-T02 | `datasets/phase10/v1` 与 fail-closed validator | CC0 合成数据，非真实企业数据 |
+| P10-T03 | Precision/Recall/MRR/NDCG 和权限/延迟字段 | 指标手算通过，真实业务检索质量未验证 |
+| P10-T04 | 正确性、忠实度、拒答、Citation precision/recall | 确定性规则，不冒充 LLM Judge |
+| P10-T05 | Agent 与九项高级能力独立报告 | Fake/纯算法；九项高级能力全部 no-go/off |
+| P10-T06 | 不可豁免门禁、故意退化测试、Phase 10 CI | 本地门禁通过；真实 Provider 层未运行 |
+| P10-T07 | JSON 日志、Trace context、OTLP、Prometheus、Dashboard、告警 | 本地 Collector/Prometheus/Grafana 启动；实际通知与保留期未证明 |
+| P10-T08 | tenant/ACL/Tool/SQL/API/SSRF/密钥/供应链负向测试与治理扫描 | 严重违规 0；依赖审计通过；Docker Scout 因无登录凭据未完成，生产 IdP、证书、出口和项目许可证仍阻断 |
+| P10-T09 | 本地延迟/并发/背压/成本状态报告 | 100 合成样本、32 并发；不代表生产容量或供应商费用 |
+| P10-T10 | 多阶段 non-root 镜像、API/Worker、一次性迁移、独立卷、TLS/限流配置 | amd64 实测；arm64 因 Docker Hub token 端点拒绝连接而未完成构建验证 |
+| P10-T11 | 内容寻址备份/恢复、篡改拒绝、索引重建顺序、迁移往返 | 合成 authority 数据；没有生产备份恢复证据 |
+| P10-T12 | PostgreSQL/Redis/MinIO/Elasticsearch/Worker/网络实栈演练与 Provider/Checkpoint/DLQ 故障注入 | 隔离环境；未触碰生产数据或真实外部写操作 |
+| P10-T13 | `reports/phase10/release-report.json` | 生产出口：不允许发布 |
 
+关键机器产物：`reports/phase10/evaluation.json`、`operations.json`、`governance-scan.json`、`dependency-audit.json`、`sbom.json`、`image-scan.json`、`deployment-verification.json` 与 `release-report.json`。
+
+计划偏差：断点前已提前生成部分 Phase 10 基线文件，并随 Phase 09 checkpoint 提交 `38b48ba` 一并提交；恢复后未重做已完成实现，只完成验证、缺口修复和正式记录。外部观测镜像首次拉取遇到 TLS timeout，重试后成功。Docker Desktop 对隔离 Compose 的宿主端口存在 HostConfig 已配置但 NetworkSettings 未发布的本机异常，因此 API/观测健康以容器内部真实请求验证；arm64 构建在重复尝试时均被 Docker Hub token 网络拒绝，未标记为已验证。详细证据见 `reports/phase10/deployment-verification.json`。
+
+最终结论：本阶段规划内代码与生产候选建设完成；由于真实 Provider、生产凭据/IdP、代表性业务数据、授权生产部署、持续 SLO、生产恢复/容量/安全证据和项目许可证声明缺失，真实生产发布不获准。
+
+## 10. 最终验证记录
+
+| 验证 | 实际结果 |
+|---|---|
+| `uv lock --check`、`uv sync --frozen --all-groups`、`uv pip check` | 通过；162 个锁定包兼容 |
+| `uv run ruff check .` | 通过 |
+| `uv run mypy src/ragflow_agent tests` | 通过；408 个源文件无问题 |
+| 隔离四后端 `uv run pytest` | 收集 330 项，329 passed、1 skipped；唯一 skip 为 Windows 本机没有 Tesseract，CI 单独安装并强制执行 OCR |
+| 故意退化与 fail-closed 发布门禁 | 5 项定向测试通过；降级指标、跨租户违规、Citation 退化均会阻止发布 |
+| Alembic | 隔离 PostgreSQL `20260801_0006 -> 20260731_0005 -> 20260801_0006` 通过；全新 Compose 迁移 Job 退出码 0 |
+| 数据集与评测 runner | Phase 09/10 manifest、hash、split、许可、脱敏验证通过；机器报告可重复生成 |
+| Secret/大小/provenance 治理 | 扫描 494 个文件时无密钥命中、无超大文件、无 RAGFlow/第三方源码复制；项目自身 LICENSE 未声明 |
+| `pip-audit`（OSV） | 真实联网审计完成，0 个已知漏洞 |
+| CycloneDX SBOM | 可复现生成并通过 schema 验证 |
+| Docker Scout | 已尝试；缺少 Docker ID/PAT，未完成镜像漏洞扫描，作为发布阻断而非通过 |
+| Linux amd64 镜像 | 构建通过；`USER=ragflow-agent`、license label=`NOASSERTION`，API/Worker bootstrap 通过 |
+| Linux arm64 镜像 | 两次构建均在 Docker Hub anonymous token 连接处失败；未验证 |
+| Docker Compose 生产候选 | 全新隔离栈 PostgreSQL/Redis/MinIO/Elasticsearch healthy，迁移成功，API/Worker healthy；Collector 接收 spans，Prometheus ready，Grafana database ok |
+| Compose 宿主访问 | Docker Desktop 本机端口转发异常；容器内部 HTTP 和健康检查通过，不记作宿主/生产入口验证 |
+| 故障与恢复 | PostgreSQL、Redis、MinIO、Elasticsearch、Worker、网络执行隔离实栈注入；Provider/Checkpoint/DLQ 使用确定性安全注入；Worker kill 的自动重启未证明 |
+| 备份恢复、性能与容量 | 合成 authority 内容 hash 恢复通过；100 个合成延迟样本、32 并发、0 错误，只证明本地机制，不证明生产规模/RTO/SLO |
+
+机器报告的最终发布判定为 `production_exit=not_allowed`。GitHub Actions 以提交后的最终 `main` workflow 结果作为仓库级门禁，运行链接在交付汇报中记录。

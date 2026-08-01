@@ -1,7 +1,23 @@
 {
-  "files_scanned": 482,
-  "findings": [],
+  "datasets": {
+    "phase09": {
+      "contains_sensitive_data": false,
+      "license": "CC0-1.0",
+      "version": "phase09-v1"
+    },
+    "phase10": {
+      "contains_sensitive_data": false,
+      "license": "CC0-1.0",
+      "version": "phase10-v1"
+    }
+  },
+  "files_scanned": 494,
+  "oversized_files": [],
   "passed": true,
+  "project_license_declared": false,
+  "project_license_note": "Requires owner confirmation before external distribution",
   "ragflow_source_copied": false,
-  "schema_version": 1
+  "schema_version": 1,
+  "secret_findings": [],
+  "third_party_source_vendored": false
 }

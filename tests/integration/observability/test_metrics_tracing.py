@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from prometheus_client import generate_latest
 
 from ragflow_agent.config import ObservabilitySettings
+from ragflow_agent.observability.instrumentation import observe_operation
 from ragflow_agent.observability.metrics import MetricsMiddleware
 from ragflow_agent.observability.tracing import build_tracer_provider
 
@@ -35,3 +36,27 @@ def test_observability_configs_exist() -> None:
     assert Path("deploy/observability/prometheus.yml").is_file()
     assert Path("deploy/observability/alerts.yml").is_file()
     assert Path("deploy/observability/dashboards/ragflow-agent.json").is_file()
+
+
+def test_all_required_components_have_bounded_metrics_and_spans() -> None:
+    provider = build_tracer_provider(ObservabilitySettings(), service_name="component-test")
+    tracer = provider.get_tracer("test")
+    components = (
+        "api",
+        "job",
+        "parser",
+        "embedding",
+        "search",
+        "llm",
+        "agent",
+        "tool",
+        "checkpoint",
+        "advanced_build",
+    )
+    for component in components:
+        with observe_operation(component, tracer=tracer):  # type: ignore[arg-type]
+            pass
+    metrics = generate_latest().decode()
+    for component in components:
+        assert f'component="{component}"' in metrics
+    provider.shutdown()

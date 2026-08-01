@@ -863,6 +863,11 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 | R-036 | 生产 SQL/API catalog、只读账号、网络出口和凭据轮换尚未验证 | 中 | 严重 | allowlist 配错、数据越权、SSRF 或凭据泄漏 | 默认不注册；独立只读账号、固定网络目标、Secret Provider、上线前隔离集成/渗透测试 | Phase 08/10 | Open |
 | R-037 | 高风险外部副作用在执行成功但结果持久化前崩溃，仍可能被重试 | 低 | 严重 | Tool 端已生效但 Agent 未记录 succeeded | Tool 必须接受幂等键并提供结果查询/幂等合同；生产写 Tool 在 Phase 10 前保持禁用 | Phase 08/10 | Open |
 | R-038 | 长期记忆物理清理调度或积压没有生产 SLO | 中 | 高 | 撤回记录超过 24 小时仍物理存在 | 查询立即屏蔽；Worker 清理可执行；Phase 10 增加跨 tenant 调度、积压指标、告警和故障演练 | Phase 08/10 | Open |
+| R-039 | 本地/Fake 生产候选证据被误报为真实上线完成 | 高 | 严重 | 用短时合成报告宣称月度 SLO、真实模型效果或生产恢复 | 证据分层；fail-closed release report；外部阻断项未关闭前不允许发布 | 生产接入 | Open |
+| R-040 | 生产 IdP、Secret、TLS 或出口策略尚未接入 | 高 | 严重 | 业务接口无可信身份、凭据泄漏或任意网络出口 | internal 网络、TLS/限流配置、环境注入；真实接入和安全审批前保持阻断 | 生产接入 | Open |
+| R-041 | 项目自身分发许可证尚未由所有者确认 | 中 | 严重 | 对外分发镜像/源码但仓库无正式 LICENSE | SBOM/provenance 分离；由所有者选择并提交 LICENSE 后重新审查 | 发布治理 | Open |
+| R-042 | 生产容量、耐久、费用与月度 SLO 未由代表性负载证明 | 高 | 高 | 合成短测通过但真实峰值、积压或费用超限 | 目标环境阶梯/耐久测试、持续监控和有期限容量审批 | 生产接入 | Open |
+| R-043 | 生产备份恢复、索引重建和回滚未用真实规模演练 | 中 | 严重 | 恢复超 RTO、权限/Citation 漂移或迁移无法回退 | 隔离生产快照演练、双人审批、恢复后安全与评测门禁 | 生产接入 | Open |
 
 ## 5. 风险处理规则
 
@@ -1028,3 +1033,14 @@ Phase 02 已提供 LangGraph、租户作用域 Checkpoint、模型/Tool 端口�
 - **验证证据**：隔离 PostgreSQL/Redis/MinIO/Elasticsearch 全仓 `324 passed, 1 skipped`，skip 为本机无 Tesseract；Alembic `0005 -> 0006 -> 0005 -> 0006`、Ruff、strict mypy、锁文件和专项评测通过。
 - **go/no-go**：九项机器结果安全违规为 0，但因没有真实 DeepSeek/BGE/Vision/ASR 增益证据全部为 no-go，代码和负面报告保留，开关保持 off。
 - **下一门禁**：Phase 10 已由 ADR-025 批准；生产发布仍受真实 Provider、生产凭据/网络、业务数据、持续 SLO 和真实恢复证据阻断。
+
+## 17. Phase 10 出口审查记录
+
+### 2026-08-01 / P10-T13
+
+- **结论**：P10-T01 至 P10-T13 的规划内代码、数据集、测试、部署候选和文档已完成；机器报告结论为 `production_exit=not_allowed`。
+- **实施事实**：版本化评测与不可豁免门禁、JSON/OTel/Prometheus/Grafana、Linux Docker Compose、同镜像 API/Worker、one-shot 迁移、TLS/限流配置、SBOM/依赖/Secret/provenance 扫描、内容 hash 备份恢复和隔离故障演练已落地。
+- **实测边界**：Linux/amd64 镜像、PostgreSQL/Redis/MinIO/Elasticsearch、API/Worker 与本地观测栈实测；Fake/Stub 与真实基础设施分开报告。未运行的 arm64、真实 Provider、生产 IdP/凭据/业务数据、持续 SLO 和生产恢复/容量不标记通过。
+- **许可证**：RAGFlow 源码复制/抽取/改写继续为零；依赖 SBOM 和审计已生成。项目自身分发 LICENSE 尚待所有者确认，记录为 R-041。
+- **阻断项**：R-039 至 R-043 及真实 Provider/业务数据验证全部关闭前，`release_owner`、`security_approver`、`ops_oncall` 不得批准真实生产发布。
+- **范围**：UI/管理控制台继续 Deferred；路线图没有 Phase 11，新增能力只能通过新 ADR 和下一轮路线图提出。

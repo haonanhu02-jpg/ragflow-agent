@@ -247,6 +247,15 @@ tests:
 - **许可证结果**：Phase 08 未形成 RAGFlow 派生源码；首次复制或修改上游源码前仍须重开 O-004，登记精确来源、许可证、NOTICE 和隔离方案。
 - **证据**：[Phase 08 执行记录](./phases/phase-08-agentic-rag.md)、[Agentic RAG运行时](./10-agentic-rag.md)、ADR-023。
 
+### 6.7 Phase 09 与 Phase 10 实际复用审计
+
+- **直接复用/改造复用**：均为 0 个 RAGFlow 文件、类或函数；没有 vendored RAGFlow 源码。
+- **Phase 09 参考后自研**：关键词、问题、摘要、TOC、父子扩展、多模态、GraphRAG、RAPTOR、时序和兼容/生命周期全部位于 `src/ragflow_agent/knowledge/advanced/`。
+- **Phase 10 参考后自研**：只把上游 benchmark、部署拓扑、健康和观测接入点作为行为清单；评测、门禁、观测、Docker Compose、备份恢复和运行手册均为本项目实现。
+- **机器证据**：`reports/phase10/governance-scan.json` 记录 `ragflow_source_copied=false`、`third_party_source_vendored=false`；SBOM 和依赖审计单独记录运行时依赖。
+- **许可证边界**：项目所有者尚未正式声明本项目分发许可证，外部分发保持阻断；首次复制或修改 RAGFlow 源码仍必须重开 O-004 审查。
+- **证据**：[Phase 09](./phases/phase-09-advanced-rag.md)、[Phase 10](./phases/phase-10-evaluation-and-production.md)、ADR-024、ADR-025。
+
 ## 7. 与能力和阶段的关系
 
 - Phase 00：完成源码、依赖和许可证登记，不做抽取实验，不合入业务实现。
@@ -256,5 +265,6 @@ tests:
 - Phase 07：已完成；研究更新/重解析/删除/任务取消与 ACK 缺口，版本、一致性和可靠任务能力全部独立实现。
 - Phase 08：已完成；只参考 Agent Retrieval Tool、Agentic RAG 和 Canvas 人工输入用例，未引入 Canvas 或任何 RAGFlow 源码。
 - Phase 09：GraphRAG、RAPTOR、多模态和时序均已独立实现；RAGFlow 直接/改造复用代码为零，冻结源码只作公开行为与架构证据。
+- Phase 10：评测、生产候选和运维能力已独立实现；RAGFlow 直接/改造复用代码继续为零。
 
 阶段依赖和验收门禁见[开发路线图](./05-development-roadmap.md)。

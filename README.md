@@ -1,23 +1,17 @@
 # ragflow-agent
 
-Independent Agent + RAG project. Phase 01 provides the Python package, typed
-configuration, infrastructure boundaries, PostgreSQL migrations, FastAPI and
-ingestion-worker process shells, tests, and a reproducible development
-environment. Phase 02 adds a knowledge-independent LangGraph Agent runtime with
-versioned state/events, structured model and Tool ports, bounded error handling,
-tenant-scoped PostgreSQL checkpoints, trace events, and a deterministic minimal
-Agent loop. Phase 03 adds versioned knowledge-domain contracts, first-version
-tenant/owner/visibility authorization, tenant-scoped repositories and capability
-ports, plus shared `KnowledgeService` and `KnowledgeQueryService` boundaries.
-Phase 04 adds the minimum RAG vertical slice: PostgreSQL knowledge persistence,
-S3/MinIO objects, Redis/ARQ ingestion, TXT/Markdown/PDF parsing, General
-Chunking, provider-isolated DeepSeek/BGE-M3 adapters, Elasticsearch
-BM25/KNN/RRF retrieval, fixed RAG, citations, retrieval trace, and real-backend
-integration tests.
+Independent Agent + RAG backend built with FastAPI, LangChain and LangGraph.
+The Phase 00-10 roadmap now includes tenant-scoped knowledge domains,
+multi-format ingestion and OCR, Elasticsearch hybrid retrieval, fixed RAG,
+Agentic RAG with governed Tools/HITL/memory/budgets, versioned lifecycle,
+experimental advanced RAG, deterministic evaluation, observability and a Linux
+Docker Compose production candidate.
 
-Complex parsing/OCR, full online retrieval and reranking, document lifecycle,
-KnowledgeBaseTool, real-provider CI, HITL, memory, and multi-Agent behavior are
-intentionally deferred to later phases.
+This is not yet approved for real production. Advanced capabilities remain
+experimental/off, real DeepSeek/BGE/Vision/ASR and representative business data
+have not been validated, and production IdP, secrets, network, sustained SLO,
+capacity and recovery evidence remain open. UI/admin console is not implemented.
+See [`reports/phase10/release-report.json`](reports/phase10/release-report.json).
 
 ## Project entrypoints
 

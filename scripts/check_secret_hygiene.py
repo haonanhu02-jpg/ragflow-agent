@@ -29,6 +29,7 @@ ALLOWED_VALUES = {
     "example",
     "none",
     "placeholder",
+    "redacted",
     "secretstr",
     "str",
     "test",

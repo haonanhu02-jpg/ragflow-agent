@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "application_image": "ragflow-agent:production-candidate@working-tree",
+    "configuration_version": "production-candidate-v1",
+    "database_revision": "20260801_0006",
+    "index_version": "phase09-v1"
+  },
+  "decision_model_blockers": [
+    "real_provider_validation"
+  ],
+  "external_release_blockers": [
+    "real_provider_validation",
+    "project_license_declaration",
+    "authenticated_image_vulnerability_scan",
+    "production_credentials_and_idp",
+    "representative_business_data_evaluation",
+    "authorized_production_deployment",
+    "sustained_monthly_slo_evidence",
+    "isolated_production_backup_restore_evidence",
+    "production_security_and_capacity_validation"
+  ],
+  "local_production_candidate_gates": {
+    "isolated_recovery": true,
+    "quality": true,
+    "security": true
+  },
+  "phase": "10",
+  "production_exit": "not_allowed",
+  "roles": {
+    "ops_oncall": "ops_oncall",
+    "release_owner": "release_owner",
+    "security_approver": "security_approver"
+  },
+  "schema_version": 1,
+  "scope": {
+    "backend_api_worker_evaluation_candidate": "implemented",
+    "real_production_project": "not_complete",
+    "ui_admin_console": "deferred_not_implemented"
+  }
+}

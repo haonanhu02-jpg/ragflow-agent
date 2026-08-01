@@ -2,9 +2,9 @@
 document_id: DEVELOPMENT-ROADMAP
 document_role: 项目总体阶段、依赖、入口和出口事实源
 status: active
-document_version: "0.9.0"
+document_version: "1.0.0"
 last_updated_at: "2026-08-01"
-current_phase: Phase 09 completed; Phase 10 in progress
+current_phase: Phase 00-10 planned work completed; production release blocked
 roadmap_range: Phase 00-10
 ---
 
@@ -25,9 +25,9 @@ roadmap_range: Phase 00-10
 - **[事实]** 本地 RAGFlow 快照位于 `D:/ragflow/ragflow-main`，没有 `.git`；其 `pyproject.toml` 标识版本 `0.26.4`、Python `>=3.13,<3.14`，不能据此证明本地快照 commit。
 - **[事实]** 2026-07-30 通过 `git ls-remote` 观察到 RAGFlow 远程 `main` 为 `0cb4039be9c0691f89c391c5cc28ab40682a8163`，已不同于冻结基线；最新提交为 Go ingestion 修正，不改变 Python-only 冻结结论。
 - **[决策]** 滚动 `main` 的变化不会自动替换冻结事实；是否升级冻结基线必须执行 Phase 00 差异审计并形成 ADR。
-- **[事实]** Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 未执行。Phase 08 在 Phase 02/06 基线上完成直接 RAG/Tool RAG、规划/有限多轮检索、Evidence Policy、SQL/API Tool、持久化 HITL、长期记忆治理、预算和 Agent Trace；真实 DeepSeek/BGE-M3/BGE Reranker、生产 SQL/API/高风险写操作仍不是已验证能力。
+- **[事实]** Phase 00 至 Phase 10 的规划内任务已完成。Phase 09 九项高级能力因仅完成确定性/Fake/纯算法验证而保持 `experimental/off`；Phase 10 本地生产候选门禁已完成，但真实 DeepSeek/BGE-M3/BGE Reranker/Vision/ASR、生产身份与凭据、代表性业务数据、持续 SLO 和生产恢复证据仍未验证，因此生产出口为“不允许发布”。
 
-Phase 00 至 Phase 08 已按详细计划执行并通过验收；Phase 09 至 Phase 10 的详细计划已生成。阶段计划存在不等于阶段能力已经实现。
+Phase 00 至 Phase 10 已按详细计划执行并留下任务、测试和机器报告；完成路线图不等于真实生产上线完成。
 
 ### 0.2 本次路线图校正
 
@@ -101,8 +101,8 @@ flowchart LR
 | Phase 06 | 在线检索 | Phase 04、Phase 05 | `CAP-11` 至 `CAP-22` | 已确认 | 已完成 |
 | Phase 07 | 文档生命周期 | Phase 05、Phase 06 | `CAP-24`、`CAP-25`、`CAP-26`、`CAP-38`可靠化 | 已确认 | 已完成 |
 | Phase 08 | Agentic RAG | Phase 02、Phase 06 | `CAP-28`、`CAP-29` Agentic 扩展、`CAP-31`完整；`CAP-32`完成启用评估并暂缓；SQL/API Tool 与记忆 | 已确认 | 已完成 |
-| Phase 09 | 高级RAG | Phase 05、Phase 06、Phase 08 | `CAP-05`、`CAP-06`、`CAP-07`高级部分、`CAP-33`、`CAP-34`、`CAP-35`、`CAP-43` | 预规划草案 | 未执行 |
-| Phase 10 | 评测与生产化 | Phase 07、Phase 08、Phase 09 | `CAP-39`、`CAP-40`完整、`CAP-42`；安全与权限生产门禁 | 预规划草案 | 未执行 |
+| Phase 09 | 高级RAG | Phase 05、Phase 06、Phase 08 | `CAP-05`、`CAP-06`、`CAP-07`高级部分、`CAP-33`、`CAP-34`、`CAP-35`、`CAP-43` | 已确认 | 已完成；九项能力 experimental/off |
+| Phase 10 | 评测与生产化 | Phase 07、Phase 08、Phase 09 | `CAP-39`、`CAP-40`完整、`CAP-42`；安全与权限生产门禁 | 已确认 | 已完成；真实生产发布不允许 |
 
 ## 3. Phase 00：研究与基线
 
@@ -654,8 +654,8 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 
 - **验收标准**：固定数据集和指标阈值版本化；回归门禁可执行；跨租户/owner/visibility 负向测试通过；API/Worker 可独立健康和扩缩；升级/回滚及备份恢复演练成功；敏感信息检查通过；高级 RAG 仅在有收益时启用。
 - **下一阶段进入条件**：本路线图没有 Phase 11；满足发布门禁后进入版本发布、运营和下一轮 ADR/路线图，而非自动扩展范围。
-- **当前状态**：已批准并执行中；生产平台/SLO/RPO/RTO/安全和 UI Deferred 已由 ADR-025 冻结。
-- **已知风险**：评测数据偏差；线上/离线指标不一致；Trace 泄密；恢复演练不完整；供应商/模型漂移；生产复杂度提前。
+- **当前状态**：已完成；P10-T01 至 P10-T13、本地质量/安全/部署/恢复门禁完成，但最终生产出口为“不允许发布”。
+- **已知风险**：真实 Provider、生产 IdP/Secret/网络、代表性业务数据、持续 SLO、生产恢复/容量/安全和项目分发许可证证据缺失。
 - **技术决策结果**：Linux Docker Compose、JSON+OTel+Prometheus、99.5% SLO 目标、RPO 24h/RTO 4h、O-010 UI Deferred 已由 ADR-025 关闭；复杂 RBAC 仍属下一轮范围。
 
 ## 14. 跨阶段门禁
@@ -691,9 +691,9 @@ RAGFlow benchmark 主要提供请求性能统计，不能替代 Recall、MRR、N
 - Phase 06：已确认并完成；P06-T01 至 P06-T12、真实 Elasticsearch/PostgreSQL、评测和阶段验收通过。
 - Phase 07：已确认并完成；P07-T01 至 P07-T11、真实四后端、迁移和故障门禁通过。
 - Phase 08：已确认并完成；P08-T01 至 P08-T13、两条 RAG 路径、Tool/SQL/API/HITL/Memory/Budget、持久恢复和 28 场景评测门禁通过；多 Agent 暂缓。
-- Phase 09：已批准并完成；Phase 10：已批准并执行中。
-- 当前已具备最小 Agent Runtime、知识领域与 tenant 权限、离线 ingestion、八格式 Parser、九种 Chunk Method、完整在线检索与固定 RAG、版本化生命周期，以及 Agentic RAG 的直接/Tool 双路径、Evidence、受控 Tool、HITL、长期记忆、预算和 Trace；高级 RAG、真实模型效果验证和生产化尚未实现。
-- 下一步是连续完成 Phase 10 评测、生产候选、恢复和最终发布审查；不得创建 Phase 11。
+- Phase 09：已批准并完成；Phase 10：已批准并完成，最终生产出口为“不允许发布”。
+- 当前已具备规划内后端 API/Worker、固定 RAG、Agentic RAG、高级 RAG 实验能力、确定性评测、生产候选部署、观测、安全和恢复工具；高级能力全部 experimental/off，真实模型效果和真实生产证据未完成。
+- 路线图没有 Phase 11；下一步只关闭真实 Provider、生产接入、业务数据、持续 SLO、恢复/容量/安全和许可证外部门禁，新增范围必须另建 ADR 与下一轮路线图。
 
 ### 15.2 Phase 00 一致性债务处理
 

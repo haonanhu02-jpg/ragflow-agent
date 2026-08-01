@@ -4,6 +4,7 @@
   "license": "CC0-1.0",
   "source": "Synthetic rail-maintenance scenarios authored for ragflow-agent",
   "contains_sensitive_data": false,
+  "redaction": "Synthetic-only; no production or user data",
   "splits": ["development", "validation", "regression"],
   "files": [
     {"path":"enrichment.jsonl","sha256":"2827590228a3b5b166cd39f6672343802d83ae7a8b7eaed4115ea2d9eacdb0bc"},

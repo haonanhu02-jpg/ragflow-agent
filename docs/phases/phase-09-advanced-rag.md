@@ -1,6 +1,6 @@
 ---
 document_id: PHASE-09-ADVANCED-RAG
-document_role: Phase 09 预规划详细计划
+document_role: Phase 09 详细计划与执行记录
 status: completed
 phase: Phase 09
 phase_name: 高级RAG
@@ -14,9 +14,9 @@ ragflow_frozen_baseline_commit: "cd846cc9d4e32a19e684c59a1f302601027ef976"
 
 ## 0. 状态与导航
 
-- **计划状态**：预规划草案。
-- **执行状态**：未执行。
-- Phase 05、06、08 完成后必须按真实扩展点、评测、资源和 O-011 重审。
+- **计划状态**：已批准并冻结（ADR-024）。
+- **执行状态**：已完成；九项高级能力均保持 `experimental/off`，不冒充真实 Provider 效果。
+- Phase 05、06、08 的公共接口已作为实现基线；O-009 与 O-011 已在 ADR-024 关闭。
 - 导航：[阶段索引](./README.md) · [Phase 08](./phase-08-agentic-rag.md) · [Phase 10](./phase-10-evaluation-and-production.md) · [决策与风险](../07-decisions-and-risks.md)
 
 ## 1. 目标、必要性和范围变更
@@ -100,18 +100,18 @@ tests/{unit,contract,integration,e2e,evaluation,performance}/advanced/
 
 | 任务 | 名称 | 状态 | 前置 |
 |---|---|---|---|
-| P09-T01 | 复审高级能力扩展、开关与索引兼容 | 未开始 | Phase 05、06、08 |
-| P09-T02 | 实现自动关键词 | 未开始 | P09-T01 |
-| P09-T03 | 实现自动问题 | 未开始 | P09-T01 |
-| P09-T04 | 实现摘要 | 未开始 | P09-T01 |
-| P09-T05 | 实现 TOC | 未开始 | P09-T01、P09-T04 |
-| P09-T06 | 实现父子 Chunk | 未开始 | P09-T01、P09-T04 |
-| P09-T07 | 实现多模态 RAG | 未开始 | P09-T01 |
-| P09-T08 | 实现 GraphRAG | 未开始 | P09-T01 |
-| P09-T09 | 实现 RAPTOR | 未开始 | P09-T01、P09-T04 |
-| P09-T10 | 实现时序 RAG 实验能力 | 未开始 | P09-T01、O-011 |
-| P09-T11 | 执行逐项独立评测与优先级决策 | 未开始 | P09-T02 至 P09-T10 |
-| P09-T12 | 验证兼容/生命周期并执行阶段验收 | 未开始 | P09-T01 至 P09-T11 |
+| P09-T01 | 复审高级能力扩展、开关与索引兼容 | 完成 | Phase 05、06、08 |
+| P09-T02 | 实现自动关键词 | 完成 | P09-T01 |
+| P09-T03 | 实现自动问题 | 完成 | P09-T01 |
+| P09-T04 | 实现摘要 | 完成 | P09-T01 |
+| P09-T05 | 实现 TOC | 完成 | P09-T01、P09-T04 |
+| P09-T06 | 实现父子 Chunk | 完成 | P09-T01、P09-T04 |
+| P09-T07 | 实现多模态 RAG | 完成 | P09-T01 |
+| P09-T08 | 实现 GraphRAG | 完成 | P09-T01 |
+| P09-T09 | 实现 RAPTOR | 完成 | P09-T01、P09-T04 |
+| P09-T10 | 实现时序 RAG 实验能力 | 完成 | P09-T01、O-011 |
+| P09-T11 | 执行逐项独立评测与优先级决策 | 完成 | P09-T02 至 P09-T10 |
+| P09-T12 | 验证兼容/生命周期并执行阶段验收 | 完成 | P09-T01 至 P09-T11 |
 
 ## 8. 具体任务
 

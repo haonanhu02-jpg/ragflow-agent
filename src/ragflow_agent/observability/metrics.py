@@ -25,6 +25,16 @@ WORK_BACKLOG = Gauge(
     "Age of oldest pending outbox, DLQ, cleanup, or memory item",
     ("queue",),
 )
+OPERATION_DURATION = Histogram(
+    "ragflow_agent_operation_duration_seconds",
+    "Duration of bounded internal operation classes",
+    ("component", "outcome"),
+)
+OPERATION_TOTAL = Counter(
+    "ragflow_agent_operations_total",
+    "Bounded internal operations by component and outcome",
+    ("component", "outcome"),
+)
 
 
 def _route_label(scope: Scope) -> str:
@@ -52,8 +62,14 @@ class MetricsMiddleware:
                 status = int(message["status"])
             await send(message)
 
+        app = scope.get("app")
+        provider = getattr(getattr(app, "state", None), "tracer_provider", None)
+        tracer = provider.get_tracer("ragflow_agent.api") if provider is not None else None
+        from ragflow_agent.observability.instrumentation import observe_operation
+
         try:
-            await self._app(scope, receive, observe)
+            with observe_operation("api", tracer=tracer):
+                await self._app(scope, receive, observe)
         finally:
             method = str(scope.get("method", "UNKNOWN"))
             route = _route_label(scope)

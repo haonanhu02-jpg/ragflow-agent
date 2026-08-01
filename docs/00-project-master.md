@@ -2,11 +2,11 @@
 document_id: PROJECT-MASTER
 document_role: Codex 项目首要入口与范围事实源
 status: active
-document_version: "1.2.0"
+document_version: "1.3.0"
 created_at: "2026-07-27"
 last_updated_at: "2026-08-01"
 project_root: "D:/download/ragflow-agent"
-project_code_status: phase_09_advanced_rag_completed
+project_code_status: phase_10_production_candidate_completed_release_blocked
 project_repository: "https://github.com/haonanhu02-jpg/ragflow-agent"
 project_default_branch: main
 project_phase_00_baseline_commit: "5c015405e4c25346999cbb21736c61a87d5f8cbe"
@@ -28,7 +28,7 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 1. 读取本文件。
 2. 读取 [`docs/07-decisions-and-risks.md`](./07-decisions-and-risks.md)；独立 `docs/adr/` 文件当前尚未生成。
 3. 根据任务读取本文件第 18 节索引中的专项文档；未生成的文档不得被当成已有事实。
-4. 实施某个阶段前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 08 已完成，Phase 09 至 Phase 10 为“预规划草案/未执行”，真正执行前必须复审并确认。
+4. 实施或维护某个能力前读取对应 `docs/phases/` 文件；Phase 00 至 Phase 10 的规划内任务均已执行，真实生产发布仍受第 15.3 节门禁阻断。
 5. 检查实际代码、数据库迁移和自动化测试，确认“已实现状态”没有与文档漂移。
 
 ### 0.1 状态标签
@@ -123,8 +123,9 @@ ragflow_tracking_last_observed_at: "2026-07-30"
 - **[事实]** Phase 06 已实现查询规范化/改写/跨语言/关键词变体、递归 Filter AST、权限过滤、Elasticsearch 全文/向量双路召回、RRF、Provider 隔离 Reranker、有限安全降级和 PostgreSQL Retrieval Trace。
 - **[事实]** Phase 07 已实现不可变文档版本、更新/重解析、候选索引验证与原子发布、回滚、删除/恢复/回收、事务 Outbox、有限重试/死信、协作取消、批量任务和 tenant-scoped reconciliation；PostgreSQL 保持生命周期权威状态。
 - **[事实]** Phase 08 已实现直接 RAG 与 KnowledgeBaseTool 两条路径、查询规划/有限多轮检索、证据充分性、受控 SQL/API Tool、持久化 HITL、长期记忆治理、运行预算和 Agent Trace；单 Agent 基线满足首批场景，多 Agent 因无量化收益暂缓。
-- **[事实]** 外部 DeepSeek/BGE-M3/BGE Reranker 服务、生产 SQL/API 凭据、真实高风险写操作、模型型复杂版面和生产部署仍未验证或实现；CI 的 Chat/Embedding/Reranker 使用 Fake/Stub Provider，Tesseract 则使用真实运行时。
-- **[事实]** Phase 00 至 Phase 08 已完成；当前处于 Phase 09 计划复审门禁。
+- **[事实]** Phase 09 已实现九类默认关闭的高级能力与版本化派生物；确定性评测均为 no-go/off，视频未实现。
+- **[事实]** Phase 10 已实现评测/回归、可观测性、安全、Linux Docker Compose 生产候选、备份恢复和发布审查；本地候选门禁通过，但真实 DeepSeek/BGE/Vision/ASR、生产 IdP/凭据/网络、代表性业务数据、持续 SLO 与生产恢复/容量证据未完成。
+- **[事实]** Phase 00 至 Phase 10 的规划内任务已完成；机器发布报告明确 `production_exit=not_allowed`，不得把生产候选描述为真实生产上线完成。
 
 ### 3.2 双基线定义
 
@@ -642,7 +643,7 @@ Phase 03 `IngestionJob/Task` v1 的 `PENDING -> RUNNING -> SUCCEEDED|FAILED|CANC
 
 ## 14. 开发阶段与阶段依赖
 
-Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。生成或确认计划不等于执行阶段，也不自动开始业务代码。
+Phase 00 至 Phase 10 的规划内任务已完成。完成路线图不等于真实生产发布；生产出口仍以 `reports/phase10/release-report.json` 为准。
 
 | 阶段 | 名称 | 主要产出 | 依赖 | 当前状态 |
 |---|---|---|---|---|
@@ -655,8 +656,8 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 | Phase 06 | 在线检索 | 查询改写、跨语言、全文/向量/混合检索、过滤、Rerank、融合、降级、Citation、Trace | Phase 04、Phase 05 | 已完成；P06-T01 至 P06-T12 验收通过 |
 | Phase 07 | 文档生命周期 | 更新、删除、重解析、索引版本、幂等、补偿和一致性 | Phase 05、Phase 06 | 已完成；P07-T01 至 P07-T11 验收通过 |
 | Phase 08 | Agentic RAG | KnowledgeBaseTool、查询规划、多次检索、Tool 选择、SQL/API Tool、HITL、记忆和预算 | Phase 02、Phase 06 | 已完成；P08-T01 至 P08-T13 验收通过，多 Agent 暂缓 |
-| Phase 09 | 高级RAG | 自动关键词、自动问题、摘要、TOC、父子 Chunk、多模态 RAG、GraphRAG、RAPTOR、时序 RAG、开关和索引兼容 | Phase 05、Phase 06、Phase 08 | 预规划草案/未执行 |
-| Phase 10 | 评测与生产化 | 质量/性能回归门禁、全链路观测、安全、部署、伸缩、备份恢复和运行手册 | Phase 07、Phase 08、Phase 09 | 预规划草案/未执行 |
+| Phase 09 | 高级RAG | 自动关键词、自动问题、摘要、TOC、父子 Chunk、多模态 RAG、GraphRAG、RAPTOR、时序 RAG、开关和索引兼容 | Phase 05、Phase 06、Phase 08 | 已完成；全部 experimental/off、no-go |
+| Phase 10 | 评测与生产化 | 质量/性能回归门禁、全链路观测、安全、部署、伸缩、备份恢复和运行手册 | Phase 07、Phase 08、Phase 09 | 已完成；生产候选完成，真实发布不允许 |
 
 依赖原则：
 
@@ -682,7 +683,7 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 - **[事实]** Phase 06 的 `P06-T01` 至 `P06-T12` 已全部执行并通过阶段验收。
 - **[事实]** Phase 07 的 `P07-T01` 至 `P07-T11` 已全部执行并通过隔离四后端、故障注入、迁移和质量门禁。
 - **[事实]** Phase 08 的 `P08-T01` 至 `P08-T13` 已全部执行并通过阶段验收；确定性评测 28/28，隔离四后端完整测试 286 项通过，单 Agent 方案保留，多 Agent 暂缓。
-- **[事实]** Phase 09 至 Phase 10 为“预规划草案/未执行”；当前处于 Phase 09 计划复审门禁。
+- **[事实]** Phase 09 的 `P09-T01` 至 `P09-T12` 与 Phase 10 的 `P10-T01` 至 `P10-T13` 已执行并形成阶段记录；当前没有 Phase 11。
 
 ### 15.2 已完成
 
@@ -706,7 +707,7 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 18. **[事实]** 已生成 `docs/research/ragflow-baseline.md`、`project-baseline.md` 和 `ragflow-source-map.md`；源码结论固定到 commit `cd846cc9d4e32a19e684c59a1f302601027ef976`。
 19. **[事实]** P00-T12 原始跨文档一致性审计通过；14 个 Markdown 文件、当时 42 项能力、阶段编号、链接、表格和固定源码链接检查为零错误。
 20. **[事实]** 用户随后确认 Phase 00 出口；ADR-013 将“研究阶段完成”和“下一阶段执行准入”分离，Phase 00 已完成。
-21. **[事实]** Phase 01 至 Phase 10 详细计划已生成；Phase 01 至 Phase 08 已执行，Phase 09 至 Phase 10 未执行。
+21. **[事实]** Phase 01 至 Phase 10 详细计划均已生成并执行；Phase 10 的“任务完成”与“真实生产发布获准”是两个独立状态。
 22. **[事实]** 用户最新明确要求 Phase 09 规划时序 RAG；能力矩阵新增 `CAP-43`，不追溯改变 Phase 00 原始 42 项验收快照。
 23. **[决策]** ADR-016 已解决 O-001 与 O-012：冻结项目/包/服务命名、Git 仓库、GitHub Actions 和 `mypy`；这些 Phase 01 工程配置现已落地。
 24. **[事实]** Phase 01 已建立可安装包、类型化配置、日志/Trace、端口边界、可逆空迁移、FastAPI/Worker 空壳、Docker 开发环境和 CI 质量门禁。
@@ -728,15 +729,19 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 40. **[事实]** Phase 08 已落地共享 `KnowledgeQueryService` 的直接 RAG/Tool RAG、受控 SQL/API、持久化 HITL、长期记忆 TTL 清理、预算 ledger、Agent/Retrieval Trace 关联和 28 场景机器评测。
 41. **[事实]** Phase 08 完整隔离基础设施测试为 286 passed、1 个仅因本机缺少 Tesseract 的既有 OCR skip；真实 DeepSeek/BGE-M3/BGE Reranker 和生产 SQL/API 未验证。
 42. **[决策]** P08-T12 基于单 Agent 评测暂缓多 Agent；只有出现可量化且单 Agent 无法满足的质量、隔离或吞吐需求时重新评审。
+43. **[决策]** ADR-024 关闭 O-009/O-011：高级能力默认关闭，不引入图/时序数据库，多模态首批仅图片、图表和音频；视频不实现。
+44. **[事实]** Phase 09 的九类能力、数据集、开关、版本/权限/生命周期与独立评测已落地；没有复制、抽取或改写 RAGFlow 源码。
+45. **[决策]** ADR-025 冻结 Linux Docker Compose、同镜像 API/Worker、OTel/Prometheus、SLO、RPO/RTO、发布角色与 UI Deferred。
+46. **[事实]** Phase 10 已生成版本化数据集、质量门禁、SBOM/依赖/治理报告、隔离运维证据与最终 release report；本地候选完成，但真实生产项目尚未完成。
 
 ### 15.3 下一步
 
-下一步必须按阶段门禁执行：
+路线图没有 Phase 11。下一步是满足真实生产外部门禁，而不是继续扩大代码范围：
 
-1. 复审 `phase-09-advanced-rag.md`，基于 Phase 05 Parser/Chunk、Phase 06 Retrieval 和 Phase 08 Agent Tool/Policy 的真实接口冻结高级能力边界。
-2. 解决 Phase 09 的 O-009、O-011，以及 GraphRAG、RAPTOR、多模态、时序 RAG 所需数据集、资源预算、索引兼容和独立验收策略。
-3. 高级能力必须通过开关隔离并与普通索引兼容；不得绕过统一 `KnowledgeQueryService`、tenant/ACL、Evidence、Budget 或 Tool Policy。
-4. Phase 09 仍是预规划草案，本轮不得把 Phase 08 完成自动解释为 Phase 09 已批准或已执行。
+1. 由项目所有者确认项目分发许可证并完成生产 IdP、Secret、TLS 证书和受控网络出口接入。
+2. 在授权隔离环境运行真实 DeepSeek、BGE-M3、BGE Reranker、Vision/ASR smoke 与小型评测，并使用代表性脱敏业务数据校准阈值。
+3. 在目标生产规模执行容量、耐久、成本、备份恢复、发布回滚和持续 SLO 观测；所有严重安全违规必须保持为 0。
+4. 只有 `release-report.json` 的全部外部阻断项关闭并经 `release_owner`、`security_approver` 和 `ops_oncall` 批准，才能改变“不允许发布”结论。
 
 ---
 
@@ -781,14 +786,14 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 | O-006 | 已由 D-019/ADR-019 解决：Redis + ARQ 最小可靠任务链路 |
 | O-007 | Phase 04 已由 D-019/ADR-019 解决：DeepSeek + BGE-M3；Reranker/OCR/Vision 后续另审 |
 
-### 16.3 仍待确认问题
+### 16.3 仍待外部确认或接入
 
-| 编号 | 问题 | 未确认前的处理 |
-|---|---|---|
-| O-008 | 空结果降级的默认行为 | RetrievalResult 保留 `empty_reason` |
-| O-009 | GraphRAG 和 RAPTOR 的首个落地范围 | Phase 09 前通过评测需求决定 |
-| O-010 | 前端或管理控制台范围 | 当前只规划 API，不假定 UI 已确定 |
-| O-011 | 时序 RAG 数据模型、存储后端和查询协议 | Phase 09 前只保留端口、能力开关和实验验收要求 |
+| 项目 | 未满足前的处理 |
+|---|---|
+| 项目分发许可证 | 禁止把容器 label 当成所有者的法律确认；外部分发保持阻断 |
+| 生产 IdP、凭据、证书和网络出口 | 业务接口真实生产发布保持阻断 |
+| 真实 Provider 与代表性业务数据 | Fake/Stub 分数不得用于生产阈值或效果声明 |
+| 持续 SLO、生产恢复、容量和安全证据 | `production_exit` 保持 `not_allowed` |
 
 ### 16.4 主要风险
 
@@ -903,7 +908,7 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 | [`docs/phases/phase-07-document-lifecycle.md`](./phases/phase-07-document-lifecycle.md) | Phase 07 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-08-agentic-rag.md`](./phases/phase-08-agentic-rag.md) | Phase 08 详细规划与执行记录 | 已完成 |
 | [`docs/phases/phase-09-advanced-rag.md`](./phases/phase-09-advanced-rag.md) | Phase 09 详细规划与执行事实 | 已完成 |
-| [`docs/phases/phase-10-evaluation-and-production.md`](./phases/phase-10-evaluation-and-production.md) | Phase 10 详细规划 | 预规划草案/未执行 |
+| [`docs/phases/phase-10-evaluation-and-production.md`](./phases/phase-10-evaluation-and-production.md) | Phase 10 计划与执行记录 | 已完成；生产发布不允许 |
 
 ---
 
@@ -994,3 +999,4 @@ Phase 00 至 Phase 08 已完成；Phase 09 至 Phase 10 均为 **[规划]**。�
 | 2026-07-31 | 1.0.0 | 完成 Phase 07：文档版本、候选索引原子发布、删除/恢复/回收、Outbox、重试/取消/死信、批量和对账；进入 Phase 08 计划复审门禁 |
 | 2026-07-31 | 1.1.0 | 完成 Phase 08：直接 RAG/Tool RAG、Evidence、受控 SQL/API、HITL、长期记忆、预算、Trace 和 Agent 评测；多 Agent 暂缓，进入 Phase 09 计划复审门禁 |
 | 2026-08-01 | 1.2.0 | 完成 Phase 09：九类默认关闭高级能力、版本化派生物、GraphRAG/RAPTOR、多模态和事件/数值时序、独立 no-go 评测及兼容/生命周期门禁；进入 Phase 10 执行 |
+| 2026-08-01 | 1.3.0 | 完成 Phase 10 规划内代码与生产候选：评测/门禁、观测、安全、Docker、恢复/演练和 release report；真实生产出口保持不允许 |

@@ -15,9 +15,9 @@ UI/管理控制台不属于本路线图，当前只交付后端 API、Worker、�
 
 ## 配置与启动
 
-1. 将 `deploy/.env.production.example` 复制到仓库外的 Secret 管理位置并注入真实值；不得提交副本。
+1. 将 `deploy/production.env.example` 复制到仓库外的 Secret 管理位置并注入真实值；不得提交含真实值的副本。TLS 证书与私钥通过仓库外路径挂载到可选 `edge` profile。
 2. 为应用使用最小权限数据库账号、S3 凭据、Elasticsearch 身份和网络出口 allowlist。生产 Tool SQL 使用独立只读账号。
-3. 构建后生成 SBOM，完成依赖、镜像、密钥、许可证和 provenance 审查。
+3. 构建后生成 SBOM，完成依赖、镜像、密钥、许可证和 provenance 审查。项目所有者正式选择许可证之前，镜像 license 标签保持 `NOASSERTION`，不得对外分发。
 4. 先运行 `migrate`，确认成功后再滚动替换 API/Worker。
 
 ```bash
@@ -26,6 +26,8 @@ docker compose --env-file /secure/ragflow-agent.env -f deploy/docker-compose.pro
 docker compose --env-file /secure/ragflow-agent.env -f deploy/docker-compose.prod.yml run --rm migrate
 docker compose --env-file /secure/ragflow-agent.env -f deploy/docker-compose.prod.yml up -d api worker otel-collector prometheus grafana
 ```
+
+外部入口启用 `--profile edge`；Nginx 配置实施 TLS 1.2/1.3、请求速率限制和安全响应头。应用与观测网络默认 `internal`，真实 Provider 的网络出口必须由部署环境接入受控代理或 allowlist，不能直接解除默认拒绝。生产身份仍需由受信任 IdP/网关注入；在该集成完成前，业务接口发布门禁保持关闭。
 
 API 必须通过 `/health/live` 和 `/health/ready`，Worker 必须单独健康。`/metrics` 由 Prometheus 抓取，Trace 使用 OTLP；观测后端故障不得阻断核心请求。
 
@@ -53,6 +55,6 @@ API 必须通过 `/health/live` 和 `/health/ready`，Worker 必须单独健康�
 
 发布记录必须固定应用镜像 digest、配置版本、Alembic revision 和索引版本。回滚顺序：停止新流量/任务 → 恢复上一镜像和配置 → 对可逆迁移执行批准的 downgrade → 切回上一索引 alias → 复跑安全和评测门禁。不可逆迁移若没有备份、影子字段和回退脚本，禁止发布。
 
-当前生产出口结论以 [`reports/phase10/release-report.json`](../reports/phase10/release-report.json) 为准。没有真实 Provider、生产凭据、业务数据、持续 SLO 与生产恢复证据时，生产上线保持阻断。
+当前生产出口结论以 [`reports/phase10/release-report.json`](../reports/phase10/release-report.json) 为准。没有真实 Provider、生产凭据、业务数据、持续 SLO、生产恢复证据以及已鉴权的镜像漏洞扫描时，生产上线保持阻断。
 
 导航：[评测](./09-evaluation.md) · [工程标准](./06-engineering-standards.md) · [决策与风险](./07-decisions-and-risks.md) · [Phase 10](./phases/phase-10-evaluation-and-production.md)

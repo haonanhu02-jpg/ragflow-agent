@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "phase": "10",
+  "observed_at": "2026-08-01",
+  "test_mode": "isolated_local_docker_desktop",
+  "production_evidence": false,
+  "images": {
+    "linux_amd64": {
+      "image": "ragflow-agent:production-candidate",
+      "built": true,
+      "non_root_user": "ragflow-agent",
+      "api_bootstrap": true,
+      "worker_bootstrap": true
+    },
+    "linux_arm64": {
+      "built": false,
+      "reason": "Docker Hub anonymous token endpoint refused the connection on repeated attempts; architecture is not validated"
+    }
+  },
+  "compose": {
+    "fresh_isolated_project": "ragflow-agent-prodverify",
+    "postgres": "healthy",
+    "redis": "healthy",
+    "minio": "healthy",
+    "elasticsearch": "healthy",
+    "migration_job": "exited_0",
+    "api": "healthy",
+    "worker": "healthy",
+    "otel_collector": "running_and_received_spans",
+    "prometheus": "container_internal_ready",
+    "grafana": "container_internal_database_ok",
+    "api_container_internal_readiness": 200,
+    "api_container_internal_metrics": 200,
+    "host_port_forwarding": "not_validated_due_to_local_docker_desktop_port_mapping_anomaly"
+  },
+  "migration": {
+    "fresh_upgrade_to": "20260801_0006",
+    "round_trip": "20260801_0006_to_20260731_0005_to_20260801_0006",
+    "passed": true,
+    "environment": "isolated_local_postgresql"
+  },
+  "fault_drills": {
+    "postgres": "readiness_503_then_200_after_restart",
+    "redis": "healthy_after_restart",
+    "minio": "healthy_after_restart",
+    "elasticsearch": "healthy_after_restart",
+    "worker_kill": "detected_and_recovered_by_explicit_orchestrator_restart; automatic_restart_not_proven",
+    "application_network": "readiness_503_then_200_after_reconnect",
+    "provider_timeout": "deterministic_fault_injection_only",
+    "checkpoint_failure": "deterministic_fault_injection_only",
+    "dlq_backlog": "deterministic_fault_injection_only"
+  },
+  "limitations": [
+    "No production credentials, identity provider, TLS certificate, or production data was used",
+    "No real DeepSeek, BGE-M3, BGE Reranker, Vision, or ASR provider was run",
+    "No sustained monthly SLO or authorized production capacity evidence exists",
+    "The isolated restore used synthetic authority data and is not a production restore drill"
+  ]
+}

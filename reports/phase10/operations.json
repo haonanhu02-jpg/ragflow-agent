@@ -1,0 +1,97 @@
+{
+  "backup_restore": {
+    "elapsed_seconds": 0.03973260000202572,
+    "empty_target_enforced": true,
+    "entries": 3,
+    "hashes_validated": true,
+    "production_restore_proven": false,
+    "restored_content_matches": true,
+    "rpo_hours_target": 24,
+    "rto_hours_target": 4
+  },
+  "fault_drills": [
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "postgres_unavailable"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "redis_unavailable"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "minio_unavailable"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "elasticsearch_unavailable"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "worker_killed"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "provider_timeout"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "network_interrupted"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "checkpoint_failed"
+    },
+    {
+      "data_loss": false,
+      "detected": true,
+      "elapsed_seconds": 1.0,
+      "mode": "safe_fault_injection",
+      "recovered": true,
+      "scenario": "dlq_backlog"
+    }
+  ],
+  "performance": {
+    "backpressure_observed": true,
+    "cost_status": "local",
+    "error_rate": 0.0,
+    "max_concurrency": 32,
+    "p95_ms": 95.95,
+    "production_capacity_proven": false,
+    "sample_count": 100
+  },
+  "schema_version": 1,
+  "test_mode": "deterministic_and_isolated_local"
+}

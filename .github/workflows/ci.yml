@@ -1,4 +1,4 @@
-name: Phase 08 quality gate
+name: Phase 10 production candidate gate
 
 on:
   push:
@@ -9,13 +9,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: phase-08-${{ github.workflow }}-${{ github.ref }}
+  group: phase-10-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:17-alpine
@@ -75,7 +75,10 @@ jobs:
           enable-cache: true
 
       - name: Install locked dependencies
-        run: uv sync --frozen --all-groups
+        run: |
+          uv lock --check
+          uv sync --frozen --all-groups
+          uv pip check
 
       - name: Install OCR runtime and declared language packs
         run: |
@@ -104,7 +107,25 @@ jobs:
         run: uv run mypy src/ragflow_agent tests
 
       - name: Secret hygiene
-        run: uv run python scripts/check_secret_hygiene.py
+        run: |
+          uv run python scripts/check_secret_hygiene.py
+          uv run python scripts/check_repository_governance.py --output /tmp/governance-scan.json
+
+      - name: Deterministic datasets and release gates
+        run: |
+          uv run python -m ragflow_agent.evaluation.dataset datasets/phase10/v1/manifest.json
+          uv run python -m ragflow_agent.knowledge.advanced.evaluation \
+            --dataset datasets/phase09/v1/manifest.json \
+            --output /tmp/phase09-evaluation.json
+          uv run python -m ragflow_agent.evaluation.runner \
+            --dataset datasets/phase10/v1/manifest.json \
+            --output /tmp/phase10-evaluation.json
+          uv run python -m ragflow_agent.operations.verification \
+            --evaluation /tmp/phase10-evaluation.json \
+            --governance /tmp/governance-scan.json \
+            --operations-output /tmp/operations.json \
+            --release-output /tmp/release-report.json \
+            --commit "${GITHUB_SHA}"
 
       - name: Apply migrations
         run: uv run alembic upgrade head
@@ -122,3 +143,26 @@ jobs:
           uv run python -m ragflow_agent.bootstrap.api --check
           uv run python -m ragflow_agent.bootstrap.ingestion_worker --check
           docker compose -f docker-compose.dev.yml config --quiet
+          docker compose --env-file deploy/production.env.example \
+            -f deploy/docker-compose.prod.yml config --quiet
+
+      - name: Dependency audit and reproducible SBOM
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          timeout 180 uv run pip-audit --vulnerability-service osv \
+            --progress-spinner off --format json --output /tmp/dependency-audit.json
+          uv run cyclonedx-py environment .venv --pyproject pyproject.toml \
+            --output-reproducible --output-format JSON \
+            --output-file /tmp/ragflow-agent-sbom.json --validate
+
+      - name: Build linux amd64 production image and verify non-root
+        run: |
+          docker build --platform linux/amd64 \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --tag ragflow-agent:production-candidate .
+          test "$(docker image inspect --format '{{.Config.User}}' ragflow-agent:production-candidate)" = "ragflow-agent"
+          docker run --rm --entrypoint python ragflow-agent:production-candidate \
+            -m ragflow_agent.bootstrap.api --check
+          docker run --rm --entrypoint python ragflow-agent:production-candidate \
+            -m ragflow_agent.bootstrap.ingestion_worker --check
